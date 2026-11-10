@@ -149,13 +149,13 @@ a {
 
 /* CTA: New Report */
 .sidebar-cta {
-  padding: 12px 11px;
+  padding: 8px 10px;
   flex-shrink: 0;
 }
 
 .btn-create-case {
-  width: 100%;
-  height: 42px;
+  width: 44px;
+  height: 40px;
   background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
   color: #ffffff;
   border-radius: 8px;
@@ -163,9 +163,8 @@ a {
   font-weight: 600;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  padding: 0 11px;
-  gap: 10px;
+  justify-content: center;
+  padding: 0;
   box-shadow: 0 2px 8px rgba(37, 99, 235, 0.32);
   transition: all 0.15s ease;
   overflow: hidden;
@@ -183,9 +182,16 @@ a {
   height: 18px;
 }
 
+.app-sidebar:hover .btn-create-case {
+  width: 100%;
+  justify-content: flex-start;
+  padding: 0 11px;
+  gap: 10px;
+}
+
 /* Navigation items */
 .sidebar-nav {
-  padding: 8px 10px;
+  padding: 4px 10px 8px;
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
@@ -197,34 +203,37 @@ a {
 .sidebar-divider {
   height: 1px;
   background: var(--sidebar-border);
-  margin: 10px 4px 6px;
+  margin: 6px 4px;
   flex-shrink: 0;
 }
 
 .nav-section-title {
+  display: none;
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.8px;
   color: var(--text-dim);
   font-weight: 700;
-  padding: 8px 10px 4px;
+  padding: 10px 10px 4px;
   height: 28px;
-  display: flex;
   align-items: center;
+}
+
+.app-sidebar:hover .nav-section-title {
+  display: flex;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: center;
+  width: 44px;
   height: 40px;
-  padding: 0 11px;
+  padding: 0;
   border-radius: 8px;
   font-size: 13px;
   color: #475569;
-  transition: all 0.15s ease;
-  width: 100%;
-  text-align: left;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, width 0.22s ease;
   position: relative;
   border: 1px solid transparent;
   box-sizing: border-box;
@@ -233,11 +242,18 @@ a {
 .nav-icon {
   width: 20px;
   height: 20px;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: #2563eb;
   flex-shrink: 0;
   transition: color 0.15s ease;
+}
+
+.nav-icon svg, .nav-icon i {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
 }
 
 .nav-item:hover {
@@ -263,25 +279,30 @@ a {
   color: #1d4ed8;
 }
 
-/* Hidden labels in collapsed state, smoothly reveal on hover */
-.nav-label, .nav-badge, .active-case-label {
-  opacity: 0;
-  transform: translateX(-6px);
-  transition: opacity 0.18s ease, transform 0.18s ease;
-  pointer-events: none;
+/* In collapsed state: hide labels completely so icon is centered */
+.nav-label, .nav-badge {
+  display: none;
   white-space: nowrap;
 }
 
-.app-sidebar:hover .nav-label,
-.app-sidebar:hover .nav-badge,
-.app-sidebar:hover .active-case-label {
-  opacity: 1;
-  transform: translateX(0);
-  pointer-events: auto;
+/* On sidebar hover: expand buttons and show labels smoothly */
+.app-sidebar:hover .nav-item {
+  width: 100%;
+  justify-content: flex-start;
+  padding: 0 11px;
+  gap: 10px;
+}
+
+.app-sidebar:hover .nav-label {
+  display: inline;
+}
+
+.app-sidebar:hover .nav-badge {
+  display: inline-flex;
+  margin-left: auto;
 }
 
 .nav-badge {
-  margin-left: auto;
   background: #f1f5f9;
   color: var(--text-muted);
   font-size: 11px;
@@ -308,13 +329,17 @@ a {
 }
 
 .active-case-label {
+  display: none;
   font-size: 11px;
   color: var(--text-muted);
   padding: 4px 10px 4px;
   font-weight: 600;
-  display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.app-sidebar:hover .active-case-label {
+  display: flex;
 }
 
 /* Profile footer */
@@ -1102,10 +1127,19 @@ dialog::backdrop {
   .app-sidebar .profile-info,
   .app-sidebar .nav-label,
   .app-sidebar .nav-badge,
-  .app-sidebar .active-case-label {
-    opacity: 1;
-    transform: none;
-    pointer-events: auto;
+  .app-sidebar .active-case-label,
+  .app-sidebar .nav-section-title {
+    display: flex !important;
+    opacity: 1 !important;
+    transform: none !important;
+    pointer-events: auto !important;
+  }
+  .app-sidebar .nav-item,
+  .app-sidebar .btn-create-case {
+    width: 100% !important;
+    justify-content: flex-start !important;
+    padding: 0 11px !important;
+    gap: 10px !important;
   }
   .app-main {
     margin-left: 0;
