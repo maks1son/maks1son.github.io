@@ -30,38 +30,6 @@ export const weightFmt = value => {
   return `${(value * 100).toFixed(1).replace('.', ',')}%`;
 };
 
-export function defaultObject() {
-  return {
-    reportNumber: '19/0826-2',
-    valuationDate: '2026-08-19',
-    reportDate: '2026-08-20',
-    propertyType: 'Жилое помещение (квартира)',
-    rooms: 3,
-    address: 'Самарская область, г. Тольятти, Комсомольский район, мкрн Поволжский, ул. Новосадовая, д. 1, кв. 49',
-    cadastralNumber: '63:09:0201045:5015',
-    area: 66.8,
-    floor: 3,
-    totalFloors: 4,
-    wallMaterial: 'панель',
-    finish: 'улучшенная',
-    condition: 'хорошее',
-    balcony: 'да',
-    furniture: 'да',
-    purpose: 'Определение рыночной стоимости для совершения сделки купли-продажи (ст. 30 ГК РФ)',
-    client: 'Иванова Елена Ивановна',
-    appraiser: 'Орлова Анна Александровна',
-    company: 'ООО «РусОценка»',
-    tradeAdjustment: -6.0,
-    shares: [
-      { id: 's1', holder: 'Иванова Елена Ивановна', num: 193, den: 461 },
-      { id: 's2', holder: 'Разрезов Александр Михайлович', num: 193, den: 461 },
-      { id: 's3', holder: 'Разрезов Дмитрий Александрович', num: 25, den: 461 },
-      { id: 's4', holder: 'Разрезова Ксения Александровна', num: 25, den: 461 },
-      { id: 's5', holder: 'Матвеев Максим Антонович', num: 25, den: 461 },
-    ],
-  };
-}
-
 export function defaultAnalogs() {
   return [
     {
@@ -177,6 +145,166 @@ export function defaultAnalogs() {
   ];
 }
 
+export function createNewCase(opts = {}) {
+  const num = opts.number || `24/${String(Date.now()).slice(-4)}-1`;
+  return {
+    id: 'case_' + crypto.randomUUID(),
+    number: num,
+    status: opts.status || 'В работе', // 'В работе' | 'Готов' | 'Черновик' | 'В архиве'
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    objectData: {
+      reportNumber: num,
+      valuationDate: opts.valuationDate || new Date().toISOString().slice(0, 10),
+      reportDate: opts.reportDate || new Date().toISOString().slice(0, 10),
+      propertyType: 'Жилое помещение (квартира)',
+      rooms: opts.rooms || 2,
+      address: opts.address || 'г. Тольятти, Автозаводский район, ул. Юбилейная, д. 15, кв. 34',
+      cadastralNumber: opts.cadastralNumber || '63:09:0102030:1042',
+      area: opts.area || 54.0,
+      floor: opts.floor || 4,
+      totalFloors: opts.totalFloors || 9,
+      wallMaterial: opts.wallMaterial || 'панель',
+      finish: opts.finish || 'улучшенная',
+      condition: opts.condition || 'хорошее',
+      balcony: opts.balcony || 'да',
+      furniture: opts.furniture || 'да',
+      purpose: opts.purpose || 'Определение рыночной стоимости для совершения сделки купли-продажи (ст. 30 ГК РФ)',
+      client: opts.client || 'Петров Сергей Александрович',
+      appraiser: 'Орлова Анна Александровна',
+      company: 'ООО «РусОценка»',
+      tradeAdjustment: opts.tradeAdjustment != null ? opts.tradeAdjustment : -6.0,
+      shares: opts.shares || [
+        { id: 's1', holder: opts.client || 'Петров Сергей Александрович', num: 1, den: 1 }
+      ],
+    },
+    analogs: opts.analogs || [],
+  };
+}
+
+export function defaultCases() {
+  // 1. Официальное дело Анны из отчета (Готово)
+  const case1 = {
+    id: 'case_anna_19_0826',
+    number: '19/0826-2',
+    status: 'Готов',
+    createdAt: '2026-08-19T10:00:00Z',
+    updatedAt: '2026-08-20T16:30:00Z',
+    objectData: {
+      reportNumber: '19/0826-2',
+      valuationDate: '2026-08-19',
+      reportDate: '2026-08-20',
+      propertyType: 'Жилое помещение (квартира)',
+      rooms: 3,
+      address: 'Самарская область, г. Тольятти, Комсомольский район, мкрн Поволжский, ул. Новосадовая, д. 1, кв. 49',
+      cadastralNumber: '63:09:0201045:5015',
+      area: 66.8,
+      floor: 3,
+      totalFloors: 4,
+      wallMaterial: 'панель',
+      finish: 'улучшенная',
+      condition: 'хорошее',
+      balcony: 'да',
+      furniture: 'да',
+      purpose: 'Определение рыночной стоимости для совершения сделки купли-продажи (ст. 30 ГК РФ)',
+      client: 'Иванова Елена Ивановна',
+      appraiser: 'Орлова Анна Александровна',
+      company: 'ООО «РусОценка»',
+      tradeAdjustment: -6.0,
+      shares: [
+        { id: 's1', holder: 'Иванова Елена Ивановна', num: 193, den: 461 },
+        { id: 's2', holder: 'Разрезов Александр Михайлович', num: 193, den: 461 },
+        { id: 's3', holder: 'Разрезов Дмитрий Александрович', num: 25, den: 461 },
+        { id: 's4', holder: 'Разрезова Ксения Александровна', num: 25, den: 461 },
+        { id: 's5', holder: 'Матвеев Максим Антонович', num: 25, den: 461 },
+      ],
+    },
+    analogs: defaultAnalogs(),
+  };
+
+  // 2. Второе дело (В работе)
+  const case2 = createNewCase({
+    number: '21/0926-1',
+    status: 'В работе',
+    address: 'Самарская область, г. Тольятти, Автозаводский район, Приморский б-р, д. 18, кв. 72',
+    cadastralNumber: '63:09:0102044:3102',
+    area: 44.5,
+    rooms: 1,
+    floor: 6,
+    totalFloors: 10,
+    wallMaterial: 'кирпич',
+    finish: 'улучшенная',
+    client: 'Смирнов Андрей Михайлович',
+    analogs: [
+      {
+        id: 'c2_a1',
+        number: 1,
+        selected: true,
+        address: 'г. Тольятти, Автозаводский район, Приморский б-р, д. 12',
+        price: 2950000,
+        area: 43.8,
+        floor: 5,
+        totalFloors: 10,
+        wallMaterial: 'кирпич',
+        finish: 'улучшенная',
+        condition: 'хорошее',
+        balcony: 'да',
+        furniture: 'да',
+        source: 'Авито',
+        url: 'https://avito.ru',
+        published: 'сентябрь 2026г.',
+        floorAdj: 0.0,
+        finishAdj: 0.0,
+        areaAdj: 0.16,
+      },
+      {
+        id: 'c2_a2',
+        number: 2,
+        selected: true,
+        address: 'г. Тольятти, Автозаводский район, ул. Спортивная, д. 6',
+        price: 3100000,
+        area: 46.0,
+        floor: 1,
+        totalFloors: 10,
+        wallMaterial: 'кирпич',
+        finish: 'улучшенная',
+        condition: 'хорошее',
+        balcony: 'да',
+        furniture: 'да',
+        source: 'Циан',
+        url: 'https://cian.ru',
+        published: 'сентябрь 2026г.',
+        floorAdj: 5.0,
+        finishAdj: 0.0,
+        areaAdj: -0.34,
+      },
+      {
+        id: 'c2_a3',
+        number: 3,
+        selected: true,
+        address: 'г. Тольятти, Автозаводский район, ул. Революционная, д. 24',
+        price: 2800000,
+        area: 43.0,
+        floor: 10,
+        totalFloors: 10,
+        wallMaterial: 'кирпич',
+        finish: 'простая',
+        condition: 'хорошее',
+        balcony: 'да',
+        furniture: 'да',
+        source: 'Авито',
+        url: 'https://avito.ru',
+        published: 'сентябрь 2026г.',
+        floorAdj: 4.0,
+        finishAdj: 6.0,
+        areaAdj: 0.35,
+      },
+    ],
+  });
+
+  return [case1, case2];
+}
+
 /**
  * Расчёт поправки на этаж по методике Лейфера
  */
@@ -222,7 +350,7 @@ export function calculateAreaAdjustment(objArea, analogArea) {
  * Полный сравнительный расчёт (Таблица 12.2, 12.5 и статистика вариации)
  */
 export function calculateValuation(objectData, analogsList, tradeAdjustment = -6.0) {
-  const selected = analogsList.filter(a => a.selected);
+  const selected = (analogsList || []).filter(a => a.selected);
   if (!selected.length) {
     return {
       selectedCount: 0,
@@ -242,7 +370,6 @@ export function calculateValuation(objectData, analogsList, tradeAdjustment = -6
     const rawPricePerSqm = analog.price / analog.area;
     const initialPricePerSqm = Math.round(rawPricePerSqm);
 
-    // Последовательные корректировки в соответствии с таблицей 12.2
     const pTrade = rawPricePerSqm * (1 + tradeAdjustment / 100);
     const priceAfterTrade = Math.round(pTrade);
 
@@ -258,7 +385,6 @@ export function calculateValuation(objectData, analogsList, tradeAdjustment = -6
     const pArea = pFloor * (1 + areaAdj / 100);
     const priceAfterArea = Math.round(pArea);
 
-    // Подсчет количества ненулевых корректировок (Ki)
     let correctionsCount = 0;
     if (Math.abs(tradeAdjustment) > 0.001) correctionsCount++;
     if (Math.abs(finishAdj) > 0.001) correctionsCount++;
@@ -282,7 +408,6 @@ export function calculateValuation(objectData, analogsList, tradeAdjustment = -6
   });
 
   // 2. Расчёт весовых коэффициентов
-  // Весовой коэффициент = (Общее кол-во корректировок - кол-во аналога) / (Общее кол-во * (N - 1))
   const N = rows.length;
   const totalCorrections = rows.reduce((sum, r) => sum + r.correctionsCount, 0);
 
@@ -301,7 +426,7 @@ export function calculateValuation(objectData, analogsList, tradeAdjustment = -6
   const weightedPricePerSqm = rows.reduce((sum, r) => sum + r.finalAdjustedPrice * r.weight, 0);
   const pricePerSqm = Math.round(weightedPricePerSqm);
 
-  // 4. Итоговая рыночная стоимость полного права собственности (округление до 1 000 руб.)
+  // 4. Итоговая рыночная стоимость полного права собственности
   const rawTotal = pricePerSqm * objectData.area;
   const total = Math.round(rawTotal / 1000) * 1000;
 
@@ -340,3 +465,7 @@ export function calculateValuation(objectData, analogsList, tradeAdjustment = -6
     shares,
   };
 }
+export function defaultObject() {
+  return defaultCases()[0].objectData;
+}
+
