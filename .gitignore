@@ -3,3 +3,5 @@ dist/
 *.log
 artifacts/
 .openai/
+*.docx
+*.zip

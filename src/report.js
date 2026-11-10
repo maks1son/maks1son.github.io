@@ -1,29 +1,175 @@
-import { calculate, money, date } from './model.js';
+import { calculateValuation, money, moneyPerSqm, sqm, percent, weightFmt } from './model.js';
+
 export function download(blob, name) {
-  const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = name; link.click(); setTimeout(() => URL.revokeObjectURL(url), 15000);
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = name;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 15000);
 }
-export async function exportWord(record) {
-  const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, HeadingLevel, ImageRun } = await import('docx');
-  const result = calculate(record);
-  const p = text => new Paragraph({ children: [new TextRun({ text: String(text), size: 22 })], spacing: { after: 160 } });
-  const h = text => new Paragraph({ text, heading: HeadingLevel.HEADING_1 });
-  const cell = text => new TableCell({ children: [p(text)] });
-  const table = rows => new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: rows.map(row => new TableRow({ children: row.map(cell) })) });
-  const children = [h(`Учебный отчёт № ${record.number}`), p('ДЕМОНСТРАЦИОННЫЙ ДОКУМЕНТ. Не является профессиональным заключением об оценке. Методика и поправки условные; шаблон компании не подключён.'), h('1. Объект оценки'), p(`${record.model}, ${record.year} г.`), p(`Дата оценки: ${date(record.valuationDate)}. Местонахождение: ${record.city}. Цель: ${record.purpose}.`), p(`Состояние: ${record.condition}. Комплектация: ${record.equipment}. Пробег: ${record.km} км.`), p(record.description), h('2. Сравнительный расчёт'), p('Учебная методика v0.1. Цена × (1 + торг / 100) × (1 + год / 100) × (1 + состояние / 100) × (1 + комплектация / 100). Равные веса; среднее округляется до 1 000 рублей. Поправки задаёт сотрудник, автоматической привязки к характеристикам нет.'), table([['Аналог', 'Цена', 'Торг / год / состояние / комплект, %', 'После поправок'], ...result.rows.map(a => [`${a.model}, ${a.year}, ${a.city}`, money(a.price), `${record.trade} / ${a.yearAdj} / ${a.conditionAdj} / ${a.equipmentAdj}`, money(a.adjusted)])]), p(`Среднее до округления: ${result.exact?.toLocaleString('ru-RU', { maximumFractionDigits: 2 })} руб.`), p(`Демонстрационный результат: ${money(result.total)}.`), h('3. Источники и сохранённые описания')];
-  result.rows.forEach((a, i) => children.push(p(`${i + 1}. ${a.source}. Дата предложения: ${date(a.published)}. Сохранено: ${date(a.captured)}. ${a.url || (a.demo ? 'Вымышленный пример без внешней ссылки.' : 'Ссылка не указана сотрудником.')}`), p(a.text || 'Описание не добавлено.')));
-  children.push(h('4. Материалы объекта'));
-  for (const file of record.files) {
-    children.push(p(file.name));
-    if (/^image\/(png|jpeg)$/.test(file.type)) {
-      const buffer = Uint8Array.from(atob(file.data.split(',')[1]), c => c.charCodeAt(0));
-      const img = new Image(); img.src = file.data; await img.decode();
-      const scale = Math.min(1, 480 / img.naturalWidth, 650 / img.naturalHeight);
-      const width = Math.round(img.naturalWidth * scale), height = Math.round(img.naturalHeight * scale);
-      children.push(new Paragraph({ children: [new ImageRun({ data: buffer, type: file.type === 'image/png' ? 'png' : 'jpg', transformation: { width, height } })] }));
-    } else children.push(p('Файл хранится отдельно в материалах локального дела.'));
-  }
-  if (!record.files.length) children.push(p('Фотографии и документы не загружены.'));
-  children.push(h('5. Проверка оценщиком'), p('Исходные данные, сопоставимость, дата источников и основания каждой поправки требуют проверки. Подпись: ____________________'));
-  const doc = new Document({ creator: 'Росоценка · локальное демо', title: `Учебный отчёт ${record.number}`, sections: [{ children }] });
-  download(await Packer.toBlob(doc), `Учебный-отчёт-${record.number}.docx`);
+
+export async function exportApartmentReport(objectData, analogsList) {
+  const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, HeadingLevel, AlignmentType, BorderStyle } = await import('docx');
+  const result = calculateValuation(objectData, analogsList, objectData.tradeAdjustment);
+
+  const titleP = text => new Paragraph({
+    children: [new TextRun({ text, bold: true, size: 28, color: '1e3a5f' })],
+    spacing: { before: 200, after: 140 },
+  });
+
+  const h1 = text => new Paragraph({
+    text,
+    heading: HeadingLevel.HEADING_1,
+    spacing: { before: 300, after: 160 },
+  });
+
+  const p = (text, opts = {}) => new Paragraph({
+    children: [new TextRun({ text: String(text), size: 21, ...opts })],
+    spacing: { after: 120 },
+  });
+
+  const cell = (text, opts = {}) => new TableCell({
+    children: [new Paragraph({ children: [new TextRun({ text: String(text), size: 19, bold: opts.bold })], alignment: opts.align || AlignmentType.LEFT })],
+    shading: opts.bg ? { fill: opts.bg } : undefined,
+  });
+
+  const table = rows => new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: rows.map(r => new TableRow({ children: r.map(c => typeof c === 'object' && c !== null && 'text' in c ? cell(c.text, c) : cell(c)) })),
+  });
+
+  // Construct Report Document
+  const children = [
+    new Paragraph({
+      children: [
+        new TextRun({ text: 'УТВЕРЖДАЮ', bold: true, size: 20 }),
+      ],
+      alignment: AlignmentType.RIGHT,
+    }),
+    new Paragraph({
+      children: [
+        new TextRun({ text: 'Директор ООО «РусОценка»\n___________ А.А. Орлова\n', size: 20 }),
+      ],
+      alignment: AlignmentType.RIGHT,
+      spacing: { after: 240 },
+    }),
+
+    titleP(`ОТЧЕТ ОБ ОЦЕНКЕ № ${objectData.reportNumber}`),
+    p(`Объекта оценки: ${objectData.propertyType}, кадастровый номер ${objectData.cadastralNumber}, общей площадью ${sqm(objectData.area)}, расположенного по адресу: ${objectData.address}`),
+    p(`Заказчик: ${objectData.client} · Исполнитель: ${objectData.company} (г. Тольятти, ул. Гидростроевская, д. 12, тел. 28-48-08)`),
+    p(`Дата оценки: ${objectData.valuationDate} г. · Дата составления отчета: ${objectData.reportDate} г.`),
+
+    h1('1. Основные характеристики объекта оценки'),
+    table([
+      [{ text: 'Параметр', bold: true, bg: 'f1f5f9' }, { text: 'Значение', bold: true, bg: 'f1f5f9' }],
+      ['Адрес объекта', objectData.address],
+      ['Кадастровый номер', objectData.cadastralNumber],
+      ['Общая площадь', sqm(objectData.area)],
+      ['Этаж / Этажность', `${objectData.floor} из ${objectData.totalFloors} (средний)`],
+      ['Материал стен', objectData.wallMaterial],
+      ['Тип отделки', objectData.finish],
+      ['Техническое состояние', objectData.condition],
+      ['Балкон / лоджия', objectData.balcony],
+      ['Цель оценки', objectData.purpose],
+    ]),
+
+    h1('2. Расчет рыночной стоимости сравнительным подходом (Таблица 12.2)'),
+    p('Метод сравнения продаж (ФСО №7). Последовательное внесение корректировок, контроль выборки по коэффициенту вариации (≤33%) и взвешивание аналогов по количеству поправок.'),
+
+    table([
+      [
+        { text: 'Элемент сравнения / Поправка', bold: true, bg: 'e2e8f0' },
+        { text: 'Объект', bold: true, bg: 'e2e8f0' },
+        ...result.rows.map(r => ({ text: `Аналог №${r.number}`, bold: true, bg: 'e2e8f0' })),
+      ],
+      [
+        'Адрес предложения',
+        objectData.address,
+        ...result.rows.map(r => r.address),
+      ],
+      [
+        'Цена предложения, руб.',
+        'Определяется',
+        ...result.rows.map(r => money(r.price)),
+      ],
+      [
+        'Площадь, кв.м',
+        String(objectData.area),
+        ...result.rows.map(r => String(r.area)),
+      ],
+      [
+        'Цена за 1 кв.м до поправок',
+        '—',
+        ...result.rows.map(r => moneyPerSqm(r.initialPricePerSqm)),
+      ],
+      [
+        `Торг (${percent(objectData.tradeAdjustment)})`,
+        '—',
+        ...result.rows.map(r => moneyPerSqm(r.priceAfterTrade)),
+      ],
+      [
+        'Поправка на отделку',
+        objectData.finish,
+        ...result.rows.map(r => `${percent(r.finishAdj)} → ${moneyPerSqm(r.priceAfterFinish)}`),
+      ],
+      [
+        'Поправка на этаж',
+        `${objectData.floor}/${objectData.totalFloors}`,
+        ...result.rows.map(r => `${r.floor}/${r.totalFloors} (${percent(r.floorAdj)}) → ${moneyPerSqm(r.priceAfterFloor)}`),
+      ],
+      [
+        'Поправка на площадь (масштаб)',
+        sqm(objectData.area),
+        ...result.rows.map(r => `${percent(r.areaAdj)} → ${moneyPerSqm(r.finalAdjustedPrice)}`),
+      ],
+      [
+        'Число поправок (Ki)',
+        '—',
+        ...result.rows.map(r => String(r.correctionsCount)),
+      ],
+      [
+        'Удельный вес аналога',
+        '—',
+        ...result.rows.map(r => weightFmt(r.weight)),
+      ],
+    ]),
+
+    new Paragraph({ spacing: { before: 180 } }),
+    p(`Средневзвешенная цена 1 кв.м: ${moneyPerSqm(result.pricePerSqm)}`, { bold: true }),
+    p(`Итоговая рыночная стоимость полного права собственности: ${money(result.total)} (округленно до 1 000 руб.)`, { bold: true, color: '1e3a5f' }),
+    p(`Статистика выборки: среднее = ${moneyPerSqm(result.meanPrice)}, стандартное отклонение = ${result.stdDev} руб./кв.м, коэффициент вариации V = ${result.variationCoeff.toFixed(2)}% (допуск ≤ 33% соблюдён).`),
+
+    h1('3. Определение стоимости долей в праве общей собственности (Таблица 12.5)'),
+    table([
+      [{ text: 'Собственник', bold: true, bg: 'f1f5f9' }, { text: 'Доля', bold: true, bg: 'f1f5f9' }, { text: 'Номинальная стоимость', bold: true, bg: 'f1f5f9' }, { text: 'Рыночная стоимость (округл.)', bold: true, bg: 'f1f5f9' }],
+      ...result.shares.map(s => [
+        s.holder,
+        s.shareFraction,
+        money(s.nominal),
+        money(s.rounded),
+      ]),
+      [
+        { text: 'Итого полная стоимость', bold: true },
+        '1/1 (100%)',
+        money(result.total),
+        { text: money(result.shares.reduce((sum, s) => sum + s.rounded, 0)), bold: true },
+      ],
+    ]),
+
+    h1('4. Источники информации'),
+    ...result.rows.map(r => p(`Аналог №${r.number}: ${r.source} (${r.published}) — ${r.url || 'Ссылка сохранена в материалах дела'}`)),
+
+    h1('5. Заключение оценщика'),
+    p(`Оценщик ООО «РусОценка» Орлова А.А. подтверждает, что расчет выполнен в соответствии с Федеральными стандартами оценки. Итоговая рыночная стоимость объекта составляет ${money(result.total)} рублей.`),
+    p('Подпись оценщика: ____________________ / Орлова А.А. /'),
+  ];
+
+  const doc = new Document({
+    creator: 'ООО «РусОценка» · Цифровое рабочее место',
+    title: `Отчет об оценке ${objectData.reportNumber}`,
+    sections: [{ children }],
+  });
+
+  download(await Packer.toBlob(doc), `Отчет_об_оценке_${objectData.reportNumber.replace('/', '_')}.docx`);
 }

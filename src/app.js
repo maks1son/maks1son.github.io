@@ -1,122 +1,523 @@
 import { createIcons, icons } from 'lucide';
-import { money, date, newRecord, demoAnalogs, calculate } from './model.js';
-import { allCases, saveCase } from './storage.js';
-import { motorcycle } from './motorcycle.js';
-import { exportWord, download } from './report.js';
+import {
+  defaultObject,
+  defaultAnalogs,
+  calculateValuation,
+  money,
+  moneyPerSqm,
+  sqm,
+  percent,
+  weightFmt,
+} from './model.js';
+import { exportApartmentReport } from './report.js';
 import '@fontsource-variable/onest';
 import './styles.css';
-import './refinement.css';
 
-const $ = selector => document.querySelector(selector);
-const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// Storage keys
+const STORAGE_KEY_OBJ = 'rosocenka_apartment_obj_v1';
+const STORAGE_KEY_ANAL = 'rosocenka_apartment_analogs_v1';
+
+let objectData = loadObject();
+let analogs = loadAnalogs();
+
+function loadObject() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_OBJ);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return defaultObject();
+}
+
+function loadAnalogs() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_ANAL);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return defaultAnalogs();
+}
+
+function saveState() {
+  try {
+    localStorage.setItem(STORAGE_KEY_OBJ, JSON.stringify(objectData));
+    localStorage.setItem(STORAGE_KEY_ANAL, JSON.stringify(analogs));
+  } catch {}
+}
+
+function resetToDefault() {
+  objectData = defaultObject();
+  analogs = defaultAnalogs();
+  saveState();
+  render();
+  toast('Данные сброшены к образцу из отчёта Анны');
+}
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add('visible');
+  setTimeout(() => el.classList.remove('visible'), 3500);
+}
+
 const icon = name => `<i data-lucide="${name}"></i>`;
-const initialPage = location.hash.slice(1);
-let records = [], record, page = ['object','analogs','calculation','report','materials','archive'].includes(initialPage) ? initialPage : 'analogs', filter = 'all', query = '', city = 'all', saved = true, toastTimer;
-const steps = [['object', 'Объект', 'bike'], ['analogs', 'Аналоги', 'search'], ['calculation', 'Расчёт', 'calculator'], ['report', 'Отчёт', 'file-text'], ['materials', 'Материалы', 'folder-open']];
-function toast(text) { $('#toast').textContent = text; $('#toast').classList.add('visible'); clearTimeout(toastTimer); toastTimer = setTimeout(() => $('#toast').classList.remove('visible'), 4500); }
-async function persist(message) {
-  record.updated = new Date().toISOString();
-  if (message) record.history.unshift({ at: record.updated, text: message });
-  try { await saveCase(record); saved = true; } catch { saved = false; toast('Не удалось сохранить. Проверь свободное место и разрешения браузера.'); }
-  const badge = $('#save-state'); if (badge) badge.innerHTML = `${icon(saved ? 'cloud-check' : 'triangle-alert')} ${saved ? 'Сохранено на устройстве' : 'Изменения не сохранены'}`;
-  createIcons({ icons });
-}
-function btn(action, label, name, cls = '') { return `<button class="btn ${cls}" data-action="${action}">${name ? icon(name) : ''}${label}</button>`; }
-function badge(text, cls = '') { return `<span class="badge ${cls}">${text}</span>`; }
-function nav() { return `<aside class="sidebar"><a class="brand" href="#" data-page="analogs"><span class="brand-mark">${icon('scan-line')}</span><span>росоценка<span class="brand-sub">Рабочее место оценщика</span></span></a><div class="workspace-label">Рабочее пространство</div><button class="nav-item ${page === 'archive' ? 'active' : ''}" data-page="archive">${icon('layers')}<span>Все дела</span><span class="nav-count">${records.length}</span></button><div class="nav-divider"></div><div class="workspace-label">Дело № ${esc(record.number)}</div>${steps.map(([id, title, symbol]) => `<button class="nav-item ${page === id ? 'active' : ''}" data-page="${id}">${icon(symbol)}<span>${title}</span>${id === 'analogs' ? `<span class="nav-count">${record.analogs.length}</span>` : ''}</button>`).join('')}<div class="sidebar-bottom"><div class="local-status"><span class="status-dot"></span> Локальная версия</div><p>Материалы остаются<br>в этом браузере</p><div class="profile"><span class="avatar">ОЦ</span><span>Оценщик<small>Демонстрационный доступ</small></span></div></div></aside>`; }
-function heading(title, subtitle, action = '') { return `<div class="page-heading"><div><h1>${title}</h1><p>${subtitle}</p></div>${action}</div>`; }
-function objectStrip() { return `<section class="object-strip"><div class="object-thumb">${motorcycle()}</div><div class="object-name"><span class="eyebrow">Объект оценки</span><h2>${esc(record.model || 'Новый объект')}</h2><p>${record.year} год <span>•</span> ${esc(record.equipment)} <span>•</span> ${esc(record.condition)}</p></div><div class="object-meta"><span>Дата оценки</span><strong>${date(record.valuationDate)}</strong></div><button class="icon-button" data-page="object" aria-label="Редактировать объект">${icon('pencil')}</button></section>`; }
-function summary() {
-  const result = calculate(record);
-  return `<aside class="summary"><div class="summary-top"><span class="round-icon">${icon('calculator')}</span>${badge('Предварительно', 'green')}</div><h2>Результат оценки</h2><p>По выбранным аналогам</p><div class="result-number">${money(result.total)}</div><div class="result-caption">Учебный расчёт · округлено до 1 000 ₽</div><div class="summary-lines"><div><span>Выбрано аналогов</span><b>${result.rows.length} из ${record.analogs.length}</b></div><div><span>Подход</span><b>Сравнительный</b></div><div><span>Поправка на торг</span><b>${record.trade}%</b></div></div>${result.rows.length ? `<div class="range"><div class="range-track"><span></span><i></i></div><div><span>${money(result.min)}</span><span>${money(result.max)}</span></div><small>Диапазон после поправок</small></div>` : '<div class="notice">Выбери аналоги, чтобы рассчитать стоимость.</div>'}${btn('go-calculation', 'Открыть расчёт', 'arrow-up-right', 'primary full')}<div class="summary-foot">${icon('info')}<span>Итог проверяет оценщик.<br>Поправки в демо условные.</span></div><div class="next-step"><span>Следующий шаг</span><button data-page="report">Подготовить отчёт ${icon('arrow-right')}</button></div></aside>`;
-}
-function analogsView() {
-  const list = record.analogs.filter(a => (filter !== 'selected' || a.selected) && (city === 'all' || a.city === city) && `${a.model} ${a.city} ${a.year}`.toLowerCase().includes(query.toLowerCase()));
-  const selected = record.analogs.filter(a => a.selected).length;
-  return heading('Подбор аналогов', 'Соберите предложения и выберите сопоставимые объекты.', btn('add-analog', 'Добавить вручную', 'plus')) + objectStrip() + `<div class="work-grid"><div class="main-column"><section class="search-box"><div><h3>${icon('radar')} Поиск предложений</h3><span class="muted">Учебная выборка · без подключения к площадкам</span></div><div class="search-controls"><label class="search-input">${icon('search')}<input id="search" aria-label="Поиск по модели или городу" placeholder="Модель, город или год" value="${esc(query)}"></label><select id="city" aria-label="Регион поиска"><option value="all">Все регионы</option>${[...new Set(record.analogs.map(a=>a.city))].map(c=>`<option ${city===c?'selected':''}>${esc(c)}</option>`).join('')}</select>${btn('search-demo', 'Найти аналоги', 'search', 'primary')}</div></section><section class="table-panel"><div class="table-toolbar"><div class="tabs"><button data-filter="all" class="${filter === 'all' ? 'selected' : ''}">Все предложения <span>${record.analogs.length}</span></button><button data-filter="selected" class="${filter === 'selected' ? 'selected' : ''}">Выбранные <span>${selected}</span></button></div><span class="table-hint">${icon('sliders-horizontal')} Сравнение</span></div><div class="table-scroll"><table class="analog-table"><thead><tr><th><span class="sr-only">Выбор</span></th><th>Предложение</th><th>Цена</th><th>Характеристики</th><th>Сопоставимость</th><th></th></tr></thead><tbody>${list.map(a=>`<tr class="${a.selected ? 'chosen' : ''}"><td><input type="checkbox" data-select="${a.id}" ${a.selected ? 'checked' : ''} aria-label="Выбрать аналог ${esc(a.city)}"></td><td><div class="listing"><div class="listing-image">${motorcycle(a.color)}</div><div><button class="text-link" data-detail="${a.id}">${esc(a.model)}</button><span class="listing-city">${icon('map-pin')} ${esc(a.city)}</span><small>${esc(a.source)}</small></div></div></td><td class="price">${money(a.price)}<small>${date(a.published)}</small></td><td><b>${a.year} г. <span class="muted">/ ${new Intl.NumberFormat('ru-RU').format(a.km)} км</span></b><small>${esc(a.condition)}</small><small>${esc(a.equipment)}</small></td><td><span class="match ${a.id === 'a1' ? 'good' : ''}">${icon(a.id === 'a1' ? 'check-check' : 'git-compare-arrows')}${a.id === 'a1' ? 'Близкий аналог' : 'Есть отличия'}</span><small class="difference">${esc(a.note || 'Проверь характеристики')}</small></td><td><button class="icon-button" data-detail="${a.id}" aria-label="Открыть аналог ${esc(a.city)}">${icon('chevron-right')}</button></td></tr>`).join('')}</tbody></table>${!list.length?'<div class="empty">'+icon('search-x')+'<h3>Предложений не найдено</h3><p>Измени фильтр или добавь аналог вручную.</p></div>':''}</div><div class="table-footer"><span>Показано ${list.length} предложений</span><span>${icon('check-square-2')} Выбрано ${selected}</span></div></section><div class="assistant-note">${icon('sparkles')}<div><strong>Помощник замечает отличия</strong><p>Год, состояние и комплектность вынесены рядом с каждым предложением. Проверь их перед выбором.</p></div>${badge('Демо ИИ')}</div><p class="source-note">${icon('info')} Объявления учебные, изображения созданы ИИ. Свои источники можно добавить вручную.</p></div>${summary()}</div>`;
-}
-function field(label, name, value, type = 'text', extra = '') { return `<label class="field"><span>${label}</span><input name="${name}" type="${type}" value="${esc(value)}" ${extra}></label>`; }
-function selectField(label, name, value, choices) { return `<label class="field"><span>${label}</span><select name="${name}">${choices.map(c=>`<option ${value===c?'selected':''}>${esc(c)}</option>`).join('')}</select></label>`; }
-function objectView() { return heading('Объект оценки', 'Исходные данные, от которых начинается расчёт.', badge('Дело № ' + esc(record.number), 'green')) + `<div class="object-layout"><form id="object-form" class="panel"><div class="section-title"><h2>Характеристики мотоцикла</h2>${icon('bike')}</div><div class="form-grid">${field('Модель', 'model', record.model, 'text', 'required maxlength="120"')}${field('Год выпуска', 'year', record.year, 'number', 'required min="1900" max="2100"')}${field('Дата оценки', 'valuationDate', record.valuationDate, 'date', 'required')}${field('Местонахождение', 'city', record.city, 'text', 'required maxlength="100"')}${selectField('Состояние', 'condition', record.condition, ['Хорошее', 'Отличное', 'Требует ремонта', 'После реставрации'])}${selectField('Комплектация', 'equipment', record.equipment, ['С коляской', 'Без коляски'])}${field('Пробег, км', 'km', record.km, 'number', 'required min="0" max="10000000"')}${field('Цель оценки', 'purpose', record.purpose, 'text', 'required maxlength="200"')}</div><label class="field"><span>Описание и результаты осмотра</span><textarea name="description" rows="4" maxlength="5000">${esc(record.description)}</textarea></label><div class="form-actions"><span class="muted">После изменения объекта перепроверь аналоги и поправки.</span><button class="btn primary" type="submit">${icon('check')} Сохранить объект</button></div></form><aside><div class="object-hero">${motorcycle('#687c67', true)}<span>Изображение создано ИИ · учебный пример</span></div><div class="panel compact"><h3>Материалы осмотра</h3><p>Добавь фотографии и документы. Они сохранятся в этом деле.</p><button class="btn full" data-page="materials">${icon('paperclip')} Материалы (${record.files.length})</button></div><div class="notice">${icon('calendar-days')} Для оценки на прошлую дату нужны соответствующие ей источники. Демо не подтверждает историческую стоимость.</div></aside></div>`; }
-function calculationView() {
-  const result = calculate(record);
-  return heading('Расчёт стоимости', 'Каждая поправка видна. Каждое значение можно проверить.', badge('Учебная методика v0.1')) + `<div class="work-grid"><div class="main-column"><div class="notice">${icon('flask-conical')} Условная методика для демонстрации. Формулы компании пока не получены. Поправки задаются вручную и не меняются автоматически при редактировании объекта.</div><div class="panel"><div class="section-title"><h2>Корректировки аналогов</h2><label class="trade">Торг, % <input id="trade" type="number" min="-99" max="100" step="0.1" value="${record.trade}" aria-label="Поправка на торг"></label></div><div class="table-scroll"><table class="calc-table"><thead><tr><th>Аналог / цена</th><th>Год, %</th><th>Состояние, %</th><th>Комплект, %</th><th>После поправок</th></tr></thead><tbody>${result.rows.map(a=>`<tr><td><b>${esc(a.city)}, ${a.year}</b><small>${money(a.price)}</small></td>${['yearAdj','conditionAdj','equipmentAdj'].map((key,i)=>`<td><input type="number" min="-99" max="100" step="0.1" data-adjust="${a.id}" data-key="${key}" value="${a[key]}" aria-label="${['Год','Состояние','Комплект'][i]} ${esc(a.city)}"></td>`).join('')}<td class="price">${money(a.adjusted)}</td></tr>`).join('')}</tbody></table></div>${!result.rows.length?'<p class="empty">Сначала выбери аналоги в разделе подбора.</p>':''}<div class="formula"><span>Формула для каждого аналога</span><p>Цена × (1 + торг) × (1 + год) × (1 + состояние) × (1 + комплект)</p><small>Процентные поправки делятся на 100. Итог — среднее с равными весами.</small></div></div><div class="panel"><h3>Как получился результат</h3><div class="calculation-expression">${result.rows.length ? result.rows.map(a => money(a.adjusted)).join(' + ') + `<span>÷ ${result.rows.length} аналога = <strong>${money(result.total)}</strong></span>` : 'Нет выбранных аналогов'}</div><p class="muted">Вычисление выполняется без промежуточного округления. Итог округляется до 1 000 ₽.</p></div></div>${summary()}</div>`;
-}
-function reportBody() {
-  const result = calculate(record);
-  return `<article class="paper"><div class="paper-brand">РОСОЦЕНКА<span>Учебный документ</span></div>
-  <div class="paper-title"><span>Отчёт № ${esc(record.number)}</span><h2>Об определении<br>рыночной стоимости</h2><p>${esc(record.model)}, ${record.year} года выпуска</p></div>
-  <div class="paper-details"><div><span>Дата оценки</span><strong>${date(record.valuationDate)}</strong></div><div><span>Местонахождение</span><strong>${esc(record.city)}</strong></div></div>
-  <h3>1. Описание объекта</h3><p>${esc(record.description || 'Описание не заполнено.')} Состояние: ${esc(record.condition)}. ${esc(record.equipment)}. Пробег: ${record.km} км.</p>
-  <h3>2. Расчёт сравнительным подходом</h3><table><thead><tr><th>Аналог</th><th>Цена</th><th>Скорректированная цена</th></tr></thead><tbody>${result.rows.map(a=>`<tr><td>${esc(a.city)}, ${a.year}</td><td>${money(a.price)}</td><td>${money(a.adjusted)}</td></tr>`).join('')}</tbody></table>
-  <p class="paper-formula">Последовательные поправки: торг ${record.trade}%, затем год, состояние и комплектность. Среднее с равными весами; округление до 1 000 ₽.</p>
-  ${result.rows.map(a=>`<p class="paper-source">${esc(a.city)}: ${money(a.price)} × ${1+record.trade/100} × ${1+a.yearAdj/100} × ${1+a.conditionAdj/100} × ${1+a.equipmentAdj/100} = ${money(a.adjusted)}</p>`).join('')}
-  <div class="paper-total"><span>Демонстрационная стоимость</span><strong>${money(result.total)}</strong></div>
-  <h3>3. Источники</h3>${result.rows.map(a=>`<p class="paper-source">${esc(a.source)} · ${date(a.published)}. ${esc(a.url || (a.demo ? 'Вымышленное объявление, без внешней ссылки.' : 'Ссылка не указана сотрудником.'))}<br>${esc(a.text || 'Текст не добавлен.')}</p>`).join('')}
-  <h3>4. Материалы</h3>${record.files.length?record.files.map(f=>`<p>${esc(f.name)}</p>${f.type.startsWith('image/')?`<img class="report-photo" src="${f.data}" alt="${esc(f.name)}">`:''}`).join(''):'<p>Фотографии и документы не загружены.</p>'}
-  <div class="paper-disclaimer">Учебная методика v0.1. Не является заключением об оценке. Данные, источники и поправки требуют проверки оценщиком. Шаблон компании не подключён.</div></article>`;
-}
-function reportView() { const result = calculate(record); return heading('Подготовка отчёта', 'Данные дела собраны в редактируемый документ.', `<div class="button-group">${btn('print', 'Печать / PDF', 'printer')}${btn('word', 'Скачать Word', 'download', 'primary')}</div>`) + `<div class="report-layout"><div class="paper-wrap">${reportBody()}</div><aside class="panel report-check"><h3>Перед выгрузкой</h3>${[[!!record.model,'Объект заполнен'],[result.rows.length>=3,`${result.rows.length} аналога выбрано (учебный ориентир — 3)`],[record.files.length>0,'Фотографии и документы'],[!result.rows.some(a=>a.demo),'Реальные источники']].map(([ok,label])=>`<div class="check-line ${ok?'ok':''}">${icon(ok?'circle-check':'circle-dashed')}<span>${label}</span></div>`).join('')}<div class="notice">Word можно править после выгрузки. Для PDF выбери «Сохранить как PDF» в окне печати.</div><p>Это предварительный документ. Финальную проверку и утверждение выполняет оценщик.</p>${btn('archive-case','Сохранить в архив','archive','full')}</aside></div>`; }
-function materialsView() { return heading('Материалы дела', 'Фотографии, документы и сохранённые описания источников.', btn('upload','Загрузить файлы','upload','primary')) + `<input type="file" id="file-upload" multiple accept="image/png,image/jpeg,image/webp,.pdf,.docx,.txt,.html,.htm" hidden><div class="materials-grid"><section class="panel"><h2>Файлы объекта <span class="muted">${record.files.length}</span></h2><p class="muted">PNG, JPG, WebP, PDF, Word, текст или сохранённая страница. До 10 МБ на файл.</p>${record.files.length?record.files.map(f=>`<div class="file-row">${f.type.startsWith('image/')?`<img src="${f.data}" alt="${esc(f.name)}">`:icon('file-text')}<div><strong>${esc(f.name)}</strong><small>${(f.size/1024).toFixed(0)} КБ · локальный файл</small></div><button class="icon-button" data-download="${f.id}" aria-label="Скачать ${esc(f.name)}">${icon('download')}</button></div>`).join(''):`<button class="upload-area" data-action="upload">${icon('cloud-upload')}<strong>Добавь материалы осмотра</strong><span>Нажми, чтобы выбрать файлы</span></button>`}</section><section class="panel"><h2>Сохранённые источники</h2><p class="muted">${record.analogs.length} описаний. Учебные примеры не являются снимками реальных объявлений.</p>${record.analogs.map(a=>`<button class="source-row" data-detail="${a.id}">${icon('file-search')}<span><strong>${esc(a.city)} · ${money(a.price)}</strong><small>${esc(a.source)}</small></span>${icon('chevron-right')}</button>`).join('') || '<p>Источники пока не добавлены.</p>'}</section></div><section class="panel history"><h2>История дела</h2>${record.history.slice(0,12).map(h=>`<div><span class="status-dot"></span><p>${esc(h.text)}</p><time>${new Date(h.at).toLocaleString('ru-RU')}</time></div>`).join('')}</section>`; }
-function archiveView() { return heading('Все дела', 'Возвращайтесь к объектам, расчётам и материалам.', btn('new-case','Новое дело','plus','primary')) + `<div class="archive-intro"><div><h2>Порядок в каждой оценке.</h2><p>От исходных документов до готового отчёта — в одном деле.</p></div>${icon('folders')}</div><div class="panel"><div class="section-title"><h2>Сохранённые дела</h2>${badge(records.length + ' всего')}</div>${records.map(r=>`<button class="case-row" data-open="${r.id}"><span class="case-icon">${icon('bike')}</span><div><strong>${esc(r.model || 'Новый объект')}</strong><small>№ ${esc(r.number)} · ${r.year} год · ${esc(r.city)}</small></div><span class="case-date">${date(r.valuationDate)}</span>${badge(r.status, r.status==='В архиве'?'':'green')}<b>${money(calculate(r).total)}</b>${icon('chevron-right')}</button>`).join('')}</div><p class="source-note">${icon('hard-drive')} Дела хранятся в этом браузере. Очистка данных сайта удалит локальный архив.</p>`; }
+
 function render() {
-  try { localStorage.setItem('rosocenka-active-case', record.id); } catch { /* IndexedDB remains the primary store. */ }
-  $('#app').innerHTML = `${nav()}<div class="workspace"><header class="topbar"><div class="breadcrumb">Рабочее пространство ${icon('chevron-right')} <span>${page==='archive'?'Все дела':'Дело № '+esc(record.number)}</span></div><div class="topbar-right"><span id="save-state">${icon(saved?'cloud-check':'triangle-alert')}${saved?'Сохранено на устройстве':'Не сохранено'}</span>${badge('Демо', 'demo')}<button class="avatar small" data-action="help" aria-label="О демонстрации">?</button></div></header><main>${({ object:objectView, analogs:analogsView, calculation:calculationView, report:reportView, materials:materialsView, archive:archiveView }[page])()}</main><footer class="app-footer"><span>Росоценка · демонстрационная версия</span><span>Решение остаётся за оценщиком</span></footer></div>`;
+  const result = calculateValuation(objectData, analogs, objectData.tradeAdjustment);
+
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <header class="app-header">
+      <div class="brand-group">
+        <img class="brand-emblem" src="/images/rosocenka-emblem.png" alt="РусОценка">
+        <div class="brand-text">
+          <h1>РУСОЦЕНКА <span class="brand-badge">Дело № ${objectData.reportNumber}</span></h1>
+          <span class="brand-sub">Автоматизированное рабочее место оценщика · Жилая недвижимость</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-secondary btn-sm" id="btn-reset" title="Сбросить к исходному делу Анны">
+          ${icon('rotate-ccw')} Исходные данные
+        </button>
+        <button class="btn btn-secondary btn-sm" id="btn-print">
+          ${icon('printer')} Печать / PDF
+        </button>
+        <button class="btn btn-primary btn-sm" id="btn-export-word">
+          ${icon('file-text')} Экспорт в Word (.docx)
+        </button>
+      </div>
+    </header>
+
+    <main class="app-container">
+      <!-- Hero / Case Bar -->
+      <section class="case-hero">
+        <div class="case-info">
+          <div class="case-meta-row">
+            <span class="case-tag">ОБЪЕКТ ОЦЕНКИ</span>
+            <span>Кадастровый номер: <b>${objectData.cadastralNumber}</b></span>
+            <span>Дата оценки: <b>${objectData.valuationDate} г.</b></span>
+          </div>
+          <div class="case-address">${objectData.address}</div>
+          <div class="case-details-pills">
+            <span class="spec-pill">Площадь: <b>${sqm(objectData.area)}</b></span>
+            <span class="spec-pill">Этаж: <b>${objectData.floor} из ${objectData.totalFloors} (средний)</b></span>
+            <span class="spec-pill">Стены: <b>${objectData.wallMaterial}</b></span>
+            <span class="spec-pill">Отделка: <b>${objectData.finish}</b></span>
+            <span class="spec-pill">Состояние: <b>${objectData.condition}</b></span>
+            <span class="spec-pill">Балкон: <b>${objectData.balcony}</b></span>
+            <button class="btn btn-secondary btn-sm" id="btn-edit-obj" style="margin-left: 6px; padding: 2px 8px; font-size: 11px;">
+              ${icon('pencil')} Изменить параметры
+            </button>
+          </div>
+        </div>
+
+        <div class="valuation-metric-card">
+          <span class="metric-label">Рыночная стоимость (100% доля)</span>
+          <div class="metric-value">${money(result.total)}</div>
+          <div class="metric-sub">
+            <span>${moneyPerSqm(result.pricePerSqm)}</span>
+            <span>·</span>
+            <span>${result.selectedCount} из ${analogs.length} аналогов</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Main Workspace Grid -->
+      <div class="work-layout">
+        <div class="primary-col">
+          <!-- Table 12.2: Comparative Matrix -->
+          <section class="panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <h2>Матрица корректировок аналогов</h2>
+                <span class="badge">Таблица 12.2 отчёта</span>
+              </div>
+              <div class="panel-controls">
+                <div class="trade-bar" title="Общая скидка на торг для всех предложений рынка">
+                  <label for="trade-slider">Торг:</label>
+                  <input type="range" id="trade-slider" min="-15" max="0" step="0.5" value="${objectData.tradeAdjustment}">
+                  <output id="trade-val">${percent(objectData.tradeAdjustment)}</output>
+                </div>
+                <button class="btn btn-secondary btn-sm" id="btn-add-analog">
+                  ${icon('plus')} Добавить аналог
+                </button>
+              </div>
+            </div>
+
+            <div class="table-wrap">
+              <table class="calc-table">
+                <thead>
+                  <tr>
+                    <th style="width: 36px;"><span class="sr-only">Выбор</span></th>
+                    <th>Предложение и адрес</th>
+                    <th>Цена предложения</th>
+                    <th>Торг</th>
+                    <th>Отделка</th>
+                    <th>Этаж</th>
+                    <th>Масштаб</th>
+                    <th>Скоррект. 1 м²</th>
+                    <th>Поправки</th>
+                    <th>Вес в итоге</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${analogs.map((a, idx) => {
+                    const row = result.rows.find(r => r.id === a.id);
+                    const isSelected = a.selected;
+                    const pricePerSqmRaw = Math.round(a.price / a.area);
+                    return `
+                      <tr class="${isSelected ? 'active-row' : 'inactive-row'}">
+                        <td>
+                          <input type="checkbox" data-toggle="${a.id}" ${isSelected ? 'checked' : ''} aria-label="Включить в расчёт аналог №${idx+1}">
+                        </td>
+                        <td>
+                          <div class="analog-desc">
+                            <span class="analog-address">№${idx+1}. ${a.address.replace('г. Тольятти, Комсомольский район, мкрн Поволжский, ', '')}</span>
+                            <div class="analog-meta">
+                              <span>${a.area} м²</span>
+                              <span>·</span>
+                              <span>${a.floor}/${a.totalFloors} эт.</span>
+                              <span>·</span>
+                              <span>${a.finish}</span>
+                              <span>·</span>
+                              <a class="analog-link" href="${a.url}" target="_blank" rel="noopener noreferrer">${a.source} ${icon('external-link')}</a>
+                            </div>
+                          </div>
+                        </td>
+                        <td class="price-cell">
+                          ${money(a.price)}
+                          <span class="price-sub">${moneyPerSqm(pricePerSqmRaw)}</span>
+                        </td>
+                        <td>
+                          <span class="adj-chip neg">${percent(objectData.tradeAdjustment)}</span>
+                        </td>
+                        <td>
+                          <span class="adj-chip ${a.finishAdj > 0 ? 'pos' : (a.finishAdj < 0 ? 'neg' : 'neutral')}">${percent(a.finishAdj)}</span>
+                        </td>
+                        <td>
+                          <span class="adj-chip ${a.floorAdj > 0 ? 'pos' : (a.floorAdj < 0 ? 'neg' : 'neutral')}">${percent(a.floorAdj)}</span>
+                        </td>
+                        <td>
+                          <span class="adj-chip ${a.areaAdj > 0 ? 'pos' : (a.areaAdj < 0 ? 'neg' : 'neutral')}">${percent(a.areaAdj)}</span>
+                        </td>
+                        <td class="price-cell" style="color: var(--primary);">
+                          ${isSelected && row ? moneyPerSqm(row.finalAdjustedPrice) : '—'}
+                        </td>
+                        <td style="text-align: center;">
+                          <b>${isSelected && row ? row.correctionsCount : '—'}</b>
+                        </td>
+                        <td>
+                          ${isSelected && row ? `
+                            <div class="weight-bar-wrap">
+                              <div class="weight-track"><div class="weight-fill" style="width: ${row.weight * 100 * 3}%;"></div></div>
+                              <span class="weight-label">${weightFmt(row.weight)}</span>
+                            </div>
+                          ` : '<span style="color: var(--text-dim);">0%</span>'}
+                        </td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- Table 12.5: Shares Calculation -->
+          <section class="panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <h2>Распределение рыночной стоимости по долям</h2>
+                <span class="badge">Таблица 12.5 отчёта</span>
+              </div>
+              <span style="font-size: 12px; color: var(--text-muted);">Без скидки на долевой характер (единая реализация 100% объекта)</span>
+            </div>
+
+            <div class="shares-grid">
+              ${result.shares.map(s => `
+                <div class="share-card">
+                  <div>
+                    <div class="share-name">${s.holder}</div>
+                    <div class="share-frac">Доля: <b>${s.shareFraction}</b> (${s.percentOfTotal}%)</div>
+                  </div>
+                  <div class="share-money">
+                    ${money(s.rounded)}
+                    <small>номинал: ${money(s.nominal)}</small>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </section>
+        </div>
+
+        <!-- Sidebar Inspector -->
+        <aside class="sidebar-col">
+          <!-- Quality / Variation Stats Card -->
+          <div class="side-card">
+            <h3>Контроль выборки <span class="badge">Таблица 22</span></h3>
+            <div class="stat-item">
+              <span>Число аналогов в расчёте</span>
+              <b>${result.selectedCount} из ${analogs.length}</b>
+            </div>
+            <div class="stat-item">
+              <span>Среднее по выборке (Pср)</span>
+              <b>${moneyPerSqm(result.meanPrice)}</b>
+            </div>
+            <div class="stat-item">
+              <span>Стандартное отклонение (σ)</span>
+              <b>±${money(result.stdDev).replace(' ₽', '')} ₽/м²</b>
+            </div>
+            <div class="stat-item">
+              <span>Коэффициент вариации (V)</span>
+              <b>${result.variationCoeff != null ? result.variationCoeff.toFixed(2) + '%' : '—'}</b>
+            </div>
+            <div style="margin-top: 14px;">
+              ${result.variationPass ? `
+                <div class="status-badge ok">
+                  ${icon('check-circle')} Допуск соблюдён (V ≤ 33%)
+                </div>
+              ` : `
+                <div class="status-badge warn">
+                  ${icon('alert-triangle')} Внимание: V > 33% (выборка неоднородна)
+                </div>
+              `}
+            </div>
+          </div>
+
+          <!-- Methodology Box -->
+          <div class="side-card">
+            <h3>Методика расчёта</h3>
+            <div class="formula-box">
+              <strong>Формула весового коэффициента:</strong>
+              <code>Вес = (ΣK - Ki) / (ΣK × (N - 1))</code>
+              <p>Чем меньше поправок внесено в аналог, тем больше его удельный вес при согласовании стоимости.</p>
+              
+              <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 8px;">
+                <strong>Нормативная база:</strong>
+                <p>135-ФЗ «Об оценочной деятельности в РФ», ФСО I-VI №200, ФСО №7 («Оценка недвижимости»), «Справочник оценщика» под ред. Лейфера Л.А.</p>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </main>
+
+    <div id="toast" role="status" aria-live="polite"></div>
+    <dialog id="modal-dialog"></dialog>
+  `;
+
   createIcons({ icons });
+  bindEvents();
 }
-function navigate(next) { page=next; render(); window.scrollTo(0,0); }
-function modal(title, content) { $('#dialog').innerHTML=`<div class="dialog-head"><h2>${title}</h2><button class="icon-button" data-action="close" aria-label="Закрыть">${icon('x')}</button></div>${content}`; $('#dialog').showModal(); createIcons({ icons }); }
-function detail(id) { const a = record.analogs.find(x=>x.id===id); modal('Карточка источника', `<div class="detail-hero">${motorcycle(a.color)}<div><h3>${esc(a.model)}</h3><p>${esc(a.city)} · ${a.year}</p><strong>${money(a.price)}</strong></div></div><div class="notice">${a.demo?'Это вымышленное объявление. Оно показывает, как в программе сохраняется источник.':'Источник добавлен сотрудником. Достоверность и соответствие дате оценки нужно проверить.'}</div><div class="detail-meta"><span>Дата предложения: ${date(a.published)}</span><span>Сохранено: ${date(a.captured)}</span></div><p class="source-text">${esc(a.text || 'Текст не сохранён.')}</p>${a.url?`<a class="btn" href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">${icon('external-link')} Открыть источник</a>`:''}<div class="dialog-actions">${btn('close','Закрыть','','')}${btn('toggle-'+a.id,a.selected?'Убрать из расчёта':'Включить в расчёт','check','primary')}</div>`); }
-function addAnalog() { modal('Добавить аналог', `<p class="muted">Перенеси данные из объявления. Ссылка сохраняется, но страница автоматически не загружается.</p><form id="analog-form"><div class="form-grid">${field('Модель','model',record.model,'text','required maxlength="120"')}${field('Цена, ₽','price','','number','required min="1" max="1000000000"')}${field('Год выпуска','year',record.year,'number','required min="1900" max="2100"')}${field('Город','city','','text','required maxlength="100"')}${field('Пробег, км','km',0,'number','required min="0" max="10000000"')}${field('Дата объявления','published',record.valuationDate,'date','required')}${selectField('Состояние','condition','Хорошее',['Хорошее','Отличное','Требует ремонта','После реставрации'])}${selectField('Комплектация','equipment','С коляской',['С коляской','Без коляски'])}</div>${field('Ссылка на источник (необязательно)','url','','url','maxlength="2000" placeholder="https://…"')}<label class="field"><span>Сохранённый текст объявления</span><textarea name="text" rows="3" required maxlength="20000" placeholder="Вставь описание, чтобы оно осталось в деле"></textarea></label><div class="dialog-actions"><button class="btn" type="button" data-action="close">Отмена</button><button type="submit" class="btn primary">Добавить аналог</button></div></form>`); }
-document.addEventListener('click', async event => {
-  const el = event.target.closest('button, a'); if (!el) return;
-  if (el.dataset.page) { event.preventDefault(); navigate(el.dataset.page); return; }
-  if (el.dataset.filter) { filter=el.dataset.filter; render(); return; }
-  if (el.dataset.detail) { detail(el.dataset.detail); return; }
-  if (el.dataset.open) { record=records.find(r=>r.id===el.dataset.open); filter='all'; city='all'; query=''; navigate('object'); return; }
-  if (el.dataset.download) { const f=record.files.find(f=>f.id===el.dataset.download); download(await (await fetch(f.data)).blob(), f.name); return; }
-  const action=el.dataset.action; if (!action) return;
-  if (action==='close') $('#dialog').close();
-  if (action==='go-calculation') navigate('calculation');
-  if (action==='add-analog') addAnalog();
-  if (action==='help') modal('Как попробовать демо', '<div class="help-steps"><p><b>1.</b> Открой «Объект оценки» и измени характеристики.</p><p><b>2.</b> Выбери аналоги галочками или добавь своё объявление.</p><p><b>3.</b> В расчёте измени поправки и проверь сумму.</p><p><b>4.</b> Загрузи фотографии и скачай Word в разделе «Отчёт».</p><p><b>5.</b> Сохрани дело в архив и создай новое.</p><div class="notice">Поиск работает по вымышленной выборке. Нейросеть и площадки не подключены. Все основные действия выполняются локально без VPN и облачных запросов.</div></div>');
-  if (action==='search-demo') { if (!record.analogs.some(a=>a.demo)) { record.analogs.push(...demoAnalogs().map(a=>({...a,id:crypto.randomUUID(),selected:false}))); await persist('Добавлена учебная выборка аналогов'); } render(); toast('Учебная выборка загружена. Это демонстрация поиска, площадки не подключены.'); }
-  if (action?.startsWith('toggle-')) { const a=record.analogs.find(a=>a.id===action.slice(7)); a.selected=!a.selected; await persist('Изменён выбор аналога: '+a.city); $('#dialog').close(); render(); }
-  if (action==='new-case') { record=newRecord(); records.push(record); await persist(); navigate('object'); }
-  if (action==='archive-case') { record.status='В архиве'; await persist('Дело сохранено в архив'); navigate('archive'); toast('Дело сохранено в архив. Его можно открыть и продолжить.'); }
-  if (action==='upload') $('#file-upload').click();
-  if (action==='word' || action==='print') {
-    if (!record.model || !calculate(record).rows.length) { toast('Заполни модель объекта и выбери хотя бы один аналог.'); return; }
-    if (action==='print') { window.print(); return; }
-    el.disabled=true; try { await exportWord(record); await persist('Сформирован учебный отчёт Word'); toast('Word сформирован и передан браузеру для скачивания.'); } catch(e) { toast('Не удалось сформировать Word. Проверь вложенные изображения.'); console.error(e); } finally { el.disabled=false; }
+
+function bindEvents() {
+  // Trade slider
+  const slider = document.getElementById('trade-slider');
+  if (slider) {
+    slider.addEventListener('input', e => {
+      objectData.tradeAdjustment = parseFloat(e.target.value);
+      saveState();
+      render();
+    });
   }
-});
-document.addEventListener('input', event => { if (event.target.id==='search') { const pos=event.target.selectionStart; query=event.target.value; render(); $('#search').focus(); $('#search').setSelectionRange(pos,pos); } });
-document.addEventListener('change', async event => {
-  const el=event.target;
-  if (el.id==='city') { city=el.value; render(); }
-  if (el.dataset.select) { const a=record.analogs.find(a=>a.id===el.dataset.select); a.selected=el.checked; await persist('Изменён выбор аналога: '+a.city); render(); }
-  if (el.id==='trade' || el.dataset.adjust) { if (!el.value.trim() || !el.checkValidity()) { toast('Введи поправку от −99 до 100%.'); render(); return; } if (el.id==='trade') record.trade=Number(el.value); else record.analogs.find(a=>a.id===el.dataset.adjust)[el.dataset.key]=Number(el.value); await persist('Изменены поправки расчёта'); render(); }
-  if (el.id==='file-upload') {
-    const files=[...el.files];
-    for (const file of files) {
-      if(file.size>10*1024*1024) { toast(`${file.name}: файл больше 10 МБ`); continue; }
-      if(!/\.(png|jpe?g|webp|pdf|docx|txt|html?)$/i.test(file.name)) { toast('Этот формат не поддерживается.'); continue; }
-      try { const data=await new Promise((resolve,reject)=>{const reader=new FileReader(); reader.onload=()=>resolve(reader.result); reader.onerror=reject; reader.readAsDataURL(file);}); record.files.push({id:crypto.randomUUID(),name:file.name,type:file.type,size:file.size,data}); await persist('Добавлен файл: '+file.name); } catch { toast('Не удалось прочитать файл: '+file.name); }
+
+  // Toggling analogs
+  document.querySelectorAll('[data-toggle]').forEach(cb => {
+    cb.addEventListener('change', e => {
+      const id = e.target.dataset.toggle;
+      const item = analogs.find(a => a.id === id);
+      if (item) {
+        item.selected = e.target.checked;
+        saveState();
+        render();
+      }
+    });
+  });
+
+  // Reset
+  document.getElementById('btn-reset')?.addEventListener('click', resetToDefault);
+
+  // Print
+  document.getElementById('btn-print')?.addEventListener('click', () => window.print());
+
+  // Export Word
+  document.getElementById('btn-export-word')?.addEventListener('click', async () => {
+    try {
+      await exportApartmentReport(objectData, analogs);
+      toast('Отчёт сформирован и передан браузеру для скачивания');
+    } catch (err) {
+      console.error(err);
+      toast('Ошибка при формировании отчёта Word');
     }
+  });
+
+  // Edit Object Modal
+  document.getElementById('btn-edit-obj')?.addEventListener('click', openEditObjectModal);
+
+  // Add Analog Modal
+  document.getElementById('btn-add-analog')?.addEventListener('click', openAddAnalogModal);
+}
+
+function openEditObjectModal() {
+  const dialog = document.getElementById('modal-dialog');
+  dialog.innerHTML = `
+    <div class="modal-header">
+      <h3>Параметры объекта оценки</h3>
+      <button class="btn btn-secondary btn-sm" id="modal-close">${icon('x')}</button>
+    </div>
+    <form id="form-edit-obj" class="modal-form">
+      <div class="form-group">
+        <label>Адрес объекта</label>
+        <input type="text" name="address" value="${objectData.address}" required>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Кадастровый номер</label>
+          <input type="text" name="cadastralNumber" value="${objectData.cadastralNumber}" required>
+        </div>
+        <div class="form-group">
+          <label>Общая площадь (м²)</label>
+          <input type="number" step="0.1" name="area" value="${objectData.area}" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Этаж</label>
+          <input type="number" name="floor" value="${objectData.floor}" required>
+        </div>
+        <div class="form-group">
+          <label>Всего этажей</label>
+          <input type="number" name="totalFloors" value="${objectData.totalFloors}" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Отделка</label>
+          <select name="finish">
+            <option value="улучшенная" ${objectData.finish === 'улучшенная' ? 'selected' : ''}>Улучшенная</option>
+            <option value="простая" ${objectData.finish === 'простая' ? 'selected' : ''}>Простая</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Материал стен</label>
+          <select name="wallMaterial">
+            <option value="панель" ${objectData.wallMaterial === 'панель' ? 'selected' : ''}>Панель</option>
+            <option value="кирпич" ${objectData.wallMaterial === 'кирпич' ? 'selected' : ''}>Кирпич</option>
+            <option value="монолит" ${objectData.wallMaterial === 'монолит' ? 'selected' : ''}>Монолит</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" id="modal-cancel">Отмена</button>
+        <button type="submit" class="btn btn-primary">Сохранить изменения</button>
+      </div>
+    </form>
+  `;
+  createIcons({ icons });
+  dialog.showModal();
+
+  dialog.querySelector('#modal-close').onclick = () => dialog.close();
+  dialog.querySelector('#modal-cancel').onclick = () => dialog.close();
+  dialog.querySelector('#form-edit-obj').onsubmit = e => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    objectData.address = fd.get('address');
+    objectData.cadastralNumber = fd.get('cadastralNumber');
+    objectData.area = parseFloat(fd.get('area'));
+    objectData.floor = parseInt(fd.get('floor'));
+    objectData.totalFloors = parseInt(fd.get('totalFloors'));
+    objectData.finish = fd.get('finish');
+    objectData.wallMaterial = fd.get('wallMaterial');
+    saveState();
+    dialog.close();
     render();
-  }
-});
-document.addEventListener('submit', async event => {
-  if (!['object-form','analog-form'].includes(event.target.id)) return;
-  event.preventDefault(); const values=Object.fromEntries(new FormData(event.target));
-  if (!values.model.trim() || !values.city.trim()) { toast('Модель и город не могут быть пустыми.'); return; }
-  if (event.target.id==='object-form') { Object.assign(record, values, {year:Number(values.year),km:Number(values.km)}); await persist('Обновлены характеристики объекта'); render(); if(saved) toast('Объект сохранён. Проверь сопоставимость аналогов и поправки.'); }
-  else {
-    if (values.url && !/^https?:\/\//i.test(values.url)) { toast('Ссылка должна начинаться с https:// или http://'); return; }
-    if(!values.text.trim()) { toast('Добавь текст объявления.'); return; }
-    record.analogs.push({...values,id:crypto.randomUUID(),price:Number(values.price),year:Number(values.year),km:Number(values.km),selected:false,yearAdj:0,conditionAdj:0,equipmentAdj:0,source:'Ручной ввод',captured:new Date().toISOString().slice(0,10),demo:false,color:'#5e7770',note:'Поправки не заданы — проверь перед выбором'});
-    await persist('Добавлен аналог: '+values.city); $('#dialog').close(); filter='all'; city='all'; query=''; render(); if(saved) toast('Аналог добавлен. Проверь его и включи в расчёт.');
-  }
-});
-try { records=await allCases(); if(!records.length) { record=newRecord(true); records=[record]; await persist(); } else { let active; try { active=localStorage.getItem('rosocenka-active-case'); } catch {} record=records.find(r=>r.id===active) || records.sort((a,b)=>b.updated.localeCompare(a.updated))[0]; } render(); } catch(error) { $('#app').innerHTML='<div class="startup-error"><h1>Не удалось открыть локальное хранилище</h1><p>Разреши хранение данных сайта в браузере и обнови страницу.</p></div>'; console.error(error); }
+    toast('Параметры объекта обновлены');
+  };
+}
+
+function openAddAnalogModal() {
+  const dialog = document.getElementById('modal-dialog');
+  dialog.innerHTML = `
+    <div class="modal-header">
+      <h3>Добавить аналог в расчёт</h3>
+      <button class="btn btn-secondary btn-sm" id="modal-close">${icon('x')}</button>
+    </div>
+    <form id="form-add-analog" class="modal-form">
+      <div class="form-group">
+        <label>Адрес предложения</label>
+        <input type="text" name="address" placeholder="г. Тольятти, ул. ..." required>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Цена предложения (руб.)</label>
+          <input type="number" name="price" placeholder="3600000" required>
+        </div>
+        <div class="form-group">
+          <label>Площадь (м²)</label>
+          <input type="number" step="0.1" name="area" placeholder="68.5" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Этаж / Этажность</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="number" name="floor" placeholder="Этаж" required style="flex: 1;">
+            <input type="number" name="totalFloors" placeholder="Всего" required style="flex: 1;">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Отделка</label>
+          <select name="finish">
+            <option value="улучшенная">Улучшенная</option>
+            <option value="простая">Простая</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Ссылка на источник (Авито / Циан)</label>
+        <input type="url" name="url" placeholder="https://avito.ru/...">
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" id="modal-cancel">Отмена</button>
+        <button type="submit" class="btn btn-primary">Добавить в выборку</button>
+      </div>
+    </form>
+  `;
+  createIcons({ icons });
+  dialog.showModal();
+
+  dialog.querySelector('#modal-close').onclick = () => dialog.close();
+  dialog.querySelector('#modal-cancel').onclick = () => dialog.close();
+  dialog.querySelector('#form-add-analog').onsubmit = e => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const newAnalog = {
+      id: 'a_' + Date.now(),
+      number: analogs.length + 1,
+      selected: true,
+      address: fd.get('address'),
+      price: parseFloat(fd.get('price')),
+      area: parseFloat(fd.get('area')),
+      floor: parseInt(fd.get('floor')),
+      totalFloors: parseInt(fd.get('totalFloors')),
+      wallMaterial: 'панель',
+      finish: fd.get('finish'),
+      condition: 'хорошее',
+      balcony: 'да',
+      furniture: 'да',
+      source: 'Ручной ввод',
+      url: fd.get('url') || '',
+      published: 'текущий месяц',
+      floorAdj: 0.0,
+      finishAdj: 0.0,
+      areaAdj: 0.0,
+      note: 'Добавлен оценщиком',
+    };
+    analogs.push(newAnalog);
+    saveState();
+    dialog.close();
+    render();
+    toast('Аналог добавлен в сравнительную таблицу');
+  };
+}
+
+// Start
+render();
