@@ -89,7 +89,8 @@ function render() {
         </button>
 
         ${activeCase ? `
-          <div class="nav-section-title" style="margin-top: 14px;"><span class="nav-label">Активное дело</span></div>
+          <div class="sidebar-divider"></div>
+          <div class="nav-section-title"><span class="nav-label">Активное дело</span></div>
           <div class="active-case-menu">
             <div class="active-case-label">
               <span class="nav-label">№ ${activeCase.number}</span>
