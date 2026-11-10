@@ -49,13 +49,13 @@ function render() {
   const app = document.getElementById('app');
   const activeCase = getActiveCase();
 
-  // Sidebar
+  // Sidebar counters
   const inProgressCount = cases.filter(c => c.status === 'В работе').length;
   const readyCount = cases.filter(c => c.status === 'Готов').length;
 
   app.innerHTML = `
-    <!-- Sidebar -->
-    <aside class="app-sidebar">
+    <!-- Chrome-like Expandable Sidebar (White & Light Blue) -->
+    <aside class="app-sidebar" id="app-sidebar">
       <div class="sidebar-header">
         <img class="brand-emblem-img" src="/images/rosocenka-emblem.png" alt="РусОценка">
         <div class="brand-title">
@@ -65,59 +65,66 @@ function render() {
       </div>
 
       <div class="sidebar-cta">
-        <button class="btn-create-case" id="btn-create-case-sidebar">
-          ${icon('plus')} Новый отчёт
+        <button class="btn-create-case" id="btn-create-case-sidebar" title="Создать новый отчёт">
+          ${icon('plus')} <span class="nav-label">Новый отчёт</span>
         </button>
       </div>
 
       <nav class="sidebar-nav">
-        <div class="nav-section-title">Рабочее пространство</div>
-        <button class="nav-item ${currentView === 'cabinet' && filterStatus === 'all' ? 'active' : ''}" data-nav="all-cases">
-          ${icon('folder')} <span>Все дела</span>
+        <div class="nav-section-title"><span class="nav-label">Рабочее пространство</span></div>
+        <button class="nav-item ${currentView === 'cabinet' && filterStatus === 'all' ? 'active' : ''}" data-nav="all-cases" title="Все дела (${cases.length})">
+          <span class="nav-icon">${icon('folder')}</span>
+          <span class="nav-label">Все дела</span>
           <span class="nav-badge">${cases.length}</span>
         </button>
-        <button class="nav-item ${currentView === 'cabinet' && filterStatus === 'В работе' ? 'active' : ''}" data-nav="in-progress">
-          ${icon('clock')} <span>В работе</span>
+        <button class="nav-item ${currentView === 'cabinet' && filterStatus === 'В работе' ? 'active' : ''}" data-nav="in-progress" title="В работе (${inProgressCount})">
+          <span class="nav-icon">${icon('clock')}</span>
+          <span class="nav-label">В работе</span>
           <span class="nav-badge">${inProgressCount}</span>
         </button>
-        <button class="nav-item ${currentView === 'cabinet' && filterStatus === 'Готов' ? 'active' : ''}" data-nav="ready">
-          ${icon('check-circle')} <span>Готовые отчёты</span>
+        <button class="nav-item ${currentView === 'cabinet' && filterStatus === 'Готов' ? 'active' : ''}" data-nav="ready" title="Готовые отчёты (${readyCount})">
+          <span class="nav-icon">${icon('check-circle')}</span>
+          <span class="nav-label">Готовые отчёты</span>
           <span class="nav-badge">${readyCount}</span>
         </button>
 
         ${activeCase ? `
-          <div class="nav-section-title" style="margin-top: 14px;">Активное дело</div>
+          <div class="nav-section-title" style="margin-top: 14px;"><span class="nav-label">Активное дело</span></div>
           <div class="active-case-menu">
             <div class="active-case-label">
-              <span>№ ${activeCase.number}</span>
-              <span class="badge-status ${activeCase.status === 'Готов' ? 'ready' : (activeCase.status === 'В работе' ? 'in-progress' : 'draft')}">${activeCase.status}</span>
+              <span class="nav-label">№ ${activeCase.number}</span>
+              <span class="badge-status ${activeCase.status === 'Готов' ? 'ready' : (activeCase.status === 'В работе' ? 'in-progress' : 'draft')} nav-label">${activeCase.status}</span>
             </div>
-            <button class="nav-item ${currentView === 'case' && activeTab === 'object' ? 'active' : ''}" data-tab="object">
-              ${icon('home')} <span>1. Объект оценки</span>
+            <button class="nav-item ${currentView === 'case' && activeTab === 'object' ? 'active' : ''}" data-tab="object" title="1. Объект оценки">
+              <span class="nav-icon">${icon('home')}</span>
+              <span class="nav-label">1. Объект оценки</span>
             </button>
-            <button class="nav-item ${currentView === 'case' && activeTab === 'analogs' ? 'active' : ''}" data-tab="analogs">
-              ${icon('layers')} <span>2. Аналоги и поправки</span>
+            <button class="nav-item ${currentView === 'case' && activeTab === 'analogs' ? 'active' : ''}" data-tab="analogs" title="2. Аналоги и поправки">
+              <span class="nav-icon">${icon('layers')}</span>
+              <span class="nav-label">2. Аналоги и поправки</span>
             </button>
-            <button class="nav-item ${currentView === 'case' && activeTab === 'calculation' ? 'active' : ''}" data-tab="calculation">
-              ${icon('calculator')} <span>3. Расчёт и доли</span>
+            <button class="nav-item ${currentView === 'case' && activeTab === 'calculation' ? 'active' : ''}" data-tab="calculation" title="3. Расчёт и доли">
+              <span class="nav-icon">${icon('calculator')}</span>
+              <span class="nav-label">3. Расчёт и доли</span>
             </button>
-            <button class="nav-item ${currentView === 'case' && activeTab === 'report' ? 'active' : ''}" data-tab="report">
-              ${icon('file-text')} <span>4. Готовый документ</span>
+            <button class="nav-item ${currentView === 'case' && activeTab === 'report' ? 'active' : ''}" data-tab="report" title="4. Готовый документ">
+              <span class="nav-icon">${icon('file-text')}</span>
+              <span class="nav-label">4. Готовый документ</span>
             </button>
           </div>
         ` : ''}
       </nav>
 
-      <div class="sidebar-profile">
+      <div class="sidebar-profile" title="Орлова Анна Александровна · Ведущий оценщик">
         <div class="profile-avatar">АО</div>
         <div class="profile-info">
           <span class="profile-name">Орлова Анна А.</span>
-          <span class="profile-role">Ведущий оценщик · ООО «РусОценка»</span>
+          <span class="profile-role">Ведущий оценщик</span>
         </div>
       </div>
     </aside>
 
-    <!-- Main Content -->
+    <!-- Main Content Area -->
     <div class="app-main">
       <!-- Topbar -->
       <header class="app-topbar">
@@ -134,7 +141,7 @@ function render() {
 
         <div class="topbar-right">
           <span class="save-status-badge">
-            ${icon('check')} Сохранено в базе
+            ${icon('check')} Сохранено
           </span>
           ${currentView === 'case' && activeCase ? `
             <button class="btn btn-secondary btn-sm" id="btn-top-print">
@@ -178,7 +185,6 @@ function renderCabinetView() {
     return matchStatus && matchQuery;
   });
 
-  // Analytics Ribbon
   const totalValuation = cases.reduce((sum, c) => {
     const res = calculateValuation(c.objectData, c.analogs, c.objectData.tradeAdjustment);
     return sum + (res.total || 0);
