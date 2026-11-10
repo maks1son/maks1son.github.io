@@ -71,7 +71,6 @@ function render() {
       </div>
 
       <nav class="sidebar-nav">
-        <div class="nav-section-title"><span class="nav-label">Рабочее пространство</span></div>
         <button class="nav-item ${currentView === 'cabinet' && filterStatus === 'all' ? 'active' : ''}" data-nav="all-cases" title="Все дела (${cases.length})">
           <span class="nav-icon">${icon('folder')}</span>
           <span class="nav-label">Все дела</span>
@@ -90,29 +89,22 @@ function render() {
 
         ${activeCase ? `
           <div class="sidebar-divider"></div>
-          <div class="nav-section-title"><span class="nav-label">Активное дело</span></div>
-          <div class="active-case-menu">
-            <div class="active-case-label">
-              <span class="nav-label">№ ${activeCase.number}</span>
-              <span class="badge-status ${activeCase.status === 'Готов' ? 'ready' : (activeCase.status === 'В работе' ? 'in-progress' : 'draft')} nav-label">${activeCase.status}</span>
-            </div>
-            <button class="nav-item ${currentView === 'case' && activeTab === 'object' ? 'active' : ''}" data-tab="object" title="1. Объект оценки">
-              <span class="nav-icon">${icon('home')}</span>
-              <span class="nav-label">1. Объект оценки</span>
-            </button>
-            <button class="nav-item ${currentView === 'case' && activeTab === 'analogs' ? 'active' : ''}" data-tab="analogs" title="2. Аналоги и поправки">
-              <span class="nav-icon">${icon('layers')}</span>
-              <span class="nav-label">2. Аналоги и поправки</span>
-            </button>
-            <button class="nav-item ${currentView === 'case' && activeTab === 'calculation' ? 'active' : ''}" data-tab="calculation" title="3. Расчёт и доли">
-              <span class="nav-icon">${icon('calculator')}</span>
-              <span class="nav-label">3. Расчёт и доли</span>
-            </button>
-            <button class="nav-item ${currentView === 'case' && activeTab === 'report' ? 'active' : ''}" data-tab="report" title="4. Готовый документ">
-              <span class="nav-icon">${icon('file-text')}</span>
-              <span class="nav-label">4. Готовый документ</span>
-            </button>
-          </div>
+          <button class="nav-item ${currentView === 'case' && activeTab === 'object' ? 'active' : ''}" data-tab="object" title="1. Объект оценки">
+            <span class="nav-icon">${icon('home')}</span>
+            <span class="nav-label">1. Объект оценки</span>
+          </button>
+          <button class="nav-item ${currentView === 'case' && activeTab === 'analogs' ? 'active' : ''}" data-tab="analogs" title="2. Аналоги и поправки">
+            <span class="nav-icon">${icon('layers')}</span>
+            <span class="nav-label">2. Аналоги и поправки</span>
+          </button>
+          <button class="nav-item ${currentView === 'case' && activeTab === 'calculation' ? 'active' : ''}" data-tab="calculation" title="3. Расчёт и доли">
+            <span class="nav-icon">${icon('calculator')}</span>
+            <span class="nav-label">3. Расчёт и доли</span>
+          </button>
+          <button class="nav-item ${currentView === 'case' && activeTab === 'report' ? 'active' : ''}" data-tab="report" title="4. Готовый документ">
+            <span class="nav-icon">${icon('file-text')}</span>
+            <span class="nav-label">4. Готовый документ</span>
+          </button>
         ` : ''}
       </nav>
 

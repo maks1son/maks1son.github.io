@@ -154,7 +154,7 @@ a {
 }
 
 .btn-create-case {
-  width: 44px;
+  width: 100%;
   height: 40px;
   background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
   color: #ffffff;
@@ -163,11 +163,13 @@ a {
   font-weight: 600;
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 0;
+  justify-content: flex-start;
+  padding: 0 12px;
+  gap: 10px;
   box-shadow: 0 2px 8px rgba(37, 99, 235, 0.32);
   transition: all 0.15s ease;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 .btn-create-case:hover {
@@ -178,15 +180,8 @@ a {
 
 .btn-create-case i, .btn-create-case svg {
   flex-shrink: 0;
-  width: 18px;
-  height: 18px;
-}
-
-.app-sidebar:hover .btn-create-case {
-  width: 100%;
-  justify-content: flex-start;
-  padding: 0 11px;
-  gap: 10px;
+  width: 20px;
+  height: 20px;
 }
 
 /* Navigation items */
@@ -197,43 +192,28 @@ a {
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
 
 .sidebar-divider {
   height: 1px;
   background: var(--sidebar-border);
-  margin: 6px 4px;
+  margin: 8px 6px;
   flex-shrink: 0;
-}
-
-.nav-section-title {
-  display: none;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  color: var(--text-dim);
-  font-weight: 700;
-  padding: 10px 10px 4px;
-  height: 28px;
-  align-items: center;
-}
-
-.app-sidebar:hover .nav-section-title {
-  display: flex;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 44px;
+  justify-content: flex-start;
+  width: 100%;
   height: 40px;
-  padding: 0;
+  padding: 0 12px;
+  gap: 10px;
   border-radius: 8px;
   font-size: 13px;
   color: #475569;
-  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, width 0.22s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
   position: relative;
   border: 1px solid transparent;
   box-sizing: border-box;
@@ -279,30 +259,24 @@ a {
   color: #1d4ed8;
 }
 
-/* In collapsed state: hide labels completely so icon is centered */
+/* Labels: hidden in collapsed rail, smoothly fade in on expand */
 .nav-label, .nav-badge {
-  display: none;
+  opacity: 0;
+  transform: translateX(-6px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  pointer-events: none;
   white-space: nowrap;
 }
 
-/* On sidebar hover: expand buttons and show labels smoothly */
-.app-sidebar:hover .nav-item {
-  width: 100%;
-  justify-content: flex-start;
-  padding: 0 11px;
-  gap: 10px;
-}
-
-.app-sidebar:hover .nav-label {
-  display: inline;
-}
-
+.app-sidebar:hover .nav-label,
 .app-sidebar:hover .nav-badge {
-  display: inline-flex;
-  margin-left: auto;
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
 }
 
 .nav-badge {
+  margin-left: auto;
   background: #f1f5f9;
   color: var(--text-muted);
   font-size: 11px;
@@ -314,32 +288,6 @@ a {
 .nav-item.active .nav-badge {
   background: #bfdbfe;
   color: var(--primary);
-}
-
-/* Active Case Submenu in Sidebar (clean, no box / frame) */
-.active-case-menu {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  padding: 0;
-  margin: 0;
-}
-
-.active-case-label {
-  display: none;
-  font-size: 11px;
-  color: var(--text-muted);
-  padding: 4px 10px 4px;
-  font-weight: 600;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.app-sidebar:hover .active-case-label {
-  display: flex;
 }
 
 /* Profile footer */
@@ -1126,10 +1074,8 @@ dialog::backdrop {
   .app-sidebar .brand-title,
   .app-sidebar .profile-info,
   .app-sidebar .nav-label,
-  .app-sidebar .nav-badge,
-  .app-sidebar .active-case-label,
-  .app-sidebar .nav-section-title {
-    display: flex !important;
+  .app-sidebar .nav-badge {
+    display: inline-flex !important;
     opacity: 1 !important;
     transform: none !important;
     pointer-events: auto !important;
@@ -1138,7 +1084,7 @@ dialog::backdrop {
   .app-sidebar .btn-create-case {
     width: 100% !important;
     justify-content: flex-start !important;
-    padding: 0 11px !important;
+    padding: 0 12px !important;
     gap: 10px !important;
   }
   .app-main {
