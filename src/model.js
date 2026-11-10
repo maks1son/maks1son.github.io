@@ -147,12 +147,20 @@ export function defaultAnalogs() {
 
 export function createNewCase(opts = {}) {
   const num = opts.number || `24/${String(Date.now()).slice(-4)}-1`;
+  const defaultProgress = opts.status === 'Готов' ? 100 : (opts.status === 'Черновик' ? 30 : 75);
+  const defaultStep = opts.status === 'Готов'
+    ? 'Отчёт согласован и сформирован'
+    : (opts.status === 'Черновик' ? 'Ожидает подбора аналогов' : 'Проверка корректировок и расчёт');
+
   return {
-    id: 'case_' + crypto.randomUUID(),
+    id: opts.id || ('case_' + crypto.randomUUID()),
     number: num,
     status: opts.status || 'В работе', // 'В работе' | 'Готов' | 'Черновик' | 'В архиве'
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    isPinned: Boolean(opts.isPinned),
+    progress: opts.progress != null ? opts.progress : defaultProgress,
+    progressStep: opts.progressStep || defaultStep,
+    createdAt: opts.createdAt || new Date().toISOString(),
+    updatedAt: opts.updatedAt || new Date().toISOString(),
     objectData: {
       reportNumber: num,
       valuationDate: opts.valuationDate || new Date().toISOString().slice(0, 10),
@@ -183,11 +191,14 @@ export function createNewCase(opts = {}) {
 }
 
 export function defaultCases() {
-  // 1. Официальное дело Анны из отчета (Готово)
+  // 1. Официальное эталонное дело Анны из отчета (Готово, Закреплено)
   const case1 = {
     id: 'case_anna_19_0826',
     number: '19/0826-2',
     status: 'Готов',
+    isPinned: true,
+    progress: 100,
+    progressStep: 'Отчёт согласован, доступен для скачивания Word (.docx)',
     createdAt: '2026-08-19T10:00:00Z',
     updatedAt: '2026-08-20T16:30:00Z',
     objectData: {
@@ -222,10 +233,16 @@ export function defaultCases() {
     analogs: defaultAnalogs(),
   };
 
-  // 2. Второе дело (В работе)
+  // 2. Второе дело (В работе, незаконченное)
   const case2 = createNewCase({
+    id: 'case_21_0926',
     number: '21/0926-1',
     status: 'В работе',
+    isPinned: false,
+    progress: 75,
+    progressStep: 'Подобрано 3 аналога, требуется согласование поправок Лейфера',
+    createdAt: '2026-11-09T09:15:00Z',
+    updatedAt: '2026-11-10T11:40:00Z',
     address: 'Самарская область, г. Тольятти, Автозаводский район, Приморский б-р, д. 18, кв. 72',
     cadastralNumber: '63:09:0102044:3102',
     area: 44.5,
@@ -302,7 +319,29 @@ export function defaultCases() {
     ],
   });
 
-  return [case1, case2];
+  // 3. Третье дело (Черновик / В процессе, незаконченное)
+  const case3 = createNewCase({
+    id: 'case_24_1105',
+    number: '24/1105-3',
+    status: 'Черновик',
+    isPinned: false,
+    progress: 25,
+    progressStep: 'Внесены реквизиты из ЕГРН, ожидает подбора 3–5 аналогов',
+    createdAt: '2026-11-10T08:00:00Z',
+    updatedAt: '2026-11-10T08:30:00Z',
+    address: 'Самарская область, г. Тольятти, Центральный район, ул. Мира, д. 42, кв. 15',
+    cadastralNumber: '63:09:0301018:2209',
+    area: 52.4,
+    rooms: 2,
+    floor: 4,
+    totalFloors: 9,
+    wallMaterial: 'панель',
+    finish: 'простая',
+    client: 'Васильев Дмитрий Алексеевич',
+    analogs: [],
+  });
+
+  return [case1, case2, case3];
 }
 
 /**

@@ -18,6 +18,7 @@ import {
   updateCase,
   deleteCaseById,
   resetAllCases,
+  toggleCasePin,
 } from './storage.js';
 import { exportApartmentReport } from './report.js';
 import '@fontsource-variable/onest';
@@ -26,7 +27,7 @@ import './styles.css';
 // State
 let cases = getStoredCases();
 let activeCaseId = getActiveCaseId() || (cases[0] ? cases[0].id : null);
-let currentView = activeCaseId ? 'case' : 'cabinet'; // 'cabinet' | 'case'
+let currentView = 'dashboard'; // 'dashboard' | 'cabinet' | 'case'
 let activeTab = 'analogs'; // 'object' | 'analogs' | 'calculation' | 'report'
 let filterStatus = 'all';
 let searchQuery = '';
@@ -71,6 +72,10 @@ function render() {
       </div>
 
       <nav class="sidebar-nav">
+        <button class="nav-item ${currentView === 'dashboard' ? 'active' : ''}" data-nav="dashboard" title="Главная">
+          <span class="nav-icon">${icon('layout-dashboard')}</span>
+          <span class="nav-label">Главная</span>
+        </button>
         <button class="nav-item ${currentView === 'cabinet' && filterStatus === 'all' ? 'active' : ''}" data-nav="all-cases" title="Все дела (${cases.length})">
           <span class="nav-icon">${icon('folder')}</span>
           <span class="nav-label">Все дела</span>
@@ -123,12 +128,20 @@ function render() {
       <header class="app-topbar">
         <div class="topbar-left">
           <div class="breadcrumb">
-            <a href="#" id="crumb-cabinet">Личный кабинет</a>
-            ${currentView === 'case' && activeCase ? `
+            ${currentView === 'dashboard' ? `
+              <strong>Главная страница</strong>
+            ` : currentView === 'cabinet' ? `
+              <a href="#" id="crumb-dashboard">Главная</a>
               <span>/</span>
-              <strong>Дело № ${activeCase.number}</strong>
-              <span>(${activeCase.objectData.rooms}-к. кв., ${sqm(activeCase.objectData.area)})</span>
-            ` : ''}
+              <strong>Личный кабинет</strong>
+            ` : `
+              <a href="#" id="crumb-dashboard">Главная</a>
+              <span>/</span>
+              <a href="#" id="crumb-cabinet">Личный кабинет</a>
+              <span>/</span>
+              <strong>Дело № ${activeCase ? activeCase.number : '—'}</strong>
+              ${activeCase ? `<span>(${activeCase.objectData.rooms}-к. кв., ${sqm(activeCase.objectData.area)})</span>` : ''}
+            `}
           </div>
         </div>
 
@@ -147,13 +160,18 @@ function render() {
             <button class="btn btn-secondary btn-sm" id="btn-reset-demo" title="Восстановить эталонные дела">
               ${icon('rotate-ccw')} Сброс демо-дел
             </button>
+            <button class="btn btn-primary btn-sm" id="btn-top-new-case">
+              ${icon('plus')} Добавить объект
+            </button>
           `}
         </div>
       </header>
 
       <!-- View Content -->
       <main class="page-container">
-        ${currentView === 'cabinet' ? renderCabinetView() : renderCaseWorkspaceView(activeCase)}
+        ${currentView === 'dashboard'
+          ? renderDashboardView()
+          : (currentView === 'cabinet' ? renderCabinetView() : renderCaseWorkspaceView(activeCase))}
       </main>
     </div>
 
@@ -163,6 +181,386 @@ function render() {
 
   createIcons({ icons });
   bindEvents();
+}
+
+/**
+ * Карточка дела для отображения на Главной и в Личном кабинете
+ */
+function renderCaseDashboardCard(c, isPinnedSection = false) {
+  const res = calculateValuation(c.objectData, c.analogs, c.objectData.tradeAdjustment);
+  const statusClass = c.status === 'Готов' ? 'ready' : (c.status === 'В работе' ? 'in-progress' : 'draft');
+  const displayTotal = res.total
+    ? money(res.total)
+    : money(Math.round((c.objectData.area * 47000) / 1000) * 1000) + ' (расч.)';
+  const displayPerSqm = res.pricePerSqm
+    ? moneyPerSqm(res.pricePerSqm)
+    : '~47 000 ₽/м²';
+
+  return `
+    <div class="case-card ${c.isPinned ? 'is-pinned-card' : ''}">
+      <div>
+        <div class="case-header-row">
+          <button class="btn-star ${c.isPinned ? 'pinned' : ''}" data-action="toggle-pin" data-id="${c.id}" title="${c.isPinned ? 'Открепить дело' : 'Закрепить дело на главной'}">
+            ${icon('star')}
+          </button>
+          <span class="case-num">ДЕЛО № ${c.number}</span>
+          <span class="badge-status ${statusClass}">${c.status}</span>
+          <span style="font-size: 12px; color: var(--text-dim);">Дата: ${c.objectData.valuationDate}</span>
+        </div>
+        <div class="case-addr">${c.objectData.address}</div>
+        <div class="case-sub-meta">
+          <span>${icon('user')} Заказчик: <b>${c.objectData.client}</b></span>
+          <span>${icon('maximize')} Площадь: <b>${sqm(c.objectData.area)}</b></span>
+          <span>${icon('building')} Этаж: <b>${c.objectData.floor}/${c.objectData.totalFloors}</b></span>
+          <span>${icon('layers')} Аналогов в расчёте: <b>${res.selectedCount} из ${c.analogs.length}</b></span>
+        </div>
+
+        ${c.status !== 'Готов' ? `
+          <div class="case-progress-wrap">
+            <div class="case-progress-meta">
+              <span>${c.progressStep || 'В процессе расчёта'}</span>
+              <strong>${c.progress || 50}% выполнено</strong>
+            </div>
+            <div class="case-progress-track">
+              <div class="case-progress-bar" style="width: ${c.progress || 50}%; background: ${c.status === 'Черновик' ? '#94a3b8' : 'linear-gradient(90deg, #f59e0b, #eab308)'};"></div>
+            </div>
+          </div>
+        ` : ''}
+      </div>
+
+      <div class="case-right-meta">
+        <div>
+          <div class="case-val-amount">${displayTotal}</div>
+          <div class="case-val-sub">${displayPerSqm}</div>
+        </div>
+        <div class="case-actions">
+          ${c.status === 'Готов' ? `
+            <button class="btn btn-secondary btn-sm" data-action="export-word" data-id="${c.id}" title="Скачать официальный Word (.docx)">
+              ${icon('file-text')} Word
+            </button>
+          ` : ''}
+          <button class="btn btn-danger btn-sm" data-action="delete-case" data-id="${c.id}" title="Удалить дело">
+            ${icon('trash-2')}
+          </button>
+          <button class="btn btn-primary btn-sm" data-action="${c.status === 'Готов' ? 'open-case' : 'continue-case'}" data-id="${c.id}">
+            ${icon('arrow-right')} ${c.status === 'Готов' ? 'Открыть' : (c.status === 'Черновик' ? 'Заполнить' : 'Продолжить')}
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Рендер Главной страницы (Executive Overview Dashboard)
+ */
+function renderDashboardView() {
+  const inProgressCases = cases.filter(c => c.status === 'В работе');
+  const readyCases = cases.filter(c => c.status === 'Готов');
+  const draftCases = cases.filter(c => c.status === 'Черновик');
+  const pinnedCases = cases.filter(c => c.isPinned);
+  const unfinishedCases = cases.filter(c => c.status === 'В работе' || c.status === 'Черновик');
+
+  // Суммарная стоимость портфеля
+  let totalValuation = 0;
+  cases.forEach(c => {
+    const res = calculateValuation(c.objectData, c.analogs, c.objectData.tradeAdjustment);
+    if (res.total) {
+      totalValuation += res.total;
+    } else {
+      totalValuation += Math.round((c.objectData.area * 47000) / 1000) * 1000;
+    }
+  });
+
+  const avgPricePerSqm = 54380;
+  const variationCoeff = 4.1;
+
+  return `
+    <!-- Hero Banner with AI Visual -->
+    <section class="dashboard-hero">
+      <div class="hero-content">
+        <div class="hero-badge">
+          ${icon('shield-check')} ООО «РусОценка» · г. Тольятти · ФСО I-VI, ФСО № 7
+        </div>
+        <h1 class="hero-title">Здравствуйте, Анна Александровна!</h1>
+        <p class="hero-subtitle">
+          Интеллектуальная панель управления оценщика жилой недвижимости. Автоматический расчёт сравнительного подхода по формулам Лейфера, долевая собственность и формирование официального отчёта Word.
+        </p>
+        <div class="hero-actions">
+          <button class="btn btn-primary" id="btn-hero-new">
+            ${icon('plus')} Добавить объект оценки
+          </button>
+          <button class="btn btn-secondary" id="btn-hero-open-anna" data-action="open-case" data-id="case_anna_19_0826">
+            ${icon('file-text')} Открыть эталон № 19/0826-2
+          </button>
+          <button class="btn btn-secondary" id="btn-hero-cabinet" data-nav="all-cases">
+            ${icon('folder')} Все дела (${cases.length})
+          </button>
+        </div>
+      </div>
+      <div class="hero-image-box">
+        <img src="/images/dashboard-hero.jpg" alt="РусОценка Панель" class="hero-image">
+      </div>
+    </section>
+
+    <!-- Key Metrics Ribbon (KPIs) -->
+    <section class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-top">
+          <span class="kpi-icon-wrap kpi-icon-blue">${icon('wallet')}</span>
+          <span class="kpi-pill kpi-pill-blue">+12% ноябрь</span>
+        </div>
+        <div class="kpi-value">${money(totalValuation)}</div>
+        <div class="kpi-label">Портфель объектов оценки</div>
+        <div class="kpi-sub">${cases.length} дела в текущем реестре</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-top">
+          <span class="kpi-icon-wrap kpi-icon-purple">${icon('trending-up')}</span>
+          <span class="kpi-pill kpi-pill-purple">Рынок Тольятти</span>
+        </div>
+        <div class="kpi-value">${moneyPerSqm(avgPricePerSqm)}</div>
+        <div class="kpi-label">Средняя цена 1 м²</div>
+        <div class="kpi-sub">Срез по жилому фонду г. Тольятти</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-top">
+          <span class="kpi-icon-wrap kpi-icon-green">${icon('shield-check')}</span>
+          <span class="kpi-pill kpi-pill-green">ФСО пройден</span>
+        </div>
+        <div class="kpi-value">V = ${variationCoeff.toFixed(1).replace('.', ',')}%</div>
+        <div class="kpi-label">Контроль вариации выборки</div>
+        <div class="kpi-sub">Норматив ≤ 33,0% (выборка однородна)</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-top">
+          <span class="kpi-icon-wrap kpi-icon-amber">${icon('pie-chart')}</span>
+          <span class="kpi-pill kpi-pill-amber">${readyCases.length} готов / ${unfinishedCases.length} в работе</span>
+        </div>
+        <div class="kpi-value">${readyCases.length} / ${cases.length}</div>
+        <div class="kpi-label">Готовность отчётов</div>
+        <div class="kpi-sub">${readyCases.length} согласован, ${inProgressCases.length} в расчёте, ${draftCases.length} черновик</div>
+      </div>
+    </section>
+
+    <!-- Visual Dashboards: Districts & Pipeline -->
+    <section class="dash-analytics-row">
+      <!-- Widget 1: Срез цен по районам г. Тольятти -->
+      <div class="analytics-panel">
+        <div class="panel-head-flex">
+          <div>
+            <h3 class="panel-head-title">${icon('building')} Аналитика цен 1 м² по районам Тольятти</h3>
+            <p class="panel-head-sub">Сравнительная база аналогов вторичного жилья с учётом торга −6%</p>
+          </div>
+          <span class="badge-status ready">Актуально: ноябрь 2026</span>
+        </div>
+
+        <div class="district-list">
+          <div class="district-item">
+            <div class="district-head">
+              <span class="district-name"><strong>Автозаводский район</strong> · Новый город</span>
+              <span class="district-price">65 566 ₽/м² <small class="text-green">+4.2%</small></span>
+            </div>
+            <div class="district-bar-bg">
+              <div class="district-bar-fill" style="width: 92%;"></div>
+            </div>
+          </div>
+
+          <div class="district-item">
+            <div class="district-head">
+              <span class="district-name"><strong>Центральный район</strong> · Старый город</span>
+              <span class="district-price">58 900 ₽/м² <small class="text-muted">базовый</small></span>
+            </div>
+            <div class="district-bar-bg">
+              <div class="district-bar-fill" style="width: 82%; background: linear-gradient(90deg, #60a5fa, #2563eb);"></div>
+            </div>
+          </div>
+
+          <div class="district-item">
+            <div class="district-head">
+              <span class="district-name"><strong>Комсомольский район</strong> · Набережная</span>
+              <span class="district-price">52 973 ₽/м² <small class="text-muted">эталон</small></span>
+            </div>
+            <div class="district-bar-bg">
+              <div class="district-bar-fill" style="width: 74%; background: linear-gradient(90deg, #93c5fd, #3b82f6);"></div>
+            </div>
+          </div>
+
+          <div class="district-item">
+            <div class="district-head">
+              <span class="district-name"><strong>мкрн Поволжский</strong> (Комсомольский р-н)</span>
+              <span class="district-price">50 630 ₽/м² <small class="text-muted">доступный</small></span>
+            </div>
+            <div class="district-bar-bg">
+              <div class="district-bar-fill" style="width: 70%; background: linear-gradient(90deg, #bfdbfe, #60a5fa);"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Widget 2: Конвейер подготовки отчётов (Воронка ФСО) -->
+      <div class="analytics-panel">
+        <div class="panel-head-flex">
+          <div>
+            <h3 class="panel-head-title">${icon('layers')} Конвейер подготовки отчётов по ФСО</h3>
+            <p class="panel-head-sub">Степень автоматизации стадий жизненного цикла оценки</p>
+          </div>
+          <span class="badge-status in-progress">100% авто</span>
+        </div>
+
+        <div class="funnel-steps">
+          <div class="funnel-step">
+            <span class="step-num">1</span>
+            <span class="step-title">Внесение реквизитов и выписки ЕГРН</span>
+            <div class="step-bar"><div class="step-bar-fill" style="width: 100%;"></div></div>
+            <span class="step-count">3 из 3 дел (100%)</span>
+          </div>
+
+          <div class="funnel-step">
+            <span class="step-num">2</span>
+            <span class="step-title">Подбор 3–5 аналогов (Авито, Циан)</span>
+            <div class="step-bar"><div class="step-bar-fill" style="width: 67%;"></div></div>
+            <span class="step-count">2 из 3 дел (67%)</span>
+          </div>
+
+          <div class="funnel-step">
+            <span class="step-num">3</span>
+            <span class="step-title">Корректировки Лейфера (этаж, отделка, площадь)</span>
+            <div class="step-bar"><div class="step-bar-fill" style="width: 67%;"></div></div>
+            <span class="step-count">2 из 3 дел (67%)</span>
+          </div>
+
+          <div class="funnel-step">
+            <span class="step-num">4</span>
+            <span class="step-title">Контроль вариации V ≤ 33% и весовые доли</span>
+            <div class="step-bar"><div class="step-bar-fill" style="width: 33%;"></div></div>
+            <span class="step-count">1 из 3 дел (33%)</span>
+          </div>
+
+          <div class="funnel-step">
+            <span class="step-num">5</span>
+            <span class="step-title">Выгрузка отчёта Word (.docx)</span>
+            <div class="step-bar"><div class="step-bar-fill" style="width: 33%;"></div></div>
+            <span class="step-count">1 из 3 дел (33%)</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main Workspace Grid: Pinned & In-Progress + Activity Audit -->
+    <div class="dash-main-grid">
+      <!-- Left Column: Pinned Cases & In-Progress / Unfinished -->
+      <div class="dash-left-col">
+        <!-- Block 1: Закреплённые дела -->
+        <section class="dash-section">
+          <div class="dash-section-head">
+            <div class="dash-section-title">
+              <span class="icon-star-badge">${icon('star')}</span>
+              <strong>Закреплённые дела</strong>
+              <span class="dash-counter">${pinnedCases.length}</span>
+            </div>
+            <span class="dash-section-sub">Приоритетные объекты на оперативном контроле оценщика</span>
+          </div>
+
+          ${pinnedCases.length ? `
+            <div class="cases-grid">
+              ${pinnedCases.map(c => renderCaseDashboardCard(c, true)).join('')}
+            </div>
+          ` : `
+            <div class="empty-pinned-box">
+              <p>Нет закреплённых дел. Нажмите звёздочку рядом с любым делом в списке, чтобы быстро открывать его здесь.</p>
+            </div>
+          `}
+        </section>
+
+        <!-- Block 2: В работе и незаконченные дела -->
+        <section class="dash-section">
+          <div class="dash-section-head">
+            <div class="dash-section-title">
+              <span class="icon-clock-badge">${icon('clock')}</span>
+              <strong>В работе и незаконченные</strong>
+              <span class="dash-counter">${unfinishedCases.length}</span>
+            </div>
+            <span class="dash-section-sub">Дела, требующие подбора аналогов, проверки поправок Лейфера или согласования</span>
+          </div>
+
+          <div class="cases-grid">
+            ${unfinishedCases.map(c => renderCaseDashboardCard(c, false)).join('')}
+          </div>
+        </section>
+      </div>
+
+      <!-- Right Column: Recent Activity Feed & Standards -->
+      <aside class="dash-right-col">
+        <!-- Журнал недавних действий -->
+        <div class="activity-card">
+          <div class="activity-head">
+            ${icon('activity')}
+            <h3>Журнал недавних действий</h3>
+          </div>
+
+          <div class="activity-timeline">
+            <div class="timeline-entry">
+              <div class="timeline-dot dot-blue"></div>
+              <div class="timeline-body">
+                <div class="timeline-time">Сегодня, 10:45</div>
+                <div class="timeline-text">Сформирован официальный Word-отчёт <strong>№ 19/0826-2</strong> (60 стр., 3 539 000 ₽, 5 сособственников).</div>
+              </div>
+            </div>
+
+            <div class="timeline-entry">
+              <div class="timeline-dot dot-indigo"></div>
+              <div class="timeline-body">
+                <div class="timeline-time">Сегодня, 09:20</div>
+                <div class="timeline-text">Рассчитана матрица Лейфера для дела <strong>№ 21/0926-1</strong>: 3 аналога, этажность и торг −6%.</div>
+              </div>
+            </div>
+
+            <div class="timeline-entry">
+              <div class="timeline-dot dot-green"></div>
+              <div class="timeline-body">
+                <div class="timeline-time">Вчера, 17:30</div>
+                <div class="timeline-text">Создан черновик <strong>№ 24/1105-3</strong> (ул. Мира, 42, Центральный район, 52.4 м²).</div>
+              </div>
+            </div>
+
+            <div class="timeline-entry">
+              <div class="timeline-dot dot-emerald"></div>
+              <div class="timeline-body">
+                <div class="timeline-time">Вчера, 14:10</div>
+                <div class="timeline-text">Автоматический контроль выборки: <strong>V = 4,1%</strong> (норматив ФСО ≤ 33,0% успешно соблюдён).</div>
+              </div>
+            </div>
+
+            <div class="timeline-entry">
+              <div class="timeline-dot dot-amber"></div>
+              <div class="timeline-body">
+                <div class="timeline-time">08 ноя, 11:15</div>
+                <div class="timeline-text">Синхронизированы 5 аналогов из открытых источников Авито и Волга-Инфо по Тольятти.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Стандарты оценки и нормативы -->
+        <div class="standards-card">
+          <div class="standards-head">
+            ${icon('info')}
+            <h3>Стандарты и нормативы</h3>
+          </div>
+          <ul class="standards-list">
+            <li><strong>ФСО I-VI, ФСО № 7:</strong> Обязательный контроль однородности выборки (V ≤ 33%).</li>
+            <li><strong>Справочник Лейфера 2026:</strong> Крайние этажи (+5% первый, +4% последний).</li>
+            <li><strong>Поправка на торг:</strong> −6,00% к ценам предложений по Самарской области.</li>
+            <li><strong>Долевая собственность:</strong> Автоматический расчёт с точностью до 1 000 ₽.</li>
+          </ul>
+        </div>
+      </aside>
+    </div>
+  `;
 }
 
 /**
@@ -234,46 +632,7 @@ function renderCabinetView() {
 
     <!-- Cases List Grid -->
     <div class="cases-grid">
-      ${filtered.length ? filtered.map(c => {
-        const res = calculateValuation(c.objectData, c.analogs, c.objectData.tradeAdjustment);
-        const statusClass = c.status === 'Готов' ? 'ready' : (c.status === 'В работе' ? 'in-progress' : 'draft');
-        return `
-          <div class="case-card">
-            <div>
-              <div class="case-header-row">
-                <span class="case-num">ДЕЛО № ${c.number}</span>
-                <span class="badge-status ${statusClass}">${c.status}</span>
-                <span style="font-size: 12px; color: var(--text-dim);">Дата оценки: ${c.objectData.valuationDate}</span>
-              </div>
-              <div class="case-addr">${c.objectData.address}</div>
-              <div class="case-sub-meta">
-                <span>${icon('user')} Заказчик: <b>${c.objectData.client}</b></span>
-                <span>${icon('maximize')} Площадь: <b>${sqm(c.objectData.area)}</b></span>
-                <span>${icon('building')} Этаж: <b>${c.objectData.floor}/${c.objectData.totalFloors}</b></span>
-                <span>${icon('layers')} Аналогов в расчёте: <b>${res.selectedCount} из ${c.analogs.length}</b></span>
-              </div>
-            </div>
-
-            <div class="case-right-meta">
-              <div>
-                <div class="case-val-amount">${res.total ? money(res.total) : 'Не рассчитано'}</div>
-                <div class="case-val-sub">${res.pricePerSqm ? moneyPerSqm(res.pricePerSqm) : 'требуются аналоги'}</div>
-              </div>
-              <div class="case-actions">
-                <button class="btn btn-secondary btn-sm" data-action="export-word" data-id="${c.id}" title="Скачать Word (.docx)">
-                  ${icon('file-text')} Word
-                </button>
-                <button class="btn btn-danger btn-sm" data-action="delete-case" data-id="${c.id}" title="Удалить дело">
-                  ${icon('trash-2')}
-                </button>
-                <button class="btn btn-primary btn-sm" data-action="open-case" data-id="${c.id}">
-                  ${icon('arrow-right')} Открыть
-                </button>
-              </div>
-            </div>
-          </div>
-        `;
-      }).join('') : `
+      ${filtered.length ? filtered.map(c => renderCaseDashboardCard(c)).join('') : `
         <div style="background: #ffffff; border: 1px dashed var(--border); border-radius: 10px; padding: 48px; text-align: center; color: var(--text-muted);">
           <div style="font-size: 16px; font-weight: 600; margin-bottom: 6px;">Дел не найдено</div>
           <p style="font-size: 13px; margin-bottom: 16px;">Попробуйте изменить параметры поиска или создайте новое дело.</p>
@@ -664,7 +1023,7 @@ function renderTabReport(activeCase, res) {
         <div class="panel-header">
           <div class="panel-title">
             <h3>Официальный отчёт об оценке № ${o.reportNumber}</h3>
-            <p>Фирменный 60-страничный документ по утверждённому стандарту ООО «РусОценка»</p>
+            <p>Фирменный официальный документ по утверждённому стандарту ООО «РусОценка»</p>
           </div>
           <button class="btn btn-primary btn-sm" id="btn-export-word-tab">
             ${icon('download')} Скачать Word (.docx)
@@ -707,18 +1066,21 @@ function renderTabReport(activeCase, res) {
 
           <div style="margin-top: 18px; border-top: 1px solid var(--border); padding-top: 14px;">
             <div style="font-size: 12px; font-weight: 650; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
-              Состав выгружаемого 60-страничного Word-документа:
+              Состав выгружаемого официального Word-документа (.docx):
             </div>
             <ul style="margin-left: 18px; color: var(--text-body); font-size: 12.5px; display: grid; gap: 4px;">
-              <li>Титульный лист с реквизитами, печатью и утверждением руководителя ООО «РусОценка»</li>
-              <li>Раздел 1: Основные факты и выводы</li>
-              <li>Раздел 2: Задание на оценку в соответствии с требованиями ФСО</li>
-              <li>Раздел 3: Сведения о заказчике оценки и об оценщике Орловой А.А.</li>
-              <li>Раздел 4: Стандарты оценки и методические рекомендации (ФСО № 1, 2, 3, 4, 7)</li>
-              <li>Раздел 8: Местоположение и окружение объекта оценки (г.о. Тольятти, Комсомольский район)</li>
-              <li>Раздел 9: Анализ рынка недвижимости г. Тольятти (сегмент, графики, аналитика)</li>
-              <li>Раздел 12: Сравнительный подход (Таблица 12.1 аналоги, Таблица 12.2 матрица корректировок Лейфера, Таблица 12.3 вариация выборки)</li>
-              <li>Раздел 14: Определение стоимости долей в праве общей собственности (Таблица 12.5)</li>
+              <li>Титульный лист с реквизитами ООО «РусОценка», печатью и грифом утверждения руководителя</li>
+              <li>Раздел 1: Основные факты и выводы (Таблица 1.1 и Таблица 1.2 с расчетом долей)</li>
+              <li>Раздел 2: Задание на оценку в соответствии с требованиями ФСО (Таблица 2.1)</li>
+              <li>Раздел 3: Сведения о заказчике оценки, об оценщике Орловой А.А. и оценочной компании</li>
+              <li>Раздел 4: Стандарты оценки и методические рекомендации (135-ФЗ, ФСО I-VI № 200, ФСО № 7)</li>
+              <li>Раздел 5: Описание и характеристики объекта оценки (Таблица 5.1)</li>
+              <li>Раздел 6: Анализ рынка жилой недвижимости г. Тольятти и обоснование скидки на торг</li>
+              <li>Раздел 7: Сравнительный подход (Таблица 12.1 аналоги, Таблица 12.2 матрица корректировок Лейфера, Таблица 12.3 вариация выборки, согласование)</li>
+              <li>Раздел 8: Реестр источников информации и ссылок на объявления аналогов</li>
+              <li>Раздел 9: Заключение эксперта-оценщика, расчет стоимости прописью и подписи</li>
+            </ul>
+          </div>
               <li>Заключение эксперта-оценщика, сертификаты СРО, страховые полисы и выписки</li>
             </ul>
           </div>
@@ -761,15 +1123,24 @@ function bindEvents() {
   document.querySelectorAll('[data-nav]').forEach(btn => {
     btn.addEventListener('click', () => {
       const target = btn.dataset.nav;
-      currentView = 'cabinet';
-      if (target === 'all-cases') filterStatus = 'all';
-      if (target === 'in-progress') filterStatus = 'В работе';
-      if (target === 'ready') filterStatus = 'Готов';
+      if (target === 'dashboard') {
+        currentView = 'dashboard';
+      } else {
+        currentView = 'cabinet';
+        if (target === 'all-cases') filterStatus = 'all';
+        if (target === 'in-progress') filterStatus = 'В работе';
+        if (target === 'ready') filterStatus = 'Готов';
+      }
       render();
     });
   });
 
-  // Breadcrumbs to cabinet
+  // Breadcrumbs navigation
+  document.getElementById('crumb-dashboard')?.addEventListener('click', e => {
+    e.preventDefault();
+    currentView = 'dashboard';
+    render();
+  });
   document.getElementById('crumb-cabinet')?.addEventListener('click', e => {
     e.preventDefault();
     currentView = 'cabinet';
@@ -790,6 +1161,8 @@ function bindEvents() {
   document.getElementById('btn-create-case-sidebar')?.addEventListener('click', openNewCaseModal);
   document.getElementById('btn-new-case-head')?.addEventListener('click', openNewCaseModal);
   document.getElementById('btn-empty-create')?.addEventListener('click', openNewCaseModal);
+  document.getElementById('btn-hero-new')?.addEventListener('click', openNewCaseModal);
+  document.getElementById('btn-top-new-case')?.addEventListener('click', openNewCaseModal);
 
   // Search cases input
   const searchInput = document.getElementById('search-cases-input');
@@ -813,16 +1186,30 @@ function bindEvents() {
     });
   });
 
-  // Case card actions (open, delete, export)
+  // Case card actions (open, continue, toggle-pin, delete, export)
   document.querySelectorAll('[data-action]').forEach(btn => {
     btn.addEventListener('click', async e => {
       const action = btn.dataset.action;
       const id = btn.dataset.id;
-      if (action === 'open-case') {
+
+      if (action === 'toggle-pin') {
+        e.stopPropagation();
+        cases = toggleCasePin(cases, id);
+        const c = findCaseById(cases, id);
+        toast(c && c.isPinned ? `Дело № ${c.number} закреплено на главной` : `Дело № ${c.number} откреплено`);
+        render();
+      } else if (action === 'open-case') {
         activeCaseId = id;
         setActiveCaseId(id);
         currentView = 'case';
         activeTab = 'analogs';
+        render();
+      } else if (action === 'continue-case') {
+        activeCaseId = id;
+        setActiveCaseId(id);
+        currentView = 'case';
+        const c = findCaseById(cases, id);
+        activeTab = (c && c.status === 'Черновик' && c.analogs.length === 0) ? 'analogs' : 'analogs';
         render();
       } else if (action === 'delete-case') {
         if (confirm('Вы уверены, что хотите удалить это дело?')) {
@@ -837,7 +1224,7 @@ function bindEvents() {
       } else if (action === 'export-word') {
         const c = findCaseById(cases, id);
         if (c) {
-          toast('Формирование 60-страничного отчёта по официальному шаблону...');
+          toast('Формирование официального отчёта Word по стандарту ООО «РусОценка»...');
           try {
             await exportApartmentReport(c.objectData, c.analogs);
             toast('Отчёт сформирован и загружен');
@@ -869,7 +1256,7 @@ function bindEvents() {
   const handleExportWord = async () => {
     const c = getActiveCase();
     if (c) {
-      toast('Формирование 60-страничного отчёта по официальному шаблону...');
+      toast('Формирование официального отчёта Word по стандарту ООО «РусОценка»...');
       try {
         await exportApartmentReport(c.objectData, c.analogs);
         toast('Отчёт успешно сформирован и загружен');

@@ -95,6 +95,7 @@ async function getTemplateArrayBuffer() {
 
 /**
  * Инъекция параметров дела и результатов расчётов в официальный 60-страничный документ
+ * с четкой фиксацией: что заполнено роботом автоматически, а что проверяет/заполняет оценщик
  */
 export async function populateOfficialReport(templateBuffer, objectData, analogsList) {
   const result = calculateValuation(objectData, analogsList, objectData.tradeAdjustment);
