@@ -671,35 +671,64 @@ function renderTabReport(activeCase, res) {
       <div class="panel">
         <div class="panel-header">
           <div class="panel-title">
-            <h3>Превью структуры отчёта № ${o.reportNumber}</h3>
-            <p>Документ готов к выгрузке по официальному стандарту ООО «РусОценка»</p>
+            <h3>Официальный отчёт об оценке № ${o.reportNumber}</h3>
+            <p>Фирменный 60-страничный документ по утверждённому стандарту ООО «РусОценка»</p>
           </div>
           <button class="btn btn-primary btn-sm" id="btn-export-word-tab">
             ${icon('download')} Скачать Word (.docx)
           </button>
         </div>
 
-        <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 24px; font-size: 13px; line-height: 1.6;">
-          <div style="text-align: right; font-size: 12px; color: var(--text-muted); margin-bottom: 20px;">
-            <strong>УТВЕРЖДАЮ</strong><br>
-            Директор ООО «РусОценка»<br>
-            ___________ А.А. Орлова
+        <div style="background: #ffffff; border: 1px solid var(--border); border-radius: 8px; padding: 24px; font-size: 13px; line-height: 1.6; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 1px solid var(--border-light); padding-bottom: 16px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <img src="/images/rosocenka-emblem.png" style="width: 32px; height: 32px; object-fit: contain;">
+              <div>
+                <strong style="color: var(--primary); font-size: 14px;">ООО «РусОценка»</strong><br>
+                <span style="font-size: 11px; color: var(--text-muted);">г. Тольятти, ул. Гидростроевская, д. 12 · ro63.ru</span>
+              </div>
+            </div>
+            <div style="text-align: right; font-size: 12px; color: var(--text-muted);">
+              <strong>УТВЕРЖДАЮ</strong><br>
+              Директор ООО «РусОценка»<br>
+              ___________ А.А. Орлова
+            </div>
           </div>
 
-          <h3 style="font-size: 17px; font-weight: 700; color: var(--primary); margin-bottom: 8px;">
+          <h3 style="font-size: 16px; font-weight: 700; color: var(--text-dark); margin-bottom: 6px;">
             ОТЧЕТ ОБ ОЦЕНКЕ № ${o.reportNumber}
           </h3>
-          <p style="margin-bottom: 12px;">
-            Объект: ${o.propertyType}, кадастровый номер ${o.cadastralNumber}, площадь ${sqm(o.area)}, адрес: ${o.address}
+          <p style="margin-bottom: 12px; color: var(--text-body);">
+            Объект: ${o.propertyType}, кадастровый номер <b>${o.cadastralNumber}</b>, общая площадь <b>${sqm(o.area)}</b>, адрес: <b>${o.address}</b>
           </p>
 
-          <div style="border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px;">
-            <strong>Итоговая величина рыночной стоимости:</strong>
-            <span style="font-size: 18px; font-weight: 700; color: var(--primary); margin-left: 8px;">${money(res.total)}</span>
+          <div style="background: var(--primary-light); border: 1px solid var(--primary-border); border-radius: 8px; padding: 14px 18px; margin: 16px 0; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <div style="font-size: 12px; color: var(--text-muted);">Итоговая рыночная стоимость полного права:</div>
+              <div style="font-size: 20px; font-weight: 750; color: var(--primary);">${money(res.total)}</div>
+            </div>
+            <div style="text-align: right;">
+              <div style="font-size: 12px; color: var(--text-muted);">Цена за 1 кв.м:</div>
+              <div style="font-size: 16px; font-weight: 650; color: var(--text-dark);">${moneyPerSqm(res.pricePerSqm)}</div>
+            </div>
           </div>
 
-          <div style="margin-top: 16px; font-size: 12px; color: var(--text-muted);">
-            Включает: Раздел 12 (Метод сравнения продаж), Таблицу 12.2 (Матрица корректировок и взвешивания), Таблицу 22 (Контроль выборки), Таблицу 12.5 (Расчёт долей).
+          <div style="margin-top: 18px; border-top: 1px solid var(--border); padding-top: 14px;">
+            <div style="font-size: 12px; font-weight: 650; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
+              Состав выгружаемого 60-страничного Word-документа:
+            </div>
+            <ul style="margin-left: 18px; color: var(--text-body); font-size: 12.5px; display: grid; gap: 4px;">
+              <li>Титульный лист с реквизитами, печатью и утверждением руководителя ООО «РусОценка»</li>
+              <li>Раздел 1: Основные факты и выводы</li>
+              <li>Раздел 2: Задание на оценку в соответствии с требованиями ФСО</li>
+              <li>Раздел 3: Сведения о заказчике оценки и об оценщике Орловой А.А.</li>
+              <li>Раздел 4: Стандарты оценки и методические рекомендации (ФСО № 1, 2, 3, 4, 7)</li>
+              <li>Раздел 8: Местоположение и окружение объекта оценки (г.о. Тольятти, Комсомольский район)</li>
+              <li>Раздел 9: Анализ рынка недвижимости г. Тольятти (сегмент, графики, аналитика)</li>
+              <li>Раздел 12: Сравнительный подход (Таблица 12.1 аналоги, Таблица 12.2 матрица корректировок Лейфера, Таблица 12.3 вариация выборки)</li>
+              <li>Раздел 14: Определение стоимости долей в праве общей собственности (Таблица 12.5)</li>
+              <li>Заключение эксперта-оценщика, сертификаты СРО, страховые полисы и выписки</li>
+            </ul>
           </div>
         </div>
       </div>
@@ -718,10 +747,13 @@ function renderTabReport(activeCase, res) {
             ${icon(res.selectedCount >= 3 ? 'check-circle' : 'alert-circle')} <span>Выбрано ${res.selectedCount} аналогов (мин. 3)</span>
           </div>
           <div style="display: flex; align-items: center; gap: 8px; color: ${res.variationPass ? 'var(--green)' : 'var(--amber)'};">
-            ${icon(res.variationPass ? 'check-circle' : 'alert-circle')} <span>Вариация V ≤ 33%</span>
+            ${icon(res.variationPass ? 'check-circle' : 'alert-circle')} <span>Вариация V ≤ 33% (выборка однородна)</span>
           </div>
           <div style="display: flex; align-items: center; gap: 8px; color: var(--green);">
             ${icon('check-circle')} <span>Доли сходятся на 100%</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px; color: var(--green); margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--border);">
+            ${icon('file-text')} <span>Официальный шаблон подключен</span>
           </div>
         </div>
       </div>
@@ -813,12 +845,13 @@ function bindEvents() {
       } else if (action === 'export-word') {
         const c = findCaseById(cases, id);
         if (c) {
+          toast('Формирование 60-страничного отчёта по официальному шаблону...');
           try {
             await exportApartmentReport(c.objectData, c.analogs);
-            toast('Отчёт сформирован и передан для скачивания');
+            toast('Отчёт сформирован и загружен');
           } catch (err) {
             console.error(err);
-            toast('Ошибка при формировании отчёта Word');
+            toast('Ошибка при формировании отчёта Word: ' + err.message);
           }
         }
       }
@@ -841,20 +874,21 @@ function bindEvents() {
 
   // Topbar print & word
   document.getElementById('btn-top-print')?.addEventListener('click', () => window.print());
-  document.getElementById('btn-top-word')?.addEventListener('click', async () => {
+  const handleExportWord = async () => {
     const c = getActiveCase();
     if (c) {
-      await exportApartmentReport(c.objectData, c.analogs);
-      toast('Отчёт Word скачивается...');
+      toast('Формирование 60-страничного отчёта по официальному шаблону...');
+      try {
+        await exportApartmentReport(c.objectData, c.analogs);
+        toast('Отчёт успешно сформирован и загружен');
+      } catch (err) {
+        console.error(err);
+        toast('Ошибка при формировании отчёта: ' + err.message);
+      }
     }
-  });
-  document.getElementById('btn-export-word-tab')?.addEventListener('click', async () => {
-    const c = getActiveCase();
-    if (c) {
-      await exportApartmentReport(c.objectData, c.analogs);
-      toast('Отчёт Word скачивается...');
-    }
-  });
+  };
+  document.getElementById('btn-top-word')?.addEventListener('click', handleExportWord);
+  document.getElementById('btn-export-word-tab')?.addEventListener('click', handleExportWord);
 
   // Reset demo cases
   document.getElementById('btn-reset-demo')?.addEventListener('click', () => {

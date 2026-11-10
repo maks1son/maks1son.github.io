@@ -4,4 +4,5 @@ dist/
 artifacts/
 .openai/
 *.docx
+!public/templates/*.docx
 *.zip
