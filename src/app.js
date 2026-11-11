@@ -34,6 +34,7 @@ let searchQuery = '';
 let scrollObserver = null;
 
 const icon = name => `<i data-lucide="${name}"></i>`;
+const CLOSE_ICON_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
 
 function toast(msg) {
   const el = document.getElementById('toast');
@@ -281,6 +282,9 @@ function renderDashboardView() {
   const withAnalogsPct = Math.round((withAnalogsCount / totalCount) * 100);
   const leiferReadyCount = cases.filter(c => c.analogs && c.analogs.filter(a => a.selected).length >= 3).length;
   const leiferReadyPct = Math.round((leiferReadyCount / totalCount) * 100);
+  const pipelineOverallPct = Math.round((100 + withAnalogsPct + leiferReadyPct + readyPct + readyPct) / 5);
+  const gaugeCirc = 150.8;
+  const gaugeOffset = (gaugeCirc * (1 - pipelineOverallPct / 100)).toFixed(1);
 
   const spotlightCase = findCaseById(cases, 'case_anna_19_0826') || readyCases[0] || cases[0];
   const spotlightRes = spotlightCase
@@ -290,34 +294,20 @@ function renderDashboardView() {
   const spotlightSharesCount = (spotlightCase && spotlightCase.objectData.shares && spotlightCase.objectData.shares.length) || 5;
 
   return `
-    <!-- Hero Banner with AI Visual -->
-    <section class="dashboard-hero anim-fade-up">
-      <div class="hero-content">
-        <div class="hero-badge">
-          ${icon('shield-check')} ООО «РусОценка» · г. Тольятти · ФСО I-VI, ФСО № 7
-        </div>
-        <h1 class="hero-title">Здравствуйте, Анна Александровна!</h1>
-        <p class="hero-subtitle">
-          Интеллектуальная панель управления оценщика жилой недвижимости. Автоматический расчёт сравнительного подхода по формулам Лейфера, долевая собственность и формирование официального отчёта Word.
-        </p>
-        <div class="hero-actions">
-          <button class="btn btn-primary" id="btn-hero-new">
-            ${icon('plus')} Добавить объект оценки
-          </button>
-          <button class="btn btn-secondary" id="btn-hero-open-anna" data-action="open-case" data-id="${spotlightCase ? spotlightCase.id : ''}">
-            ${icon('file-text')} Открыть эталон № ${spotlightCase ? spotlightCase.number : '19/0826-2'}
-          </button>
-          <button class="btn btn-secondary" id="btn-hero-cabinet" data-nav="all-cases">
-            ${icon('folder')} Все дела (${cases.length})
-          </button>
-        </div>
-      </div>
-      <div class="hero-image-box">
-        <img src="/images/dashboard-hero.jpg" alt="РусОценка Панель" class="hero-image">
+    <!-- Clean Unboxed Greeting Header (No Frame, No Microtext) -->
+    <section class="dashboard-welcome anim-fade-up">
+      <h1 class="welcome-title">Здравствуйте, Анна Александровна!</h1>
+      <div class="welcome-actions">
+        <button class="btn btn-primary" id="btn-hero-new">
+          ${icon('plus')} Добавить объект оценки
+        </button>
+        <button class="btn btn-secondary" id="btn-hero-cabinet" data-nav="all-cases">
+          ${icon('folder')} Все дела (${cases.length})
+        </button>
       </div>
     </section>
 
-    <!-- Key Metrics Ribbon (KPIs) -->
+    <!-- Key Metrics Ribbon (KPIs with Mini Sparklines) -->
     <section class="kpi-grid">
       <div class="kpi-card kpi-card-blue anim-fade-up anim-delay-1">
         <div class="kpi-top">
@@ -325,8 +315,13 @@ function renderDashboardView() {
           <span class="kpi-pill kpi-pill-blue">+12% ноябрь</span>
         </div>
         <div class="kpi-value">${money(totalValuation)}</div>
-        <div class="kpi-label">Портфель объектов оценки</div>
-        <div class="kpi-sub">${cases.length} дела в текущем реестре</div>
+        <div class="kpi-foot-row">
+          <div class="kpi-label">Портфель объектов</div>
+          <svg class="kpi-spark" viewBox="0 0 74 26" fill="none">
+            <path d="M2 22 C14 20, 22 14, 34 15 C46 16, 56 6, 72 3" stroke="#2563eb" stroke-width="2.4" stroke-linecap="round"/>
+            <circle cx="72" cy="3" r="3" fill="#2563eb"/>
+          </svg>
+        </div>
         <div class="kpi-meter">
           <div class="kpi-meter-fill" style="width: 100%; background: linear-gradient(90deg, #2563eb, #60a5fa);"></div>
         </div>
@@ -335,11 +330,16 @@ function renderDashboardView() {
       <div class="kpi-card kpi-card-purple anim-fade-up anim-delay-2">
         <div class="kpi-top">
           <span class="kpi-icon-wrap kpi-icon-purple">${icon('trending-up')}</span>
-          <span class="kpi-pill kpi-pill-purple">Рынок Тольятти</span>
+          <span class="kpi-pill kpi-pill-purple">г. Тольятти</span>
         </div>
         <div class="kpi-value">${moneyPerSqm(avgPricePerSqm)}</div>
-        <div class="kpi-label">Средняя цена 1 м²</div>
-        <div class="kpi-sub">Срез по жилому фонду г. Тольятти</div>
+        <div class="kpi-foot-row">
+          <div class="kpi-label">Средняя цена 1 м²</div>
+          <svg class="kpi-spark" viewBox="0 0 74 26" fill="none">
+            <path d="M2 19 C16 18, 28 11, 40 12 C52 13, 60 5, 72 4" stroke="#7c3aed" stroke-width="2.4" stroke-linecap="round"/>
+            <circle cx="72" cy="4" r="3" fill="#7c3aed"/>
+          </svg>
+        </div>
         <div class="kpi-meter">
           <div class="kpi-meter-fill" style="width: 78%; background: linear-gradient(90deg, #7c3aed, #a78bfa);"></div>
         </div>
@@ -348,11 +348,16 @@ function renderDashboardView() {
       <div class="kpi-card kpi-card-green anim-fade-up anim-delay-3">
         <div class="kpi-top">
           <span class="kpi-icon-wrap kpi-icon-green">${icon('shield-check')}</span>
-          <span class="kpi-pill kpi-pill-green">ФСО пройден</span>
+          <span class="kpi-pill kpi-pill-green">ФСО ≤ 33%</span>
         </div>
         <div class="kpi-value">V = ${variationCoeff.toFixed(1).replace('.', ',')}%</div>
-        <div class="kpi-label">Контроль вариации выборки</div>
-        <div class="kpi-sub">Норматив ≤ 33,0% (выборка однородна)</div>
+        <div class="kpi-foot-row">
+          <div class="kpi-label">Вариация выборки</div>
+          <svg class="kpi-spark" viewBox="0 0 74 26" fill="none">
+            <path d="M2 12 C14 14, 24 8, 38 11 C50 14, 60 9, 72 10" stroke="#10b981" stroke-width="2.4" stroke-linecap="round"/>
+            <circle cx="72" cy="10" r="3" fill="#10b981"/>
+          </svg>
+        </div>
         <div class="kpi-meter">
           <div class="kpi-meter-fill" style="width: 88%; background: linear-gradient(90deg, #10b981, #34d399);"></div>
         </div>
@@ -364,202 +369,30 @@ function renderDashboardView() {
           <span class="kpi-pill kpi-pill-amber">${readyCases.length} готов / ${unfinishedCases.length} в работе</span>
         </div>
         <div class="kpi-value">${readyCases.length} / ${cases.length}</div>
-        <div class="kpi-label">Готовность отчётов</div>
-        <div class="kpi-sub">${readyCases.length} согласован, ${inProgressCases.length} в расчёте, ${draftCases.length} черновик</div>
+        <div class="kpi-foot-row">
+          <div class="kpi-label">Готовность отчётов</div>
+          <svg class="kpi-spark" viewBox="0 0 74 26" fill="none">
+            <path d="M2 23 C18 22, 30 16, 44 13 C56 10, 64 7, 72 5" stroke="#d97706" stroke-width="2.4" stroke-linecap="round"/>
+            <circle cx="72" cy="5" r="3" fill="#d97706"/>
+          </svg>
+        </div>
         <div class="kpi-meter">
           <div class="kpi-meter-fill" style="width: ${Math.max(18, readyPct)}%; background: linear-gradient(90deg, #f59e0b, #fbbf24);"></div>
         </div>
       </div>
     </section>
 
-    <!-- Visual Dashboards: Districts & Pipeline -->
-    <section class="dash-analytics-row">
-      <!-- Widget 1: Срез цен по районам г. Тольятти -->
-      <div class="analytics-panel reveal-on-scroll reveal-delay-1">
-        <div class="panel-head-flex">
-          <div>
-            <h3 class="panel-head-title">${icon('building')} Аналитика цен 1 м² по районам Тольятти</h3>
-            <p class="panel-head-sub">Сравнительная база аналогов вторичного жилья с учётом торга −6%</p>
-          </div>
-          <span class="badge-status ready">Актуально: ноябрь 2026</span>
-        </div>
-
-        <div class="district-list">
-          <div class="district-item">
-            <div class="district-head">
-              <span class="district-name"><strong>Автозаводский район</strong> · Новый город</span>
-              <span class="district-price">65 566 ₽/м² <small class="text-green">+4.2%</small></span>
-            </div>
-            <div class="district-bar-bg">
-              <div class="district-bar-fill" style="width: 92%; background: linear-gradient(90deg, #2563eb, #3b82f6);"></div>
-            </div>
-          </div>
-
-          <div class="district-item">
-            <div class="district-head">
-              <span class="district-name"><strong>Центральный район</strong> · Старый город</span>
-              <span class="district-price">58 900 ₽/м² <small class="text-blue">базовый</small></span>
-            </div>
-            <div class="district-bar-bg">
-              <div class="district-bar-fill" style="width: 82%; background: linear-gradient(90deg, #6366f1, #4f46e5);"></div>
-            </div>
-          </div>
-
-          <div class="district-item">
-            <div class="district-head">
-              <span class="district-name"><strong>Комсомольский район</strong> · Набережная</span>
-              <span class="district-price">52 973 ₽/м² <small class="text-amber">эталон</small></span>
-            </div>
-            <div class="district-bar-bg">
-              <div class="district-bar-fill" style="width: 74%; background: linear-gradient(90deg, #10b981, #059669);"></div>
-            </div>
-          </div>
-
-          <div class="district-item">
-            <div class="district-head">
-              <span class="district-name"><strong>мкрн Поволжский</strong> (Комсомольский р-н)</span>
-              <span class="district-price">50 630 ₽/м² <small class="text-muted">доступный</small></span>
-            </div>
-            <div class="district-bar-bg">
-              <div class="district-bar-fill" style="width: 70%; background: linear-gradient(90deg, #60a5fa, #93c5fd);"></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="district-avg-footer">
-          <span>Среднерыночный ориентир по г. Тольятти (вторичный фонд)</span>
-          <strong>54 380 ₽/м²</strong>
-        </div>
-      </div>
-
-      <!-- Widget 2: Конвейер подготовки отчётов (Воронка ФСО) -->
-      <div class="analytics-panel reveal-on-scroll reveal-delay-2">
-        <div class="panel-head-flex">
-          <div>
-            <h3 class="panel-head-title">${icon('layers')} Конвейер подготовки отчётов по ФСО</h3>
-            <p class="panel-head-sub">Степень автоматизации стадий жизненного цикла оценки</p>
-          </div>
-          <span class="badge-status in-progress">100% авто</span>
-        </div>
-
-        <div class="funnel-steps">
-          <div class="funnel-step">
-            <span class="step-num">1</span>
-            <span class="step-title">Внесение реквизитов и выписки ЕГРН</span>
-            <div class="step-bar"><div class="step-bar-fill" style="width: 100%; background: linear-gradient(90deg, #2563eb, #60a5fa);"></div></div>
-            <span class="step-count">${cases.length} из ${cases.length} дел (100%)</span>
-          </div>
-
-          <div class="funnel-step">
-            <span class="step-num">2</span>
-            <span class="step-title">Подбор 3–5 аналогов (Авито, Циан)</span>
-            <div class="step-bar"><div class="step-bar-fill" style="width: ${withAnalogsPct}%; background: linear-gradient(90deg, #4f46e5, #818cf8);"></div></div>
-            <span class="step-count">${withAnalogsCount} из ${cases.length} дел (${withAnalogsPct}%)</span>
-          </div>
-
-          <div class="funnel-step">
-            <span class="step-num">3</span>
-            <span class="step-title">Корректировки Лейфера (этаж, отделка, площадь)</span>
-            <div class="step-bar"><div class="step-bar-fill" style="width: ${leiferReadyPct}%; background: linear-gradient(90deg, #0ea5e9, #38bdf8);"></div></div>
-            <span class="step-count">${leiferReadyCount} из ${cases.length} дел (${leiferReadyPct}%)</span>
-          </div>
-
-          <div class="funnel-step">
-            <span class="step-num">4</span>
-            <span class="step-title">Контроль вариации V ≤ 33% и весовые доли</span>
-            <div class="step-bar"><div class="step-bar-fill" style="width: ${readyPct}%; background: linear-gradient(90deg, #10b981, #34d399);"></div></div>
-            <span class="step-count">${readyCases.length} из ${cases.length} дел (${readyPct}%)</span>
-          </div>
-
-          <div class="funnel-step">
-            <span class="step-num">5</span>
-            <span class="step-title">Выгрузка отчёта Word (.docx)</span>
-            <div class="step-bar"><div class="step-bar-fill" style="width: ${readyPct}%; background: linear-gradient(90deg, #059669, #10b981);"></div></div>
-            <span class="step-count">${readyCases.length} из ${cases.length} дел (${readyPct}%)</span>
-          </div>
-        </div>
-
-        <div class="pipeline-savings-banner">
-          <span>Автоматизация по стандарту ООО «РусОценка»</span>
-          <strong>−4,5 часа на каждый отчёт</strong>
-        </div>
-      </div>
-    </section>
-
-    <!-- Full-Width Scroll Dashboard: Матрица поправок Лейфера 2026 -->
-    <section class="leifer-panel reveal-on-scroll">
-      <div class="panel-head-flex">
-        <div>
-          <h3 class="panel-head-title">${icon('sliders')} Матрица поправок Лейфера 2026 и нормативы ФСО</h3>
-          <p class="panel-head-sub">Действующие справочные коэффициенты корректировки для квартир г. Тольятти</p>
-        </div>
-        <span class="kpi-pill kpi-pill-blue">Применяются автоматически</span>
-      </div>
-
-      <div class="leifer-matrix-grid">
-        <div class="leifer-card leifer-card-blue">
-          <div class="leifer-card-top">
-            <span class="leifer-tag">Скидка на торг</span>
-            <span class="leifer-badge">−6,0%</span>
-          </div>
-          <div class="leifer-title">Рынок предложений</div>
-          <div class="leifer-desc">Средняя скидка при переходе от цены оферты Авито / Волга-Инфо к цене реальной сделки.</div>
-          <div class="leifer-mini-track">
-            <div class="leifer-mini-fill" style="width: 65%; background: linear-gradient(90deg, #2563eb, #60a5fa);"></div>
-          </div>
-        </div>
-
-        <div class="leifer-card leifer-card-purple">
-          <div class="leifer-card-top">
-            <span class="leifer-tag">Этажность</span>
-            <span class="leifer-badge">+5% / +4%</span>
-          </div>
-          <div class="leifer-title">Крайние этажи дома</div>
-          <div class="leifer-desc">Коэффициент для первого этажа (+5%) и последнего этажа (+4%) относительно средних этажей.</div>
-          <div class="leifer-mini-track">
-            <div class="leifer-mini-fill" style="width: 78%; background: linear-gradient(90deg, #7c3aed, #a78bfa);"></div>
-          </div>
-        </div>
-
-        <div class="leifer-card leifer-card-emerald">
-          <div class="leifer-card-top">
-            <span class="leifer-tag">Состояние</span>
-            <span class="leifer-badge">+6,0%</span>
-          </div>
-          <div class="leifer-title">Ремонт и отделка</div>
-          <div class="leifer-desc">Автоматическая корректировка при сравнении квартир с простой и улучшенной отделкой.</div>
-          <div class="leifer-mini-track">
-            <div class="leifer-mini-fill" style="width: 82%; background: linear-gradient(90deg, #059669, #34d399);"></div>
-          </div>
-        </div>
-
-        <div class="leifer-card leifer-card-amber">
-          <div class="leifer-card-top">
-            <span class="leifer-tag">Однородность</span>
-            <span class="leifer-badge">V ≤ 33%</span>
-          </div>
-          <div class="leifer-title">Контроль вариации ФСО</div>
-          <div class="leifer-desc">Проверка статистического разброса скорректированных цен аналогов (эталон: 4,1%).</div>
-          <div class="leifer-mini-track">
-            <div class="leifer-mini-fill" style="width: 90%; background: linear-gradient(90deg, #d97706, #fbbf24);"></div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Main Workspace Grid: Pinned & In-Progress + Right Spotlight & Activity -->
+    <!-- Main Workspace Grid RIGHT ON FIRST SCREEN: Pinned Cases + In-Progress + Activity -->
     <div class="dash-main-grid">
-      <!-- Left Column: Pinned Cases & In-Progress / Unfinished -->
       <div class="dash-left-col">
-        <!-- Block 1: Закреплённые дела -->
-        <section class="dash-section reveal-on-scroll">
+        <!-- Block 1: Закреплённые дела (Сразу на первом экране!) -->
+        <section class="dash-section anim-fade-up anim-delay-5">
           <div class="dash-section-head">
             <div class="dash-section-title">
               <span class="icon-star-badge">${icon('star')}</span>
               <strong>Закреплённые дела</strong>
               <span class="dash-counter">${pinnedCases.length}</span>
             </div>
-            <span class="dash-section-sub">Приоритетные объекты на оперативном контроле оценщика</span>
           </div>
 
           ${pinnedCases.length ? `
@@ -568,12 +401,12 @@ function renderDashboardView() {
             </div>
           ` : `
             <div class="empty-pinned-box">
-              <p>Нет закреплённых дел. Нажмите звёздочку рядом с любым делом в списке, чтобы быстро открывать его здесь.</p>
+              <p>Нет закреплённых дел. Нажмите звёздочку рядом с делом, чтобы закрепить его здесь.</p>
             </div>
           `}
         </section>
 
-        <!-- Block 2: В работе и незаконченные дела -->
+        <!-- Block 2: В работе и незаконченные -->
         <section class="dash-section reveal-on-scroll">
           <div class="dash-section-head">
             <div class="dash-section-title">
@@ -581,7 +414,6 @@ function renderDashboardView() {
               <strong>В работе и незаконченные</strong>
               <span class="dash-counter">${unfinishedCases.length}</span>
             </div>
-            <span class="dash-section-sub">Дела, требующие подбора аналогов, проверки поправок Лейфера или согласования</span>
           </div>
 
           <div class="cases-grid">
@@ -590,19 +422,59 @@ function renderDashboardView() {
         </section>
       </div>
 
-      <!-- Right Column: Spotlight Report, Recent Activity Feed & Standards -->
+      <!-- Right Column: Activity Feed & Report Card -->
       <aside class="dash-right-col">
+        <div class="activity-card reveal-on-scroll">
+          <div class="activity-head">
+            ${icon('activity')}
+            <h3>Журнал недавних действий</h3>
+          </div>
+
+          <div class="activity-timeline">
+            <div class="timeline-entry">
+              <div class="timeline-dot dot-blue dot-pulse"></div>
+              <div class="timeline-body">
+                <div class="timeline-time">Сегодня, 10:45</div>
+                <div class="timeline-text">Сформирован Word-отчёт <strong>№ 19/0826-2</strong> (${spotlightAmount}, ${spotlightSharesCount} сособств.).</div>
+              </div>
+            </div>
+
+            <div class="timeline-entry">
+              <div class="timeline-dot dot-indigo"></div>
+              <div class="timeline-body">
+                <div class="timeline-time">Сегодня, 09:20</div>
+                <div class="timeline-text">Рассчитана матрица Лейфера для <strong>№ 21/0926-1</strong>: 3 аналога, торг −6%.</div>
+              </div>
+            </div>
+
+            <div class="timeline-entry">
+              <div class="timeline-dot dot-green"></div>
+              <div class="timeline-body">
+                <div class="timeline-time">Вчера, 17:30</div>
+                <div class="timeline-text">Создан черновик <strong>№ 24/1105-3</strong> (ул. Мира, 42, 52.4 м²).</div>
+              </div>
+            </div>
+
+            <div class="timeline-entry">
+              <div class="timeline-dot dot-emerald"></div>
+              <div class="timeline-body">
+                <div class="timeline-time">Вчера, 14:10</div>
+                <div class="timeline-text">Контроль однородности выборки: <strong>V = 4,1%</strong> (норма ФСО ≤ 33%).</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         ${spotlightCase ? `
-          <!-- Витрина эталонного отчёта с 3D-визуалом -->
           <div class="spotlight-card reveal-on-scroll">
             <div class="spotlight-image-wrap">
               <img src="/images/report-showcase.jpg" alt="Эталонный отчёт ООО РусОценка">
-              <span class="spotlight-float-badge">${icon('shield-check')} Эталон ФСО · 60 стр.</span>
+              <span class="spotlight-float-badge">${icon('shield-check')} Готовый отчёт ФСО</span>
             </div>
             <div class="spotlight-body">
-              <div class="spotlight-title">Отчёт № ${spotlightCase.number}</div>
+              <div class="spotlight-title">Дело № ${spotlightCase.number}</div>
               <div class="spotlight-desc">
-                Итоговая рыночная стоимость: <strong>${spotlightAmount}</strong>. Подробная выкладка на <strong>${spotlightSharesCount} сособственников</strong>, готовая к выгрузке в Word.
+                Стоимость: <strong>${spotlightAmount}</strong> · ${spotlightSharesCount} сособственников
               </div>
               <div class="spotlight-actions">
                 <button class="btn btn-primary btn-sm" data-action="open-case" data-id="${spotlightCase.id}">
@@ -615,72 +487,235 @@ function renderDashboardView() {
             </div>
           </div>
         ` : ''}
-
-        <!-- Журнал недавних действий -->
-        <div class="activity-card reveal-on-scroll">
-          <div class="activity-head">
-            ${icon('activity')}
-            <h3>Журнал недавних действий</h3>
-          </div>
-
-          <div class="activity-timeline">
-            <div class="timeline-entry">
-              <div class="timeline-dot dot-blue dot-pulse"></div>
-              <div class="timeline-body">
-                <div class="timeline-time">Сегодня, 10:45</div>
-                <div class="timeline-text">Сформирован официальный Word-отчёт <strong>№ 19/0826-2</strong> (60 стр., 3 539 000 ₽, 5 сособственников).</div>
-              </div>
-            </div>
-
-            <div class="timeline-entry">
-              <div class="timeline-dot dot-indigo"></div>
-              <div class="timeline-body">
-                <div class="timeline-time">Сегодня, 09:20</div>
-                <div class="timeline-text">Рассчитана матрица Лейфера для дела <strong>№ 21/0926-1</strong>: 3 аналога, этажность и торг −6%.</div>
-              </div>
-            </div>
-
-            <div class="timeline-entry">
-              <div class="timeline-dot dot-green"></div>
-              <div class="timeline-body">
-                <div class="timeline-time">Вчера, 17:30</div>
-                <div class="timeline-text">Создан черновик <strong>№ 24/1105-3</strong> (ул. Мира, 42, Центральный район, 52.4 м²).</div>
-              </div>
-            </div>
-
-            <div class="timeline-entry">
-              <div class="timeline-dot dot-emerald"></div>
-              <div class="timeline-body">
-                <div class="timeline-time">Вчера, 14:10</div>
-                <div class="timeline-text">Автоматический контроль выборки: <strong>V = 4,1%</strong> (норматив ФСО ≤ 33,0% успешно соблюдён).</div>
-              </div>
-            </div>
-
-            <div class="timeline-entry">
-              <div class="timeline-dot dot-amber"></div>
-              <div class="timeline-body">
-                <div class="timeline-time">08 ноя, 11:15</div>
-                <div class="timeline-text">Синхронизированы 5 аналогов из открытых источников Авито и Волга-Инфо по Тольятти.</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Стандарты оценки и нормативы -->
-        <div class="standards-card reveal-on-scroll">
-          <div class="standards-head">
-            ${icon('info')}
-            <h3>Стандарты и нормативы</h3>
-          </div>
-          <ul class="standards-list">
-            <li><strong>ФСО I-VI, ФСО № 7:</strong> Обязательный контроль однородности выборки (V ≤ 33%).</li>
-            <li><strong>Справочник Лейфера 2026:</strong> Крайние этажи (+5% первый, +4% последний).</li>
-            <li><strong>Поправка на торг:</strong> −6,00% к ценам предложений по Самарской области.</li>
-            <li><strong>Долевая собственность:</strong> Автоматический расчёт с точностью до 1 000 ₽.</li>
-          </ul>
-        </div>
       </aside>
     </div>
+
+    <!-- ENLARGED VISUAL SHOWCASE DASHBOARDS (Scroll Down!) -->
+    <div class="showcase-stack">
+      <!-- Showcase 1: Аналитика цен 1 м² по районам Тольятти -->
+      <section class="showcase-panel reveal-on-scroll">
+        <div class="panel-head-flex">
+          <h3 class="panel-head-title">${icon('building')} Аналитика цен 1 м² по районам Тольятти</h3>
+          <span class="badge-status ready">Ноябрь 2026</span>
+        </div>
+
+        <div class="analytics-showcase-body">
+          <div class="analytics-data-col">
+            <div class="district-stat-pills">
+              <div class="dstat-chip dstat-chip-blue">
+                <span class="dstat-val">54 380 ₽/м²</span>
+                <span class="dstat-lbl">Средняя по городу</span>
+              </div>
+              <div class="dstat-chip">
+                <span class="dstat-val">65 566 ₽/м²</span>
+                <span class="dstat-lbl">Максимум (Автозаводский)</span>
+              </div>
+              <div class="dstat-chip dstat-chip-emerald">
+                <span class="dstat-val">−6,0%</span>
+                <span class="dstat-lbl">Поправка на торг</span>
+              </div>
+            </div>
+
+            <div class="district-list">
+              <div class="district-item">
+                <div class="district-head">
+                  <span class="district-name"><strong>Автозаводский район</strong> · Новый город</span>
+                  <span class="district-price">65 566 ₽/м² <small class="text-green">+4.2%</small></span>
+                </div>
+                <div class="district-bar-bg">
+                  <div class="district-bar-fill" style="width: 94%; background: linear-gradient(90deg, #1d4ed8, #3b82f6, #60a5fa);"></div>
+                </div>
+              </div>
+
+              <div class="district-item">
+                <div class="district-head">
+                  <span class="district-name"><strong>Центральный район</strong> · Старый город</span>
+                  <span class="district-price">58 900 ₽/м² <small class="text-blue">+1.9%</small></span>
+                </div>
+                <div class="district-bar-bg">
+                  <div class="district-bar-fill" style="width: 84%; background: linear-gradient(90deg, #4f46e5, #6366f1, #818cf8);"></div>
+                </div>
+              </div>
+
+              <div class="district-item">
+                <div class="district-head">
+                  <span class="district-name"><strong>Комсомольский район</strong> · Набережная</span>
+                  <span class="district-price">52 973 ₽/м² <small class="text-amber">эталон</small></span>
+                </div>
+                <div class="district-bar-bg">
+                  <div class="district-bar-fill" style="width: 75%; background: linear-gradient(90deg, #059669, #10b981, #34d399);"></div>
+                </div>
+              </div>
+
+              <div class="district-item">
+                <div class="district-head">
+                  <span class="district-name"><strong>мкрн Поволжский</strong></span>
+                  <span class="district-price">50 630 ₽/м² <small class="text-muted">база</small></span>
+                </div>
+                <div class="district-bar-bg">
+                  <div class="district-bar-fill" style="width: 70%; background: linear-gradient(90deg, #3b82f6, #93c5fd);"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="trend-chart-card">
+              <div class="trend-chart-head">
+                <span>Индекс средней цены 1 м² (Июн — Ноя 2026)</span>
+                <span class="kpi-pill kpi-pill-green">+4,8% за 6 мес.</span>
+              </div>
+              <svg class="trend-svg" viewBox="0 0 560 90" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="togliattiTrendGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#2563eb" stop-opacity="0.22"/>
+                    <stop offset="100%" stop-color="#2563eb" stop-opacity="0.0"/>
+                  </linearGradient>
+                </defs>
+                <path d="M 10 72 C 95 66, 175 56, 265 44 C 355 34, 455 24, 550 14 L 550 86 L 10 86 Z" fill="url(#togliattiTrendGrad)"/>
+                <path d="M 10 72 C 95 66, 175 56, 265 44 C 355 34, 455 24, 550 14" fill="none" stroke="#2563eb" stroke-width="3.2" stroke-linecap="round"/>
+                <circle cx="10" cy="72" r="4.5" fill="#ffffff" stroke="#2563eb" stroke-width="2.5"/>
+                <circle cx="118" cy="61" r="4.5" fill="#ffffff" stroke="#2563eb" stroke-width="2.5"/>
+                <circle cx="226" cy="49" r="4.5" fill="#ffffff" stroke="#2563eb" stroke-width="2.5"/>
+                <circle cx="334" cy="36" r="4.5" fill="#ffffff" stroke="#2563eb" stroke-width="2.5"/>
+                <circle cx="442" cy="24" r="4.5" fill="#ffffff" stroke="#2563eb" stroke-width="2.5"/>
+                <circle cx="550" cy="14" r="5.5" fill="#2563eb" stroke="#ffffff" stroke-width="2.5"/>
+              </svg>
+            </div>
+          </div>
+
+          <div class="visual-stage-box">
+            <img src="/images/togliatti-skyline-widget.jpg" alt="Аналитика районов Тольятти" class="visual-stage-img">
+            <div class="district-avg-footer" style="width: 100%; margin-top: 0;">
+              <span>Жилой фонд г. Тольятти</span>
+              <strong>54 380 ₽/м²</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Showcase 2: Конвейер подготовки отчётов по ФСО -->
+      <section class="showcase-panel reveal-on-scroll">
+        <div class="panel-head-flex">
+          <h3 class="panel-head-title">${icon('layers')} Конвейер подготовки отчётов по ФСО</h3>
+          <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <span class="kpi-pill kpi-pill-green">−4,5 ч на отчёт</span>
+            <span class="badge-status in-progress">100% авто</span>
+          </div>
+        </div>
+
+        <div class="pipeline-showcase-body">
+          <div class="visual-stage-box">
+            <img src="/images/fso-pipeline-widget.jpg" alt="Конвейер подготовки отчётов ФСО" class="visual-stage-img">
+            <div class="pipeline-gauge-row">
+              <div class="gauge-ring-wrap">
+                <svg class="gauge-svg" viewBox="0 0 60 60">
+                  <circle cx="30" cy="30" r="24" fill="none" stroke="#e2e8f0" stroke-width="6"/>
+                  <circle cx="30" cy="30" r="24" fill="none" stroke="#10b981" stroke-width="6"
+                    stroke-linecap="round"
+                    stroke-dasharray="${gaugeCirc}"
+                    stroke-dashoffset="${gaugeOffset}"/>
+                </svg>
+                <div class="gauge-info">
+                  <strong>${pipelineOverallPct}%</strong>
+                  <span>Прогресс по реестру</span>
+                </div>
+              </div>
+              <span class="kpi-pill kpi-pill-blue">${cases.length} дела</span>
+            </div>
+          </div>
+
+          <div class="funnel-steps">
+            <div class="funnel-step">
+              <span class="step-num">1</span>
+              <span class="step-title">Реквизиты объекта и выписка ЕГРН</span>
+              <div class="step-bar"><div class="step-bar-fill" style="width: 100%; background: linear-gradient(90deg, #2563eb, #60a5fa);"></div></div>
+              <span class="step-count">${cases.length} из ${cases.length} (100%)</span>
+            </div>
+
+            <div class="funnel-step">
+              <span class="step-num">2</span>
+              <span class="step-title">Подбор 3–5 аналогов (Авито, Циан)</span>
+              <div class="step-bar"><div class="step-bar-fill" style="width: ${withAnalogsPct}%; background: linear-gradient(90deg, #4f46e5, #818cf8);"></div></div>
+              <span class="step-count">${withAnalogsCount} из ${cases.length} (${withAnalogsPct}%)</span>
+            </div>
+
+            <div class="funnel-step">
+              <span class="step-num">3</span>
+              <span class="step-title">Расчёт корректировок Лейфера</span>
+              <div class="step-bar"><div class="step-bar-fill" style="width: ${leiferReadyPct}%; background: linear-gradient(90deg, #0ea5e9, #38bdf8);"></div></div>
+              <span class="step-count">${leiferReadyCount} из ${cases.length} (${leiferReadyPct}%)</span>
+            </div>
+
+            <div class="funnel-step">
+              <span class="step-num">4</span>
+              <span class="step-title">Контроль вариации V ≤ 33% и долей</span>
+              <div class="step-bar"><div class="step-bar-fill" style="width: ${readyPct}%; background: linear-gradient(90deg, #10b981, #34d399);"></div></div>
+              <span class="step-count">${readyCases.length} из ${cases.length} (${readyPct}%)</span>
+            </div>
+
+            <div class="funnel-step">
+              <span class="step-num">5</span>
+              <span class="step-title">Формирование Word-документа (.docx)</span>
+              <div class="step-bar"><div class="step-bar-fill" style="width: ${readyPct}%; background: linear-gradient(90deg, #059669, #10b981);"></div></div>
+              <span class="step-count">${readyCases.length} из ${cases.length} (${readyPct}%)</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Bottom Section: Матрица поправок (Compact, Clean, Without Small Descriptive Text) -->
+    <section class="leifer-panel reveal-on-scroll">
+      <div class="panel-head-flex">
+        <h3 class="panel-head-title">${icon('sliders')} Матрица поправок Лейфера 2026</h3>
+        <span class="kpi-pill kpi-pill-blue">ФСО I-VI, ФСО № 7</span>
+      </div>
+
+      <div class="leifer-matrix-grid">
+        <div class="leifer-card leifer-card-blue">
+          <div class="leifer-card-top">
+            <span class="leifer-tag">Торг</span>
+            <span class="leifer-badge">−6,0%</span>
+          </div>
+          <div class="leifer-title">Рынок предложений</div>
+          <div class="leifer-mini-track">
+            <div class="leifer-mini-fill" style="width: 65%; background: linear-gradient(90deg, #2563eb, #60a5fa);"></div>
+          </div>
+        </div>
+
+        <div class="leifer-card leifer-card-purple">
+          <div class="leifer-card-top">
+            <span class="leifer-tag">Этажность</span>
+            <span class="leifer-badge">+5% / +4%</span>
+          </div>
+          <div class="leifer-title">Первый и последний этаж</div>
+          <div class="leifer-mini-track">
+            <div class="leifer-mini-fill" style="width: 78%; background: linear-gradient(90deg, #7c3aed, #a78bfa);"></div>
+          </div>
+        </div>
+
+        <div class="leifer-card leifer-card-emerald">
+          <div class="leifer-card-top">
+            <span class="leifer-tag">Отделка</span>
+            <span class="leifer-badge">+6,0%</span>
+          </div>
+          <div class="leifer-title">Простая и улучшенная</div>
+          <div class="leifer-mini-track">
+            <div class="leifer-mini-fill" style="width: 82%; background: linear-gradient(90deg, #059669, #34d399);"></div>
+          </div>
+        </div>
+
+        <div class="leifer-card leifer-card-amber">
+          <div class="leifer-card-top">
+            <span class="leifer-tag">Однородность</span>
+            <span class="leifer-badge">V ≤ 33%</span>
+          </div>
+          <div class="leifer-title">Эталон выборки: 4,1%</div>
+          <div class="leifer-mini-track">
+            <div class="leifer-mini-fill" style="width: 90%; background: linear-gradient(90deg, #d97706, #fbbf24);"></div>
+          </div>
+        </div>
+      </div>
+    </section>
   `;
 }
 
@@ -1639,7 +1674,7 @@ function openCreateCaseModal() {
   dialog.innerHTML = `
     <div class="modal-header">
       <h3>Новый объект оценки (Квартира)</h3>
-      <button class="btn btn-secondary btn-sm" id="modal-close">${icon('x')}</button>
+      <button type="button" class="btn btn-secondary btn-sm" id="modal-close" aria-label="Закрыть">${CLOSE_ICON_SVG}</button>
     </div>
     <form id="form-new-case" class="modal-form">
       <div class="form-row">
@@ -1672,9 +1707,9 @@ function openCreateCaseModal() {
       <div class="form-row">
         <div class="form-group">
           <label>Этаж / Этажность</label>
-          <div style="display: flex; gap: 8px;">
-            <input type="number" name="floor" placeholder="Этаж" value="4" required style="flex: 1;">
-            <input type="number" name="totalFloors" placeholder="Всего" value="9" required style="flex: 1;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; min-width: 0;">
+            <input type="number" name="floor" placeholder="Этаж" value="4" required>
+            <input type="number" name="totalFloors" placeholder="Всего" value="9" required>
           </div>
         </div>
         <div class="form-group">
@@ -1691,10 +1726,10 @@ function openCreateCaseModal() {
         <input type="text" name="client" placeholder="Петров Сергей Александрович" value="Петров Сергей Александрович" required>
       </div>
 
-      <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 8px;">
-        <input type="checkbox" id="check-include-sample-analogs" checked style="width: 16px; height: 16px;">
+      <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 10px;">
+        <input type="checkbox" id="check-include-sample-analogs" checked style="width: 16px; height: 16px; flex-shrink: 0;">
         <label for="check-include-sample-analogs" style="cursor: pointer;">
-          Загрузить типовую выборку реальных аналогов г. Тольятти для быстрого старта
+          Загрузить типовую выборку реальных аналогов г. Тольятти
         </label>
       </div>
 
@@ -1704,7 +1739,6 @@ function openCreateCaseModal() {
       </div>
     </form>
   `;
-  createIcons({ icons });
   dialog.showModal();
 
   dialog.querySelector('#modal-close').onclick = () => dialog.close();
@@ -1750,7 +1784,7 @@ function openAddAnalogModal() {
   dialog.innerHTML = `
     <div class="modal-header">
       <h3>Добавить аналог в расчёт</h3>
-      <button class="btn btn-secondary btn-sm" id="modal-close">${icon('x')}</button>
+      <button type="button" class="btn btn-secondary btn-sm" id="modal-close" aria-label="Закрыть">${CLOSE_ICON_SVG}</button>
     </div>
     <form id="form-add-analog" class="modal-form">
       <div class="form-group">
@@ -1770,9 +1804,9 @@ function openAddAnalogModal() {
       <div class="form-row">
         <div class="form-group">
           <label>Этаж / Этажность</label>
-          <div style="display: flex; gap: 8px;">
-            <input type="number" name="floor" placeholder="Этаж" value="3" required style="flex: 1;">
-            <input type="number" name="totalFloors" placeholder="Всего" value="5" required style="flex: 1;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; min-width: 0;">
+            <input type="number" name="floor" placeholder="Этаж" value="3" required>
+            <input type="number" name="totalFloors" placeholder="Всего" value="5" required>
           </div>
         </div>
         <div class="form-group">
@@ -1793,7 +1827,6 @@ function openAddAnalogModal() {
       </div>
     </form>
   `;
-  createIcons({ icons });
   dialog.showModal();
 
   dialog.querySelector('#modal-close').onclick = () => dialog.close();

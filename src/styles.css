@@ -1016,66 +1016,90 @@ a {
 /* Modals */
 dialog {
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 24px;
-  width: min(540px, calc(100vw - 32px));
+  border-radius: 16px;
+  padding: 0;
+  width: min(560px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 32px);
   margin: auto;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.18);
+  overflow: hidden;
+  flex-direction: column;
+  background: #ffffff;
+  color: var(--text-dark);
+}
+
+dialog[open] {
+  display: flex;
 }
 
 dialog::backdrop {
   background: rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(2px);
 }
 
 .modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
+  padding: 18px 24px 14px;
+  border-bottom: 1px solid var(--border-light);
+  flex-shrink: 0;
 }
 
 .modal-header h3 {
-  font-size: 17px;
-  font-weight: 650;
+  font-size: 18px;
+  font-weight: 750;
+  color: var(--text-dark);
+}
+
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 24px 20px;
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1;
 }
 
 .modal-actions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
-}
-
-.modal-form {
-  display: grid;
-  gap: 14px;
+  margin-top: 6px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-light);
+  flex-shrink: 0;
 }
 
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+  min-width: 0;
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
+  min-width: 0;
 }
 
 .form-group label {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-muted);
 }
 
 .form-group input, .form-group select {
-  padding: 8px 12px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 9px 12px;
+  font-size: 14.5px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 8px;
   background: #ffffff;
 }
 
@@ -1268,93 +1292,43 @@ dialog::backdrop {
    DASHBOARD VIEW (ГЛАВНАЯ СТРАНИЦА) — КРУПНО, МИНИМАЛИСТИЧНО, КРАСОЧНО
    ========================================================================= */
 
-/* Hero Banner (Super-sized) */
-.dashboard-hero {
-  background: linear-gradient(135deg, #ffffff 0%, #f4f8fe 45%, #e8f2fe 100%);
-  border: 1px solid #bfdbfe;
-  border-radius: 20px;
-  padding: 36px 42px;
-  margin-bottom: 30px;
-  display: grid;
-  grid-template-columns: 1fr 340px;
-  gap: 36px;
-  align-items: center;
-  box-shadow: 0 8px 30px -4px rgba(30, 64, 175, 0.08), 0 2px 8px -1px rgba(0, 0, 0, 0.02);
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  position: relative;
-  overflow: hidden;
-}
-
-.dashboard-hero:hover {
-  box-shadow: 0 14px 40px -4px rgba(30, 64, 175, 0.12), 0 4px 12px rgba(37, 99, 235, 0.04);
-}
-
-.hero-content {
+/* Frameless Clean Welcome Header (Unboxed, No Small Clutter) */
+.dashboard-welcome {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.hero-badge {
-  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12.5px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  color: #1e40af;
-  background: #dbeafe;
-  border: 1px solid #bfdbfe;
-  padding: 5px 14px;
-  border-radius: 24px;
-  align-self: flex-start;
-  box-shadow: 0 2px 6px rgba(30, 64, 175, 0.08);
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
 }
 
-.hero-title {
-  font-size: 33px;
+.welcome-title {
+  font-size: 34px;
   font-weight: 850;
   color: #0f172a;
-  letter-spacing: -0.8px;
-  line-height: 1.2;
+  letter-spacing: -0.9px;
+  line-height: 1.18;
 }
 
-.hero-subtitle {
-  font-size: 16px;
-  line-height: 1.65;
-  color: #475569;
-  max-width: 760px;
-}
-
-.hero-actions {
+.welcome-actions {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-top: 10px;
   flex-wrap: wrap;
 }
 
-.hero-image-box {
-  width: 100%;
-  height: 220px;
-  border-radius: 16px;
-  overflow: hidden;
-  border: 1px solid rgba(219, 234, 254, 0.95);
-  box-shadow: 0 12px 30px -4px rgba(30, 64, 175, 0.16);
-  background: #ffffff;
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+.kpi-foot-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 2px;
 }
 
-.hero-image-box:hover {
-  transform: scale(1.025);
-}
-
-.hero-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
+.kpi-spark {
+  width: 74px;
+  height: 26px;
+  flex-shrink: 0;
 }
 
 /* KPI Grid (Super-sized & Colorful) */
@@ -1499,7 +1473,184 @@ dialog::backdrop {
   transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Analytics Row (Districts + Pipeline) */
+/* Analytics Showcase Dashboards (Large, Stylized & Visual) */
+.showcase-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  margin-top: 36px;
+  margin-bottom: 36px;
+}
+
+.showcase-panel {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 34px 38px;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.04);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
+}
+
+.showcase-panel:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 38px rgba(15, 23, 42, 0.07);
+}
+
+.analytics-showcase-body {
+  display: grid;
+  grid-template-columns: 1.45fr 1fr;
+  gap: 36px;
+  align-items: center;
+}
+
+.pipeline-showcase-body {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 36px;
+  align-items: center;
+}
+
+.analytics-data-col {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.district-stat-pills {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.dstat-chip {
+  background: #f8fafc;
+  border: 1px solid var(--border-light);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dstat-chip-blue {
+  background: linear-gradient(135deg, #eff6ff, #f8fafc);
+  border-color: #bfdbfe;
+}
+
+.dstat-chip-emerald {
+  background: linear-gradient(135deg, #ecfdf5, #f8fafc);
+  border-color: #a7f3d0;
+}
+
+.dstat-val {
+  font-size: 20px;
+  font-weight: 850;
+  color: var(--text-dark);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.4px;
+}
+
+.dstat-chip-blue .dstat-val { color: #1e40af; }
+.dstat-chip-emerald .dstat-val { color: #047857; }
+
+.dstat-lbl {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.trend-chart-card {
+  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+  border: 1px solid #dbeafe;
+  border-radius: 16px;
+  padding: 16px 20px 12px;
+}
+
+.trend-chart-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.trend-svg {
+  width: 100%;
+  height: 92px;
+  display: block;
+  overflow: visible;
+}
+
+.visual-stage-box {
+  background: linear-gradient(155deg, #ffffff 0%, #f1f6fe 100%);
+  border: 1px solid #dbeafe;
+  border-radius: 20px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  position: relative;
+  overflow: hidden;
+}
+
+.visual-stage-img {
+  width: 100%;
+  max-height: 280px;
+  object-fit: cover;
+  border-radius: 14px;
+  display: block;
+  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.showcase-panel:hover .visual-stage-img {
+  transform: scale(1.03);
+}
+
+.pipeline-gauge-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: #ffffff;
+  border: 1px solid #dbeafe;
+  border-radius: 14px;
+  padding: 14px 18px;
+}
+
+.gauge-ring-wrap {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.gauge-svg {
+  width: 60px;
+  height: 60px;
+  transform: rotate(-90deg);
+  flex-shrink: 0;
+}
+
+.gauge-info strong {
+  display: block;
+  font-size: 18px;
+  font-weight: 850;
+  color: var(--text-dark);
+}
+
+.gauge-info span {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* Analytics Row (Districts + Pipeline Fallback Grid) */
 .dash-analytics-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1526,25 +1677,26 @@ dialog::backdrop {
 
 .panel-head-flex {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 14px;
+  flex-wrap: wrap;
 }
 
 .panel-head-title {
-  font-size: 19px;
-  font-weight: 780;
+  font-size: 22px;
+  font-weight: 820;
   color: var(--text-dark);
   display: flex;
   align-items: center;
   gap: 10px;
-  letter-spacing: -0.3px;
+  letter-spacing: -0.4px;
 }
 
 .panel-head-title svg, .panel-head-title i {
   color: #2563eb;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   flex-shrink: 0;
 }
 
@@ -1558,20 +1710,20 @@ dialog::backdrop {
 .district-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 }
 
 .district-item {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 8px;
 }
 
 .district-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 15px;
+  font-size: 16px;
   gap: 12px;
 }
 
@@ -1580,8 +1732,8 @@ dialog::backdrop {
 }
 
 .district-price {
-  font-size: 16px;
-  font-weight: 750;
+  font-size: 17.5px;
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
   display: flex;
   align-items: center;
@@ -1590,9 +1742,9 @@ dialog::backdrop {
 }
 
 .district-price small {
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 650;
-  padding: 2px 8px;
+  padding: 2px 9px;
   border-radius: 6px;
 }
 
@@ -1602,9 +1754,9 @@ dialog::backdrop {
 .text-amber { color: #b45309; background: #fffbeb; }
 
 .district-bar-bg {
-  height: 12px;
+  height: 16px;
   background: #f1f5f9;
-  border-radius: 8px;
+  border-radius: 10px;
   overflow: hidden;
   position: relative;
 }
@@ -1725,13 +1877,14 @@ dialog::backdrop {
   font-weight: 750;
 }
 
-/* Full-width Colorful Matrix Panel (Leifer 2026 & FSO Benchmarks) */
+/* Bottom Compact Colorful Matrix Panel (Leifer 2026 & FSO Benchmarks) */
 .leifer-panel {
   background: #ffffff;
   border: 1px solid var(--border);
   border-radius: 20px;
   padding: 28px 32px;
-  margin-bottom: 36px;
+  margin-top: 36px;
+  margin-bottom: 16px;
   box-shadow: 0 4px 16px rgba(15, 23, 42, 0.03);
 }
 
@@ -1967,8 +2120,7 @@ dialog::backdrop {
   position: absolute;
   top: 12px;
   left: 12px;
-  background: rgba(15, 23, 42, 0.78);
-  backdrop-filter: blur(8px);
+  background: rgba(15, 23, 42, 0.86);
   color: #ffffff;
   font-size: 12px;
   font-weight: 700;
@@ -2132,11 +2284,9 @@ dialog::backdrop {
   .dash-main-grid {
     grid-template-columns: 1fr;
   }
-  .dashboard-hero {
+  .analytics-showcase-body,
+  .pipeline-showcase-body {
     grid-template-columns: 1fr;
-  }
-  .hero-image-box {
-    max-height: 220px;
   }
   .leifer-matrix-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -2185,11 +2335,14 @@ dialog::backdrop {
   .page-container {
     padding: 20px;
   }
-  .dashboard-hero {
-    padding: 24px 20px;
+  .welcome-title {
+    font-size: 26px;
   }
-  .hero-title {
-    font-size: 25px;
+  .showcase-panel {
+    padding: 22px 18px;
+  }
+  .district-stat-pills {
+    grid-template-columns: 1fr;
   }
   .stat-cards-ribbon,
   .kpi-grid,
@@ -2201,6 +2354,12 @@ dialog::backdrop {
   }
   .case-right-meta {
     align-items: flex-start;
+  }
+}
+
+@media (max-width: 560px) {
+  .form-row {
+    grid-template-columns: 1fr;
   }
 }
 

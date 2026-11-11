@@ -113,6 +113,7 @@ export async function exportApartmentReport(objectData, analogsList) {
     Table,
     TableRow,
     TableCell,
+    TableLayoutType,
     WidthType,
     AlignmentType,
     BorderStyle,
@@ -207,27 +208,45 @@ export async function exportApartmentReport(objectData, analogsList) {
     insideVertical: { style: BorderStyle.SINGLE, size: 1, color: 'E2E8F0' },
   };
 
+  const PAGE_CONTENT_WIDTH_DXA = 9639; // 210mm (11906) - left 25mm (1417) - right 15mm (850)
+
   const createTable = (matrix, opts = {}) => {
+    const firstRow = matrix[0] || [];
+    const colCount = firstRow.length || 1;
+    const rawPct = firstRow.map(cell =>
+      typeof cell === 'object' && cell !== null && cell.width ? Number(cell.width) : Math.floor(100 / colCount)
+    );
+    const totalPct = rawPct.reduce((s, v) => s + v, 0) || 100;
+    const colWidthsDxa = rawPct.map(v => Math.max(480, Math.round((v / totalPct) * PAGE_CONTENT_WIDTH_DXA)));
+    const widthDiff = PAGE_CONTENT_WIDTH_DXA - colWidthsDxa.reduce((s, v) => s + v, 0);
+    if (colWidthsDxa.length > 0) {
+      colWidthsDxa[colWidthsDxa.length - 1] += widthDiff;
+    }
+
     return new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
+      width: { size: PAGE_CONTENT_WIDTH_DXA, type: WidthType.DXA },
+      layout: TableLayoutType.FIXED,
+      columnWidths: colWidthsDxa,
       borders: borderCfg,
       rows: matrix.map((row, rowIdx) => {
         const isHeader = rowIdx === 0 && opts.hasHeader;
         return new TableRow({
           tableHeader: isHeader,
           cantSplit: true,
-          children: row.map(cell => {
+          children: row.map((cell, colIdx) => {
             const data = typeof cell === 'object' && cell !== null && ('text' in cell || 'children' in cell)
               ? cell
               : { text: cell };
+            const cellDxa = colWidthsDxa[colIdx] || Math.floor(PAGE_CONTENT_WIDTH_DXA / colCount);
+            const defaultFontSize = colCount >= 6 ? (isHeader ? 16 : 15) : (isHeader ? 18 : 17);
             return new TableCell({
-              width: data.width ? { size: data.width, type: WidthType.PERCENTAGE } : undefined,
+              width: { size: cellDxa, type: WidthType.DXA },
               shading: data.bg ? { fill: data.bg } : (isHeader ? { fill: 'F1F5F9' } : (rowIdx % 2 === 1 && opts.zebra ? { fill: 'F8FAFC' } : undefined)),
               margins: {
                 top: opts.cellPaddingTop ?? 90,
                 bottom: opts.cellPaddingBottom ?? 90,
-                left: opts.cellPaddingLeft ?? 120,
-                right: opts.cellPaddingRight ?? 120,
+                left: opts.cellPaddingLeft ?? (colCount >= 6 ? 70 : 120),
+                right: opts.cellPaddingRight ?? (colCount >= 6 ? 70 : 120),
               },
               children: data.children || [
                 new Paragraph({
@@ -235,7 +254,7 @@ export async function exportApartmentReport(objectData, analogsList) {
                     new TextRun({
                       text: String(data.text ?? '—'),
                       bold: data.bold ?? isHeader,
-                      size: data.size || (isHeader ? 18 : 17),
+                      size: data.size || defaultFontSize,
                       color: data.color || (isHeader ? '0F172A' : '1E293B'),
                       font: 'Calibri',
                     }),
@@ -314,7 +333,9 @@ export async function exportApartmentReport(objectData, analogsList) {
 
   children.push(
     new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
+      width: { size: PAGE_CONTENT_WIDTH_DXA, type: WidthType.DXA },
+      layout: TableLayoutType.FIXED,
+      columnWidths: [5301, 4338],
       borders: {
         top: { style: BorderStyle.NONE },
         bottom: { style: BorderStyle.NONE },
@@ -326,8 +347,8 @@ export async function exportApartmentReport(objectData, analogsList) {
       rows: [
         new TableRow({
           children: [
-            new TableCell({ width: { size: 55, type: WidthType.PERCENTAGE }, children: headerLeftChildren }),
-            new TableCell({ width: { size: 45, type: WidthType.PERCENTAGE }, children: headerRightChildren }),
+            new TableCell({ width: { size: 5301, type: WidthType.DXA }, children: headerLeftChildren }),
+            new TableCell({ width: { size: 4338, type: WidthType.DXA }, children: headerRightChildren }),
           ],
         }),
       ],
@@ -368,7 +389,9 @@ export async function exportApartmentReport(objectData, analogsList) {
 
     // Выделенный блок итоговой стоимости на титуле
     new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
+      width: { size: PAGE_CONTENT_WIDTH_DXA, type: WidthType.DXA },
+      layout: TableLayoutType.FIXED,
+      columnWidths: [PAGE_CONTENT_WIDTH_DXA],
       borders: {
         top: { style: BorderStyle.SINGLE, size: 2, color: '2563EB' },
         bottom: { style: BorderStyle.SINGLE, size: 2, color: '2563EB' },
@@ -379,6 +402,7 @@ export async function exportApartmentReport(objectData, analogsList) {
         new TableRow({
           children: [
             new TableCell({
+              width: { size: PAGE_CONTENT_WIDTH_DXA, type: WidthType.DXA },
               shading: { fill: 'EFF6FF' },
               margins: { top: 160, bottom: 160, left: 200, right: 200 },
               children: [
@@ -451,10 +475,10 @@ export async function exportApartmentReport(objectData, analogsList) {
   if (result.shares && result.shares.length > 0) {
     const shareRows = [
       [
-        { text: '№', bold: true, width: 5 },
-        { text: 'Правообладатель (ФИО)', bold: true, width: 35 },
-        { text: 'Размер доли', bold: true, width: 12 },
-        { text: 'Доля, %', bold: true, width: 12 },
+        { text: '№', bold: true, width: 10 },
+        { text: 'Правообладатель (ФИО)', bold: true, width: 32 },
+        { text: 'Размер доли', bold: true, width: 11 },
+        { text: 'Доля, %', bold: true, width: 11 },
         { text: 'Номинальная стоимость', bold: true, width: 18 },
         { text: 'Рыночная стоимость (округл.)', bold: true, width: 18 },
       ],
@@ -608,13 +632,13 @@ export async function exportApartmentReport(objectData, analogsList) {
   if (result.rows && result.rows.length > 0) {
     const table12_1_rows = [
       [
-        { text: '№', bold: true, width: 4 },
-        { text: 'Адрес предложения', bold: true, width: 34 },
+        { text: '№', bold: true, width: 6 },
+        { text: 'Адрес предложения', bold: true, width: 30 },
         { text: 'Источник / Дата', bold: true, width: 18 },
         { text: 'Цена предложения', bold: true, width: 14 },
         { text: 'Площадь', bold: true, width: 10 },
-        { text: 'Цена 1 м²', bold: true, width: 10 },
-        { text: 'Этаж', bold: true, width: 10 },
+        { text: 'Цена 1 м²', bold: true, width: 13 },
+        { text: 'Этаж', bold: true, width: 9 },
       ],
       ...result.rows.map(r => [
         String(r.number),
@@ -633,10 +657,10 @@ export async function exportApartmentReport(objectData, analogsList) {
     );
 
     // 7.2. Матрица сравнительного анализа (Таблица 12.2)
-    const n = result.rows.length;
-    const pWidth = 26;
-    const oWidth = 14;
-    const aWidth = Math.floor((100 - pWidth - oWidth) / (n || 1));
+    const n = result.rows.length || 1;
+    const pWidth = 24;
+    const oWidth = 13;
+    const aWidth = Math.floor((100 - pWidth - oWidth) / n);
 
     const t12_2_header = [
       { text: 'Элемент сравнения / Поправка', bold: true, width: pWidth },
@@ -660,7 +684,7 @@ export async function exportApartmentReport(objectData, analogsList) {
 
     children.push(
       h2('7.2. Матрица сравнительного анализа и расчета корректировок (Таблица 12.2)'),
-      createTable(t12_2_rows, { hasHeader: true, zebra: true, cellPaddingLeft: 80, cellPaddingRight: 80 })
+      createTable(t12_2_rows, { hasHeader: true, zebra: true, cellPaddingLeft: 60, cellPaddingRight: 60 })
     );
 
     // 7.3. Контроль качества выборки (Таблица 12.3)
@@ -714,7 +738,9 @@ export async function exportApartmentReport(objectData, analogsList) {
 
     // Блок подписей
     new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
+      width: { size: PAGE_CONTENT_WIDTH_DXA, type: WidthType.DXA },
+      layout: TableLayoutType.FIXED,
+      columnWidths: [4820, 4819],
       borders: {
         top: { style: BorderStyle.NONE },
         bottom: { style: BorderStyle.NONE },
@@ -727,7 +753,7 @@ export async function exportApartmentReport(objectData, analogsList) {
         new TableRow({
           children: [
             new TableCell({
-              width: { size: 50, type: WidthType.PERCENTAGE },
+              width: { size: 4820, type: WidthType.DXA },
               children: [
                 p('Оценщик ООО «РусОценка»', { bold: true }),
                 p('___________ / А.А. Орлова /'),
@@ -735,7 +761,7 @@ export async function exportApartmentReport(objectData, analogsList) {
               ],
             }),
             new TableCell({
-              width: { size: 50, type: WidthType.PERCENTAGE },
+              width: { size: 4819, type: WidthType.DXA },
               children: [
                 p('Генеральный директор ООО «РусОценка»', { bold: true }),
                 p('___________ / А.А. Орлова /'),
@@ -768,6 +794,10 @@ export async function exportApartmentReport(objectData, analogsList) {
       {
         properties: {
           page: {
+            size: {
+              width: 11906, // A4 portrait 210mm
+              height: 16838, // 297mm
+            },
             margin: {
               top: 1134, // 20 mm
               bottom: 1134, // 20 mm
