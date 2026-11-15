@@ -32,6 +32,9 @@ let activeTab = 'analogs'; // 'object' | 'analogs' | 'calculation' | 'report'
 let filterStatus = 'all';
 let searchQuery = '';
 let scrollObserver = null;
+let isSidebarHovered = false;
+let isSidebarPinned = typeof localStorage !== 'undefined' && localStorage.getItem('rosocenka_sidebar_pinned') === 'true';
+let sidebarLeaveTimer = null;
 
 const icon = name => `<i data-lucide="${name}"></i>`;
 const CLOSE_ICON_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
@@ -48,137 +51,229 @@ function getActiveCase() {
   return findCaseById(cases, activeCaseId) || cases[0] || null;
 }
 
+/**
+ * Плавный переход между вкладками и представлениями (View Transitions API + Fallback)
+ */
+function transitionRender(actionFn) {
+  if (typeof document !== 'undefined' && typeof document.startViewTransition === 'function') {
+    document.startViewTransition(() => {
+      if (actionFn) actionFn();
+      render();
+    });
+  } else {
+    if (actionFn) actionFn();
+    render();
+  }
+}
+
+/**
+ * Непрерывное отслеживание курсора над боковой панелью, чтобы она не закрывалась при кликах
+ */
+function setupSidebarEvents(sidebar) {
+  sidebar.addEventListener('mouseenter', () => {
+    isSidebarHovered = true;
+    if (sidebarLeaveTimer) {
+      clearTimeout(sidebarLeaveTimer);
+      sidebarLeaveTimer = null;
+    }
+    sidebar.classList.add('is-expanded');
+  });
+
+  sidebar.addEventListener('mousemove', () => {
+    isSidebarHovered = true;
+    if (sidebarLeaveTimer) {
+      clearTimeout(sidebarLeaveTimer);
+      sidebarLeaveTimer = null;
+    }
+    if (!sidebar.classList.contains('is-expanded')) {
+      sidebar.classList.add('is-expanded');
+    }
+  });
+
+  sidebar.addEventListener('mouseleave', () => {
+    isSidebarHovered = false;
+    if (sidebarLeaveTimer) {
+      clearTimeout(sidebarLeaveTimer);
+    }
+    sidebarLeaveTimer = setTimeout(() => {
+      if (!isSidebarHovered && !isSidebarPinned) {
+        sidebar.classList.remove('is-expanded');
+      }
+    }, 200);
+  });
+}
+
+/**
+ * HTML содержимое боковой панели
+ */
+function renderSidebarContent(activeCase, inProgressCount, readyCount) {
+  return `
+    <div class="sidebar-header">
+      <img class="brand-emblem-img" src="/images/rosocenka-emblem.png" alt="РусОценка">
+      <div class="brand-title">
+        <strong>РУСОЦЕНКА</strong>
+        <span>Кабинет оценщика</span>
+      </div>
+      <button type="button" class="btn-sidebar-pin ${isSidebarPinned ? 'pinned' : ''}" id="btn-sidebar-pin" title="${isSidebarPinned ? 'Открепить боковую панель' : 'Закрепить боковую панель'}">
+        ${icon(isSidebarPinned ? 'pin-off' : 'pin')}
+      </button>
+    </div>
+
+    <div class="sidebar-cta">
+      <button class="btn-create-case" id="btn-create-case-sidebar" title="Создать новый отчёт">
+        ${icon('plus')} <span class="nav-label">Новый отчёт</span>
+      </button>
+    </div>
+
+    <nav class="sidebar-nav">
+      <button class="nav-item ${currentView === 'dashboard' ? 'active' : ''}" data-nav="dashboard" title="Главная">
+        <span class="nav-icon">${icon('layout-dashboard')}</span>
+        <span class="nav-label">Главная</span>
+      </button>
+      <button class="nav-item ${currentView === 'cabinet' && filterStatus === 'all' ? 'active' : ''}" data-nav="all-cases" title="Все дела (${cases.length})">
+        <span class="nav-icon">${icon('folder')}</span>
+        <span class="nav-label">Все дела</span>
+        <span class="nav-badge">${cases.length}</span>
+      </button>
+      <button class="nav-item ${currentView === 'cabinet' && filterStatus === 'В работе' ? 'active' : ''}" data-nav="in-progress" title="В работе (${inProgressCount})">
+        <span class="nav-icon">${icon('clock')}</span>
+        <span class="nav-label">В работе</span>
+        <span class="nav-badge">${inProgressCount}</span>
+      </button>
+      <button class="nav-item ${currentView === 'cabinet' && filterStatus === 'Готов' ? 'active' : ''}" data-nav="ready" title="Готовые отчёты (${readyCount})">
+        <span class="nav-icon">${icon('check-circle')}</span>
+        <span class="nav-label">Готовые отчёты</span>
+        <span class="nav-badge">${readyCount}</span>
+      </button>
+
+      ${activeCase ? `
+        <div class="sidebar-divider"></div>
+        <button class="nav-item ${currentView === 'case' && activeTab === 'object' ? 'active' : ''}" data-tab="object" title="1. Объект оценки">
+          <span class="nav-icon">${icon('home')}</span>
+          <span class="nav-label">1. Объект оценки</span>
+        </button>
+        <button class="nav-item ${currentView === 'case' && activeTab === 'analogs' ? 'active' : ''}" data-tab="analogs" title="2. Аналоги и поправки">
+          <span class="nav-icon">${icon('layers')}</span>
+          <span class="nav-label">2. Аналоги и поправки</span>
+        </button>
+        <button class="nav-item ${currentView === 'case' && activeTab === 'calculation' ? 'active' : ''}" data-tab="calculation" title="3. Расчёт и доли">
+          <span class="nav-icon">${icon('calculator')}</span>
+          <span class="nav-label">3. Расчёт и доли</span>
+        </button>
+        <button class="nav-item ${currentView === 'case' && activeTab === 'report' ? 'active' : ''}" data-tab="report" title="4. Готовый документ">
+          <span class="nav-icon">${icon('file-text')}</span>
+          <span class="nav-label">4. Готовый документ</span>
+        </button>
+      ` : ''}
+    </nav>
+
+    <div class="sidebar-profile" title="Орлова Анна Александровна · Ведущий оценщик">
+      <div class="profile-avatar">АО</div>
+      <div class="profile-info">
+        <span class="profile-name">Орлова Анна А.</span>
+        <span class="profile-role">Ведущий оценщик</span>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * HTML содержимое верхней панели
+ */
+function renderTopbarContent(activeCase) {
+  return `
+    <div class="topbar-left">
+      <div class="breadcrumb">
+        ${currentView === 'dashboard' ? `
+          <strong>Главная страница</strong>
+        ` : currentView === 'cabinet' ? `
+          <a href="#" id="crumb-dashboard">Главная</a>
+          <span>/</span>
+          <strong>Личный кабинет</strong>
+        ` : `
+          <a href="#" id="crumb-dashboard">Главная</a>
+          <span>/</span>
+          <a href="#" id="crumb-cabinet">Личный кабинет</a>
+          <span>/</span>
+          <strong>Дело № ${activeCase ? activeCase.number : '—'}</strong>
+          ${activeCase ? `<span>(${activeCase.objectData.rooms}-к. кв., ${sqm(activeCase.objectData.area)})</span>` : ''}
+        `}
+      </div>
+    </div>
+
+    <div class="topbar-right">
+      <a href="/pitch.html" target="_blank" class="btn btn-secondary btn-sm" id="btn-top-pitch" title="Открыть питч-презентацию для заказчика">
+        ${icon('presentation')} Презентация
+      </a>
+      <span class="save-status-badge">
+        ${icon('check')} Сохранено
+      </span>
+      ${currentView === 'case' && activeCase ? `
+        <button class="btn btn-secondary btn-sm" id="btn-top-print">
+          ${icon('printer')} Печать
+        </button>
+        <button class="btn btn-primary btn-sm" id="btn-top-word">
+          ${icon('file-text')} Скачать Word (.docx)
+        </button>
+      ` : `
+        <button class="btn btn-secondary btn-sm" id="btn-reset-demo" title="Восстановить эталонные дела">
+          ${icon('rotate-ccw')} Сброс демо-дел
+        </button>
+        <button class="btn btn-primary btn-sm" id="btn-top-new-case">
+          ${icon('plus')} Добавить объект
+        </button>
+      `}
+    </div>
+  `;
+}
+
 function render() {
   const app = document.getElementById('app');
-  const activeCase = getActiveCase();
+  let sidebar = document.getElementById('app-sidebar');
+  let topbar = document.getElementById('app-topbar');
+  let pageContainer = document.getElementById('page-container');
 
-  // Sidebar counters
+  // Создаем постоянный каркас приложения один раз, чтобы сайдбар не пересоздавался и не захлопывался
+  if (!sidebar || !topbar || !pageContainer) {
+    app.innerHTML = `
+      <!-- Chrome-like Expandable Sidebar (White & Light Blue) -->
+      <aside class="app-sidebar ${isSidebarPinned ? 'is-pinned is-expanded' : ''}" id="app-sidebar"></aside>
+
+      <!-- Main Content Area -->
+      <div class="app-main">
+        <header class="app-topbar" id="app-topbar"></header>
+        <main class="page-container" id="page-container"></main>
+      </div>
+
+      <div id="toast" role="status" aria-live="polite"></div>
+      <dialog id="modal-dialog"></dialog>
+    `;
+    sidebar = document.getElementById('app-sidebar');
+    topbar = document.getElementById('app-topbar');
+    pageContainer = document.getElementById('page-container');
+    setupSidebarEvents(sidebar);
+  }
+
+  // Сохраняем состояние раскрытия/закрепления при перерисовке
+  if (isSidebarPinned) {
+    sidebar.classList.add('is-pinned');
+    sidebar.classList.add('is-expanded');
+  } else if (isSidebarHovered) {
+    sidebar.classList.add('is-expanded');
+  }
+
+  const activeCase = getActiveCase();
   const inProgressCount = cases.filter(c => c.status === 'В работе').length;
   const readyCount = cases.filter(c => c.status === 'Готов').length;
 
-  app.innerHTML = `
-    <!-- Chrome-like Expandable Sidebar (White & Light Blue) -->
-    <aside class="app-sidebar" id="app-sidebar">
-      <div class="sidebar-header">
-        <img class="brand-emblem-img" src="/images/rosocenka-emblem.png" alt="РусОценка">
-        <div class="brand-title">
-          <strong>РУСОЦЕНКА</strong>
-          <span>Кабинет оценщика</span>
-        </div>
-      </div>
-
-      <div class="sidebar-cta">
-        <button class="btn-create-case" id="btn-create-case-sidebar" title="Создать новый отчёт">
-          ${icon('plus')} <span class="nav-label">Новый отчёт</span>
-        </button>
-      </div>
-
-      <nav class="sidebar-nav">
-        <button class="nav-item ${currentView === 'dashboard' ? 'active' : ''}" data-nav="dashboard" title="Главная">
-          <span class="nav-icon">${icon('layout-dashboard')}</span>
-          <span class="nav-label">Главная</span>
-        </button>
-        <button class="nav-item ${currentView === 'cabinet' && filterStatus === 'all' ? 'active' : ''}" data-nav="all-cases" title="Все дела (${cases.length})">
-          <span class="nav-icon">${icon('folder')}</span>
-          <span class="nav-label">Все дела</span>
-          <span class="nav-badge">${cases.length}</span>
-        </button>
-        <button class="nav-item ${currentView === 'cabinet' && filterStatus === 'В работе' ? 'active' : ''}" data-nav="in-progress" title="В работе (${inProgressCount})">
-          <span class="nav-icon">${icon('clock')}</span>
-          <span class="nav-label">В работе</span>
-          <span class="nav-badge">${inProgressCount}</span>
-        </button>
-        <button class="nav-item ${currentView === 'cabinet' && filterStatus === 'Готов' ? 'active' : ''}" data-nav="ready" title="Готовые отчёты (${readyCount})">
-          <span class="nav-icon">${icon('check-circle')}</span>
-          <span class="nav-label">Готовые отчёты</span>
-          <span class="nav-badge">${readyCount}</span>
-        </button>
-
-        ${activeCase ? `
-          <div class="sidebar-divider"></div>
-          <button class="nav-item ${currentView === 'case' && activeTab === 'object' ? 'active' : ''}" data-tab="object" title="1. Объект оценки">
-            <span class="nav-icon">${icon('home')}</span>
-            <span class="nav-label">1. Объект оценки</span>
-          </button>
-          <button class="nav-item ${currentView === 'case' && activeTab === 'analogs' ? 'active' : ''}" data-tab="analogs" title="2. Аналоги и поправки">
-            <span class="nav-icon">${icon('layers')}</span>
-            <span class="nav-label">2. Аналоги и поправки</span>
-          </button>
-          <button class="nav-item ${currentView === 'case' && activeTab === 'calculation' ? 'active' : ''}" data-tab="calculation" title="3. Расчёт и доли">
-            <span class="nav-icon">${icon('calculator')}</span>
-            <span class="nav-label">3. Расчёт и доли</span>
-          </button>
-          <button class="nav-item ${currentView === 'case' && activeTab === 'report' ? 'active' : ''}" data-tab="report" title="4. Готовый документ">
-            <span class="nav-icon">${icon('file-text')}</span>
-            <span class="nav-label">4. Готовый документ</span>
-          </button>
-        ` : ''}
-      </nav>
-
-      <div class="sidebar-profile" title="Орлова Анна Александровна · Ведущий оценщик">
-        <div class="profile-avatar">АО</div>
-        <div class="profile-info">
-          <span class="profile-name">Орлова Анна А.</span>
-          <span class="profile-role">Ведущий оценщик</span>
-        </div>
-      </div>
-    </aside>
-
-    <!-- Main Content Area -->
-    <div class="app-main">
-      <!-- Topbar -->
-      <header class="app-topbar">
-        <div class="topbar-left">
-          <div class="breadcrumb">
-            ${currentView === 'dashboard' ? `
-              <strong>Главная страница</strong>
-            ` : currentView === 'cabinet' ? `
-              <a href="#" id="crumb-dashboard">Главная</a>
-              <span>/</span>
-              <strong>Личный кабинет</strong>
-            ` : `
-              <a href="#" id="crumb-dashboard">Главная</a>
-              <span>/</span>
-              <a href="#" id="crumb-cabinet">Личный кабинет</a>
-              <span>/</span>
-              <strong>Дело № ${activeCase ? activeCase.number : '—'}</strong>
-              ${activeCase ? `<span>(${activeCase.objectData.rooms}-к. кв., ${sqm(activeCase.objectData.area)})</span>` : ''}
-            `}
-          </div>
-        </div>
-
-        <div class="topbar-right">
-          <span class="save-status-badge">
-            ${icon('check')} Сохранено
-          </span>
-          ${currentView === 'case' && activeCase ? `
-            <button class="btn btn-secondary btn-sm" id="btn-top-print">
-              ${icon('printer')} Печать
-            </button>
-            <button class="btn btn-primary btn-sm" id="btn-top-word">
-              ${icon('file-text')} Скачать Word (.docx)
-            </button>
-          ` : `
-            <button class="btn btn-secondary btn-sm" id="btn-reset-demo" title="Восстановить эталонные дела">
-              ${icon('rotate-ccw')} Сброс демо-дел
-            </button>
-            <button class="btn btn-primary btn-sm" id="btn-top-new-case">
-              ${icon('plus')} Добавить объект
-            </button>
-          `}
-        </div>
-      </header>
-
-      <!-- View Content -->
-      <main class="page-container">
-        ${currentView === 'dashboard'
-          ? renderDashboardView()
-          : (currentView === 'cabinet' ? renderCabinetView() : renderCaseWorkspaceView(activeCase))}
-      </main>
+  sidebar.innerHTML = renderSidebarContent(activeCase, inProgressCount, readyCount);
+  topbar.innerHTML = renderTopbarContent(activeCase);
+  pageContainer.innerHTML = `
+    <div class="view-pane" data-view-pane="${currentView}">
+      ${currentView === 'dashboard'
+        ? renderDashboardView()
+        : (currentView === 'cabinet' ? renderCabinetView() : renderCaseWorkspaceView(activeCase))}
     </div>
-
-    <div id="toast" role="status" aria-live="polite"></div>
-    <dialog id="modal-dialog"></dialog>
   `;
 
   createIcons({ icons });
@@ -832,11 +927,13 @@ function renderCaseWorkspaceView(activeCase) {
       </div>
     </div>
 
-    <!-- Active Tab Body -->
-    ${activeTab === 'object' ? renderTabObject(activeCase) : ''}
-    ${activeTab === 'analogs' ? renderTabAnalogs(activeCase, res) : ''}
-    ${activeTab === 'calculation' ? renderTabCalculation(activeCase, res) : ''}
-    ${activeTab === 'report' ? renderTabReport(activeCase, res) : ''}
+    <!-- Active Tab Body with smooth slide-fade entrance -->
+    <div class="case-tab-pane" data-tab-pane="${activeTab}" id="case-tab-pane">
+      ${activeTab === 'object' ? renderTabObject(activeCase) : ''}
+      ${activeTab === 'analogs' ? renderTabAnalogs(activeCase, res) : ''}
+      ${activeTab === 'calculation' ? renderTabCalculation(activeCase, res) : ''}
+      ${activeTab === 'report' ? renderTabReport(activeCase, res) : ''}
+    </div>
   `;
 }
 
@@ -1316,40 +1413,65 @@ function renderTabReport(activeCase, res) {
  * Обработчики событий UI
  */
 function bindEvents() {
-  // Navigation: Sidebar items
+  // Закрепление боковой панели (Pin toggle)
+  document.getElementById('btn-sidebar-pin')?.addEventListener('click', e => {
+    e.stopPropagation();
+    isSidebarPinned = !isSidebarPinned;
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('rosocenka_sidebar_pinned', String(isSidebarPinned));
+    }
+    const sb = document.getElementById('app-sidebar');
+    if (sb) {
+      if (isSidebarPinned) {
+        sb.classList.add('is-pinned');
+        sb.classList.add('is-expanded');
+      } else {
+        sb.classList.remove('is-pinned');
+      }
+    }
+    toast(isSidebarPinned ? 'Боковая панель закреплена' : 'Боковая панель откреплена');
+    render();
+  });
+
+  // Navigation: Sidebar items with smooth view transition
   document.querySelectorAll('[data-nav]').forEach(btn => {
     btn.addEventListener('click', () => {
       const target = btn.dataset.nav;
-      if (target === 'dashboard') {
-        currentView = 'dashboard';
-      } else {
-        currentView = 'cabinet';
-        if (target === 'all-cases') filterStatus = 'all';
-        if (target === 'in-progress') filterStatus = 'В работе';
-        if (target === 'ready') filterStatus = 'Готов';
-      }
-      render();
+      transitionRender(() => {
+        if (target === 'dashboard') {
+          currentView = 'dashboard';
+        } else {
+          currentView = 'cabinet';
+          if (target === 'all-cases') filterStatus = 'all';
+          if (target === 'in-progress') filterStatus = 'В работе';
+          if (target === 'ready') filterStatus = 'Готов';
+        }
+      });
     });
   });
 
-  // Breadcrumbs navigation
+  // Breadcrumbs navigation with smooth transition
   document.getElementById('crumb-dashboard')?.addEventListener('click', e => {
     e.preventDefault();
-    currentView = 'dashboard';
-    render();
+    transitionRender(() => {
+      currentView = 'dashboard';
+    });
   });
   document.getElementById('crumb-cabinet')?.addEventListener('click', e => {
     e.preventDefault();
-    currentView = 'cabinet';
-    render();
+    transitionRender(() => {
+      currentView = 'cabinet';
+    });
   });
 
-  // Open case tab
+  // Open case tab with smooth tab transition
   document.querySelectorAll('[data-tab]').forEach(btn => {
     btn.addEventListener('click', () => {
-      currentView = 'case';
-      activeTab = btn.dataset.tab;
-      render();
+      const targetTab = btn.dataset.tab;
+      transitionRender(() => {
+        currentView = 'case';
+        activeTab = targetTab;
+      });
     });
   });
 
@@ -1396,18 +1518,20 @@ function bindEvents() {
         toast(c && c.isPinned ? `Дело № ${c.number} закреплено на главной` : `Дело № ${c.number} откреплено`);
         render();
       } else if (action === 'open-case') {
-        activeCaseId = id;
-        setActiveCaseId(id);
-        currentView = 'case';
-        activeTab = 'analogs';
-        render();
+        transitionRender(() => {
+          activeCaseId = id;
+          setActiveCaseId(id);
+          currentView = 'case';
+          activeTab = 'analogs';
+        });
       } else if (action === 'continue-case') {
-        activeCaseId = id;
-        setActiveCaseId(id);
-        currentView = 'case';
-        const c = findCaseById(cases, id);
-        activeTab = (c && c.status === 'Черновик' && c.analogs.length === 0) ? 'analogs' : 'analogs';
-        render();
+        transitionRender(() => {
+          activeCaseId = id;
+          setActiveCaseId(id);
+          currentView = 'case';
+          const c = findCaseById(cases, id);
+          activeTab = (c && c.status === 'Черновик' && c.analogs.length === 0) ? 'analogs' : 'analogs';
+        });
       } else if (action === 'delete-case') {
         if (confirm('Вы уверены, что хотите удалить это дело?')) {
           cases = deleteCaseById(cases, id);

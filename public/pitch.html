@@ -1,0 +1,1080 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>РусОценка — Питч платформы оценки жилой недвижимости</title>
+  <link rel="icon" type="image/png" href="/images/rosocenka-emblem.png">
+  <link rel="stylesheet" href="/src/styles.css">
+  <style>
+    :root {
+      --pitch-bg: #0b1120;
+      --pitch-surface: #131c31;
+      --pitch-surface-light: #1e293b;
+      --pitch-border: rgba(255, 255, 255, 0.1);
+      --pitch-accent: #38bdf8;
+      --pitch-accent-emerald: #34d399;
+      --pitch-accent-amber: #fbbf24;
+      --pitch-text: #f8fafc;
+      --pitch-text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--pitch-bg);
+      color: var(--pitch-text);
+      font-family: 'Onest Variable', system-ui, -apple-system, sans-serif;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+      user-select: none;
+    }
+
+    /* Presentation Container */
+    .deck-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    /* Header Bar */
+    .deck-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 18px 36px;
+      z-index: 100;
+      border-bottom: 1px solid var(--pitch-border);
+      background: rgba(11, 17, 32, 0.85);
+      backdrop-filter: blur(12px);
+    }
+
+    .deck-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+
+    .deck-brand img {
+      width: 32px;
+      height: 32px;
+      object-fit: contain;
+    }
+
+    .brand-title {
+      font-size: 16px;
+      font-weight: 750;
+      color: #ffffff;
+      letter-spacing: -0.3px;
+    }
+
+    .brand-tag {
+      font-size: 11px;
+      padding: 2px 8px;
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--pitch-accent);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      border-radius: 12px;
+      font-weight: 600;
+      margin-left: 6px;
+    }
+
+    .deck-controls {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .btn-deck {
+      background: var(--pitch-surface);
+      color: #ffffff;
+      border: 1px solid var(--pitch-border);
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.15s ease;
+      text-decoration: none;
+    }
+
+    .btn-deck:hover {
+      background: var(--pitch-surface-light);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    .btn-deck-primary {
+      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+      border: none;
+      box-shadow: 0 2px 10px rgba(2, 132, 199, 0.35);
+    }
+
+    .btn-deck-primary:hover {
+      background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+    }
+
+    /* Slides Viewport */
+    .slides-viewport {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .slide {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      padding: 40px 60px;
+      display: none;
+      opacity: 0;
+      transform: scale(0.98);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      overflow-y: auto;
+    }
+
+    .slide.active {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    /* Slide Layouts */
+    .slide-grid-2 {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 50px;
+      align-items: center;
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .slide-grid-symmetric {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 36px;
+      align-items: center;
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .slide-full {
+      max-width: 1300px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* Visual Media Cards */
+    .slide-image-card {
+      position: relative;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid var(--pitch-border);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+      background: #000;
+    }
+
+    .slide-image-card img {
+      width: 100%;
+      height: auto;
+      display: block;
+      object-fit: cover;
+      transition: transform 0.4s ease;
+    }
+
+    .image-caption-overlay {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 14px 20px;
+      background: linear-gradient(180deg, transparent 0%, rgba(11, 17, 32, 0.95) 100%);
+      font-size: 13px;
+      color: #cbd5e1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Typography & Badges */
+    .slide-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--pitch-accent);
+      margin-bottom: 12px;
+    }
+
+    .slide-title {
+      font-size: 38px;
+      font-weight: 800;
+      line-height: 1.2;
+      letter-spacing: -1px;
+      color: #ffffff;
+      margin-bottom: 18px;
+    }
+
+    .slide-title span {
+      background: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .slide-desc {
+      font-size: 18px;
+      line-height: 1.6;
+      color: var(--pitch-text-muted);
+      margin-bottom: 28px;
+    }
+
+    /* Feature Cards Grid */
+    .feature-grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-top: 24px;
+    }
+
+    .feature-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-top: 24px;
+    }
+
+    .card-glass {
+      background: var(--pitch-surface);
+      border: 1px solid var(--pitch-border);
+      border-radius: 14px;
+      padding: 24px;
+      transition: all 0.2s ease;
+    }
+
+    .card-glass:hover {
+      border-color: rgba(56, 189, 248, 0.4);
+      transform: translateY(-2px);
+    }
+
+    .card-glass.highlight-emerald {
+      border-color: rgba(52, 211, 153, 0.35);
+      background: linear-gradient(180deg, rgba(52, 211, 153, 0.05) 0%, var(--pitch-surface) 100%);
+    }
+
+    .card-glass.highlight-amber {
+      border-color: rgba(251, 191, 36, 0.35);
+      background: linear-gradient(180deg, rgba(251, 191, 36, 0.05) 0%, var(--pitch-surface) 100%);
+    }
+
+    .card-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-text {
+      font-size: 14px;
+      line-height: 1.55;
+      color: var(--pitch-text-muted);
+    }
+
+    /* Pill list */
+    .pill-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin: 20px 0;
+    }
+
+    .pill-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      font-size: 15px;
+      line-height: 1.5;
+      color: #e2e8f0;
+    }
+
+    .pill-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: rgba(52, 211, 153, 0.15);
+      color: var(--pitch-accent-emerald);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .pill-icon-amber {
+      background: rgba(251, 191, 36, 0.15);
+      color: var(--pitch-accent-amber);
+    }
+
+    /* Comparison Table */
+    .deck-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      border: 1px solid var(--pitch-border);
+      border-radius: 12px;
+      overflow: hidden;
+      background: var(--pitch-surface);
+      margin-top: 20px;
+    }
+
+    .deck-table th {
+      background: rgba(255, 255, 255, 0.04);
+      color: #94a3b8;
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 14px 18px;
+      text-align: left;
+      border-bottom: 1px solid var(--pitch-border);
+    }
+
+    .deck-table td {
+      padding: 14px 18px;
+      font-size: 14px;
+      color: #f1f5f9;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .deck-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .deck-table tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* ROI Big Numbers */
+    .metric-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      margin: 28px 0;
+    }
+
+    .metric-box {
+      background: var(--pitch-surface);
+      border: 1px solid var(--pitch-border);
+      border-radius: 14px;
+      padding: 22px;
+      text-align: center;
+    }
+
+    .metric-val {
+      font-size: 42px;
+      font-weight: 850;
+      letter-spacing: -1.5px;
+      color: var(--pitch-accent);
+      margin-bottom: 6px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .metric-val.emerald {
+      color: var(--pitch-accent-emerald);
+    }
+
+    .metric-label {
+      font-size: 13px;
+      color: var(--pitch-text-muted);
+      line-height: 1.4;
+      font-weight: 500;
+    }
+
+    /* Footer & Navigation */
+    .deck-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 36px;
+      border-top: 1px solid var(--pitch-border);
+      background: rgba(11, 17, 32, 0.9);
+      z-index: 100;
+    }
+
+    .footer-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .slide-counter {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--pitch-text-muted);
+    }
+
+    .progress-bar-wrap {
+      width: 140px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--pitch-accent);
+      transition: width 0.3s ease;
+    }
+
+    .nav-buttons {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-nav {
+      background: var(--pitch-surface);
+      color: #ffffff;
+      border: 1px solid var(--pitch-border);
+      width: 38px;
+      height: 38px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn-nav:hover {
+      background: var(--pitch-surface-light);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    /* Print styles */
+    @media print {
+      body {
+        overflow: visible;
+        height: auto;
+        background: #ffffff;
+        color: #0f172a;
+      }
+      .deck-header, .deck-footer, .nav-buttons {
+        display: none !important;
+      }
+      .slide {
+        display: block !important;
+        position: relative !important;
+        opacity: 1 !important;
+        transform: none !important;
+        page-break-after: always;
+        height: 100vh;
+        padding: 40px;
+      }
+      .card-glass {
+        border-color: #cbd5e1;
+        background: #f8fafc;
+      }
+      .slide-title, .card-title {
+        color: #0f172a !important;
+      }
+      .slide-desc, .card-text {
+        color: #475569 !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="deck-container">
+  <!-- Top Header -->
+  <header class="deck-header">
+    <a href="/" class="deck-brand">
+      <img src="/images/rosocenka-emblem.png" alt="РусОценка">
+      <span class="brand-title">РусОценка</span>
+      <span class="brand-tag">Питч-презентация</span>
+    </a>
+
+    <div class="deck-controls">
+      <a href="/" class="btn-deck" target="_blank" title="Открыть рабочую систему в новой вкладке">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+        Открыть живую систему
+      </a>
+      <button class="btn-deck" id="btn-fullscreen" title="Полноэкранный режим (F)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+        На весь экран
+      </button>
+      <button class="btn-deck" onclick="window.print()" title="Сохранить презентацию в PDF">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+        Экспорт в PDF
+      </button>
+    </div>
+  </header>
+
+  <!-- Viewport of Slides -->
+  <main class="slides-viewport">
+
+    <!-- SLIDE 1: ТИТУЛЬНЫЙ (HOOK & PROMISE) -->
+    <section class="slide active" data-slide="1">
+      <div class="slide-grid-2">
+        <div>
+          <span class="slide-tag">Цифровизация оценочной компании</span>
+          <h1 class="slide-title">От 4 часов рутины — к готовому отчёту <span>за 5 минут</span></h1>
+          <p class="slide-desc">
+            Автоматизированная платформа для оценщиков жилой недвижимости. Убираем 90% механического копипаста, исключаем человеческие ошибки и защищаем от возвратов банков.
+          </p>
+
+          <div class="feature-grid-2" style="margin-top: 18px;">
+            <div class="card-glass highlight-emerald">
+              <div class="card-title">
+                <span style="color: var(--pitch-accent-emerald);">●</span> Уже готово: Версия 1.0
+              </div>
+              <p class="card-text">
+                Железные шаблоны, калькулятор Лейфера, формулы ФСО и экспорт официального 60-страничного Word-отчета в 1 клик.
+              </p>
+            </div>
+            <div class="card-glass">
+              <div class="card-title">
+                <span style="color: var(--pitch-accent);">●</span> Следующий шаг: Версия 2.0
+              </div>
+              <p class="card-text">
+                Внедрение отечественного AI (GigaChat / YandexGPT): распознавание ЕГРН и авто-описание инфраструктуры районов.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="slide-image-card">
+            <img src="/images/pitch-hero.jpg" alt="Цифровое рабочее место оценщика">
+            <div class="image-caption-overlay">
+              <span>Современное рабочее место РусОценки</span>
+              <span style="color: var(--pitch-accent);">v1.0 Ready to test</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 2: РЕАЛЬНОСТЬ ОЦЕНЩИКА (THE PAIN) -->
+    <section class="slide" data-slide="2">
+      <div class="slide-grid-symmetric">
+        <div>
+          <span class="slide-tag" style="color: #f87171;">Проблема индустрии</span>
+          <h2 class="slide-title">«У нас есть шаблоны и формулы... Но почему отчёт отнимает <span>полдня?</span>»</h2>
+          <p class="slide-desc">
+            Оценщик — высокооплачиваемый эксперт с дипломом и аттестатом. Но 80% рабочего времени он работает как наборщик текста.
+          </p>
+
+          <ul class="pill-list">
+            <li class="pill-item">
+              <div class="pill-icon pill-icon-amber">✕</div>
+              <div><b>45 минут на подбор 5 аналогов:</b> ручное копирование цен, площадей, этажей и ссылок с Авито и Циан.</div>
+            </li>
+            <li class="pill-item">
+              <div class="pill-icon pill-icon-amber">✕</div>
+              <div><b>35 минут в Excel:</b> ручной расчет поправок Лейфера, подгонка вариации V ≤ 33% и ручное округление долей.</div>
+            </li>
+            <li class="pill-item">
+              <div class="pill-icon pill-icon-amber">✕</div>
+              <div><b>85 минут в Word:</b> замена кадастрового номера в 15 местах, адреса в 20 местах, вставка фото, сползающие таблицы.</div>
+            </li>
+            <li class="pill-item">
+              <div class="pill-icon pill-icon-amber">✕</div>
+              <div><b>Человеческий фактор:</b> осталась чужая фамилия заказчика или старый кадастровый номер — банк (Домклик/Сбер) возвращает отчет со штрафом.</div>
+            </li>
+          </ul>
+        </div>
+
+        <div>
+          <div class="slide-image-card">
+            <img src="/images/pitch-pain-vs-solution.jpg" alt="Бумажная рутина против цифровой платформы">
+            <div class="image-caption-overlay">
+              <span style="color: #f87171;">Рутина: 4 часа на квартиру</span>
+              <span style="color: var(--pitch-accent-emerald);">РусОценка: 5 минут</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 3: ЖЕЛЕЗНАЯ ВЕРСИЯ 1.0 (ТЕСТ-ДРАЙВ) -->
+    <section class="slide" data-slide="3">
+      <div class="slide-full">
+        <span class="slide-tag" style="color: var(--pitch-accent-emerald);">Готово к тестированию прямо сейчас</span>
+        <h2 class="slide-title">«Железная версия 1.0»: <span>Никаких концептов. Работает на ваших делах.</span></h2>
+        <p class="slide-desc">
+          Мы построили монолитный инструмент строго по официальной методологии ООО «РусОценка», ФСО I–VI № 200 и формулам Лейфера.
+        </p>
+
+        <div class="feature-grid-3">
+          <div class="card-glass">
+            <div class="card-title">1. Готовые шаблоны дел</div>
+            <p class="card-text">
+              Создание нового дела в 1 клик. Все стандартные поля и формуляры предзаполнены — оценщик сразу приступает к делу без набивания «рыбы».
+            </p>
+          </div>
+
+          <div class="card-glass">
+            <div class="card-title">2. Мгновенный калькулятор</div>
+            <p class="card-text">
+              Ползунок торга (-6%), матрица Лейфера (этаж, площадь, отделка, стены). Алгоритмический расчет весов $w_i$ и проверка вариации $V \le 33\%$.
+            </p>
+          </div>
+
+          <div class="card-glass">
+            <div class="card-title">3. Безупречные доли</div>
+            <p class="card-text">
+              Расчет долей ($193/461$, $25/461$) с номиналом и округлением до рубля. Автоматический перевод чисел в слова («три миллиона пятьсот шесть тысяч»).
+            </p>
+          </div>
+
+          <div class="card-glass highlight-emerald">
+            <div class="card-title">4. Генерация Word (.docx)</div>
+            <p class="card-text">
+              Официальный 60-страничный документ по утвержденному стандарту: герб, колонтитулы, таблицы, гриф утверждения директора и подписи.
+            </p>
+          </div>
+
+          <div class="card-glass">
+            <div class="card-title">5. 0% чужих данных</div>
+            <p class="card-text">
+              Исключены риски утечки данных из прошлых дел. Каждое дело генерируется изолированно — никаких чужих адресов и фамилий.
+            </p>
+          </div>
+
+          <div class="card-glass">
+            <div class="card-title">6. 100% готовность к тесту</div>
+            <p class="card-text">
+              Платформа полностью протестирована на эталонных делах Анны Орловой (№ 19/0826-2) с точностью расчетов до рубля.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 4: РАЗДЕЛЕНИЕ ТРУДА ПО 135-ФЗ -->
+    <section class="slide" data-slide="4">
+      <div class="slide-full">
+        <span class="slide-tag">Юридическая чистота по 135-ФЗ</span>
+        <h2 class="slide-title">Закон соблюдён: <span>Робот берет рутину, Оценщик подписывает</span></h2>
+        <p class="slide-desc">
+          По закону № 135-ФЗ отчет имеет силу только с подписью аттестованного оценщика. Программа не заменяет человека — она освобождает его руки.
+        </p>
+
+        <div class="feature-grid-2">
+          <!-- Колонка Робота -->
+          <div class="card-glass highlight-emerald">
+            <div class="card-title" style="color: var(--pitch-accent-emerald);">
+              🤖 Заполнено программой автоматически (90% рутины)
+            </div>
+            <ul class="pill-list" style="margin-top: 14px;">
+              <li class="pill-item">
+                <div class="pill-icon">✓</div>
+                <div>Титул, сопроводительное письмо и реквизиты ООО «РусОценка»</div>
+              </li>
+              <li class="pill-item">
+                <div class="pill-icon">✓</div>
+                <div>Нормативная база (135-ФЗ, ФСО I–VI № 200, ФСО № 7) в неизменном виде</div>
+              </li>
+              <li class="pill-item">
+                <div class="pill-icon">✓</div>
+                <div>Мотивированный отказ от затратного и доходного подходов</div>
+              </li>
+              <li class="pill-item">
+                <div class="pill-icon">✓</div>
+                <div>Расчет матрицы поправок Лейфера, обратных весов и вариации V ≤ 33%</div>
+              </li>
+              <li class="pill-item">
+                <div class="pill-icon">✓</div>
+                <div>Распределение долей собственности и генерация сумм прописью</div>
+              </li>
+              <li class="pill-item">
+                <div class="pill-icon">✓</div>
+                <div>Верстка чистового Word-файла (.docx) со всеми колонтитулами</div>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Колонка Оценщика -->
+          <div class="card-glass highlight-amber">
+            <div class="card-title" style="color: var(--pitch-accent-amber);">
+              👤 Зона личной ответственности эксперта-оценщика (10% времени)
+            </div>
+            <ul class="pill-list" style="margin-top: 14px;">
+              <li class="pill-item">
+                <div class="pill-icon pill-icon-amber">👉</div>
+                <div><b>1. Проверка выборки аналогов:</b> оценщик утверждает 3–5 реальных объявлений на рынке.</div>
+              </li>
+              <li class="pill-item">
+                <div class="pill-icon pill-icon-amber">👉</div>
+                <div><b>2. Фиксация отделки:</b> подтверждение состояния («улучшенная / хорошее») по итогам осмотра.</div>
+              </li>
+              <li class="pill-item">
+                <div class="pill-icon pill-icon-amber">👉</div>
+                <div><b>3. Вставка фототаблицы:</b> фото комнат, кухни и подъезда в Приложение №4.</div>
+              </li>
+              <li class="pill-item">
+                <div class="pill-icon pill-icon-amber">👉</div>
+                <div><b>4. Юридическое заверение:</b> подписание отчета личной квалифицированной ЭЦП оценщика.</div>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 5: СЛЕДУЮЩИЙ ШАГ — НЕЙРОСЕТИ (AI V2.0) -->
+    <section class="slide" data-slide="5">
+      <div class="slide-grid-symmetric">
+        <div>
+          <span class="slide-tag">Вектор развития: Версия 2.0</span>
+          <h2 class="slide-title">Вкатываем нейросеть: <span>Убираем оставшиеся ручные операции</span></h2>
+          <p class="slide-desc">
+            Искусственный интеллект подключается туда, где сейчас оценщик тратит время на написание текстов и чтение сканов.
+          </p>
+
+          <ul class="pill-list">
+            <li class="pill-item">
+              <div class="pill-icon">AI</div>
+              <div><b>Авто-описание района и инфраструктуры (Разд. 8):</b> нейросеть по адресу генерирует профессиональный блок: школы, поликлиники, парки, экология, транспорт.</div>
+            </li>
+            <li class="pill-item">
+              <div class="pill-icon">AI</div>
+              <div><b>Интеллектуальный OCR выписок ЕГРН:</b> перетащил скан PDF — нейросеть мгновенно извлекла кадастровый номер, площадь, этаж, собственников и ограничения.</div>
+            </li>
+            <li class="pill-item">
+              <div class="pill-icon">AI</div>
+              <div><b>Компьютерное зрение для фото (Прил. 4):</b> нейросеть сама классифицирует фото (кухня, санузел, фасад), определяет класс ремонта и верстает фототаблицу.</div>
+            </li>
+            <li class="pill-item">
+              <div class="pill-icon">AI</div>
+              <div><b>Умный скоринг аналогов:</b> алгоритм фильтрует фейковые объявления риелторов и сомнительные предложения.</div>
+            </li>
+          </ul>
+        </div>
+
+        <div>
+          <div class="slide-image-card">
+            <img src="/images/pitch-ai-core.jpg" alt="Нейросетевое ядро анализа недвижимости">
+            <div class="image-caption-overlay">
+              <span>Отечественный AI-контур для оценки недвижимости</span>
+              <span style="color: var(--pitch-accent);">Secure Cloud API</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 6: ВЫБОР НЕЙРОСЕТИ (ТОЛЬКО РФ, БЕЗ VPN) -->
+    <section class="slide" data-slide="6">
+      <div class="slide-full">
+        <span class="slide-tag" style="color: var(--pitch-accent);">Технический анализ для заказчика</span>
+        <h2 class="slide-title">Какую нейросеть подключить? <span>Строго РФ, 152-ФЗ, без VPN</span></h2>
+        <p class="slide-desc">
+          Никаких зарубежных серверов и рисков блокировок. Только официальные российские API с оплатой по безналичному расчету.
+        </p>
+
+        <table class="deck-table">
+          <thead>
+            <tr>
+              <th style="width: 20%;">Модель / Решение</th>
+              <th style="width: 25%;">Главные преимущества</th>
+              <th style="width: 25%;">Применение в оценке</th>
+              <th style="width: 15%;">Безопасность (152-ФЗ)</th>
+              <th style="width: 15%;">Стоимость (за отчет)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <b style="color: var(--pitch-accent-emerald); font-size: 15px;">YandexGPT 4 + Vision</b><br>
+                <span style="font-size: 12px; color: var(--pitch-text-muted);">Yandex Cloud API (Рекомендуем)</span>
+              </td>
+              <td>
+                • Сверхбыстрый отклик (&lt;1 сек)<br>
+                • Лучший в РФ OCR для сканов ЕГРН<br>
+                • Оплата по безналу с юрлица (УПД с НДС)
+              </td>
+              <td>
+                • Описание районов и экологии<br>
+                • Чтение PDF-выписок ЕГРН<br>
+                • Анализ макроэкономики
+              </td>
+              <td>
+                <span class="brand-tag" style="color: var(--pitch-accent-emerald); border-color: rgba(52,211,153,0.3); background: rgba(52,211,153,0.1);">ФСТЭК УЗ-1</span>
+              </td>
+              <td><b>~1,50 ₽</b> / отчет</td>
+            </tr>
+
+            <tr>
+              <td>
+                <b style="color: #60a5fa; font-size: 15px;">Сбер GigaChat API</b><br>
+                <span style="font-size: 12px; color: var(--pitch-text-muted);">GigaChat Pro / Max</span>
+              </td>
+              <td>
+                • Обучен на залогах и ипотеке Сбера<br>
+                • Мультимодальность (понимает фото)<br>
+                • Идеален под стандарты Домклик
+              </td>
+              <td>
+                • Анализ планировок и комнатности<br>
+                • Классификация ремонта по фото<br>
+                • Генерация обоснований
+              </td>
+              <td>
+                <span class="brand-tag">Минцифры РФ</span>
+              </td>
+              <td><b>~2,50 ₽</b> / отчет</td>
+            </tr>
+
+            <tr>
+              <td>
+                <b style="color: var(--pitch-accent-amber); font-size: 15px;">Автономная LLM (On-Prem)</b><br>
+                <span style="font-size: 12px; color: var(--pitch-text-muted);">Vikhr / Qwen-2.5 (Selectel / VK)</span>
+              </td>
+              <td>
+                • 100% изоляция внутри компании<br>
+                • Ни один байт не уходит наружу<br>
+                • Работает без интернета
+              </td>
+              <td>
+                • Судебные экспертизы<br>
+                • Закрытые коммерческие объекты<br>
+                • Гостайна и спецзаказы
+              </td>
+              <td>
+                <span class="brand-tag" style="color: var(--pitch-accent-amber); border-color: rgba(251,191,36,0.3); background: rgba(251,191,36,0.1);">100% On-Premise</span>
+              </td>
+              <td>Фикс аренда GPU (~15 тыс. ₽/мес)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- SLIDE 7: ЭКОНОМИКА И ВЫГОДА (ROI) -->
+    <section class="slide" data-slide="7">
+      <div class="slide-full">
+        <span class="slide-tag" style="color: var(--pitch-accent-emerald);">Экономический эффект</span>
+        <h2 class="slide-title">Экономика внедрения: <span>Окупаемость в первый же месяц</span></h2>
+        <p class="slide-desc">
+          Как меняется производительность компании при переходе с ручного труда на платформу РусОценка.
+        </p>
+
+        <div class="metric-row">
+          <div class="metric-box">
+            <div class="metric-val">15 мин</div>
+            <div class="metric-label">Время на выпуск 1 отчета вместо 4 часов</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-val emerald">x4</div>
+            <div class="metric-label">Рост выработки на одного оценщика</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-val emerald">-75%</div>
+            <div class="metric-label">Снижение себестоимости подготовки отчета</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-val">0</div>
+            <div class="metric-label">Возвратов банков из-за опечаток и пересортицы</div>
+          </div>
+        </div>
+
+        <div class="feature-grid-2">
+          <div class="card-glass">
+            <div class="card-title">Было (ручной процесс):</div>
+            <p class="card-text">
+              1 оценщик делает 1–2 отчета в день. При наплыве заявок от банков сотрудники сидят до полуночи, падает концентрация, появляются опечатки в реквизитах, срываются сроки сделок.
+            </p>
+          </div>
+          <div class="card-glass highlight-emerald">
+            <div class="card-title" style="color: var(--pitch-accent-emerald);">Стало (с РусОценкой):</div>
+            <p class="card-text">
+              1 оценщик проверяет и выпускает 8–10 отчетов в день. Рутина автоматизирована, формулы выверены, Word верстается мгновенно. Компания готова расти в выручке без раздувания штата.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 8: ДОРОЖНАЯ КАРТА (ROADMAP) -->
+    <section class="slide" data-slide="8">
+      <div class="slide-full">
+        <span class="slide-tag">План действий</span>
+        <h2 class="slide-title">Дорожная карта: <span>Проверяем на практике без риска</span></h2>
+        <p class="slide-desc">
+          Простой и прозрачный план запуска. Мы не просим верить на слово — вы тестируете систему в боевых условиях.
+        </p>
+
+        <div class="feature-grid-3" style="margin-top: 28px;">
+          <div class="card-glass highlight-emerald">
+            <div style="font-size: 13px; font-weight: 700; color: var(--pitch-accent-emerald); margin-bottom: 6px;">ШАГ 1 · ТЕКУЩАЯ НЕДЕЛЯ</div>
+            <div class="card-title">Пилот Железной версии 1.0</div>
+            <p class="card-text">
+              Отдаем систему в руки вашим ведущим оценщикам. Прогон 10–20 реальных дел недели. Оценщики проверяют скорость, калькулятор и готовый Word.
+            </p>
+          </div>
+
+          <div class="card-glass">
+            <div style="font-size: 13px; font-weight: 700; color: var(--pitch-accent); margin-bottom: 6px;">ШАГ 2 · 1–2 НЕДЕЛИ</div>
+            <div class="card-title">Тюнинг под ваши стандарты</div>
+            <p class="card-text">
+              Собираем обратную связь. Если у вас есть уникальные формулировки или специфические банковские оговорки — калибруем шаблоны за 2 дня.
+            </p>
+          </div>
+
+          <div class="card-glass highlight-amber">
+            <div style="font-size: 13px; font-weight: 700; color: var(--pitch-accent-amber); margin-bottom: 6px;">ШАГ 3 · ВЕРСИЯ 2.0</div>
+            <div class="card-title">Подключение AI-контура</div>
+            <p class="card-text">
+              Подключаем официальный API YandexGPT / GigaChat: авто-описание локаций по адресу и умный OCR выписок ЕГРН прямо из PDF.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 9: ФИНАЛЬНЫЙ ПРИЗЫВ (CALL TO ACTION) -->
+    <section class="slide" data-slide="9">
+      <div class="slide-grid-2">
+        <div>
+          <span class="slide-tag" style="color: var(--pitch-accent-emerald);">Следующий шаг</span>
+          <h2 class="slide-title">Давайте запустим тест прямо сегодня на <span>одном реальном деле</span></h2>
+          <p class="slide-desc">
+            Возьмите квартиру, которую вы оцениваете прямо сейчас. Мы вместе забьем её в систему и выгрузим готовый 60-страничный отчет за 3 минуты.
+          </p>
+
+          <div style="display: flex; gap: 16px; margin-top: 30px;">
+            <a href="/" class="btn-deck btn-deck-primary" style="padding: 14px 24px; font-size: 16px;">
+              Запустить рабочее место оценщика
+            </a>
+            <button class="btn-deck" onclick="window.print()" style="padding: 14px 20px; font-size: 15px;">
+              Скачать презентацию (PDF)
+            </button>
+          </div>
+
+          <p style="margin-top: 24px; font-size: 13px; color: var(--pitch-text-muted);">
+            «Ваши оценщики сами скажут спасибо за спасенные часы жизни и отсутствие головной боли с рутиной».
+          </p>
+        </div>
+
+        <div>
+          <div class="slide-image-card">
+            <img src="/images/pitch-future-value.jpg" alt="Уверенное будущее оценочной компании">
+            <div class="image-caption-overlay">
+              <span style="font-weight: 700; color: #ffffff;">РусОценка · Новая эра точности и скорости</span>
+              <span style="color: var(--pitch-accent-emerald);">Готовы к старту</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Bottom Navigation Bar -->
+  <footer class="deck-footer">
+    <div class="footer-left">
+      <span class="slide-counter" id="slide-indicator">Слайд 1 из 9</span>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-fill" id="deck-progress" style="width: 11.1%;"></div>
+      </div>
+    </div>
+
+    <div class="nav-buttons">
+      <button class="btn-nav" id="btn-prev" title="Предыдущий слайд (←)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+      </button>
+      <button class="btn-nav" id="btn-next" title="Следующий слайд (→)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+      </button>
+    </div>
+  </footer>
+</div>
+
+<script>
+  let currentSlide = 1;
+  const totalSlides = 9;
+
+  const slides = document.querySelectorAll('.slide');
+  const indicator = document.getElementById('slide-indicator');
+  const progressBar = document.getElementById('deck-progress');
+
+  function showSlide(index) {
+    if (index < 1) index = 1;
+    if (index > totalSlides) index = totalSlides;
+    currentSlide = index;
+
+    slides.forEach((s, idx) => {
+      s.classList.toggle('active', idx + 1 === currentSlide);
+    });
+
+    indicator.textContent = `Слайд ${currentSlide} из ${totalSlides}`;
+    progressBar.style.width = `${(currentSlide / totalSlides) * 100}%`;
+  }
+
+  function nextSlide() {
+    if (currentSlide < totalSlides) showSlide(currentSlide + 1);
+  }
+
+  function prevSlide() {
+    if (currentSlide > 1) showSlide(currentSlide - 1);
+  }
+
+  document.getElementById('btn-next').addEventListener('click', nextSlide);
+  document.getElementById('btn-prev').addEventListener('click', prevSlide);
+
+  // Keyboard Navigation
+  window.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+      nextSlide();
+    } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+      prevSlide();
+    } else if (e.key === 'Home') {
+      showSlide(1);
+    } else if (e.key === 'End') {
+      showSlide(totalSlides);
+    } else if (e.key === 'f' || e.key === 'F') {
+      toggleFullscreen();
+    }
+  });
+
+  // Fullscreen support
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
+  }
+
+  document.getElementById('btn-fullscreen').addEventListener('click', toggleFullscreen);
+</script>
+
+</body>
+</html>

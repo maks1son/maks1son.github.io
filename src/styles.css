@@ -94,10 +94,20 @@ a {
   white-space: nowrap;
 }
 
-/* On hover: smoothly slide out like Chrome */
-.app-sidebar:hover {
+/* On hover or persistent expanded/pinned state: smoothly slide out */
+.app-sidebar:hover,
+.app-sidebar.is-expanded,
+.app-sidebar.is-pinned {
   width: var(--sidebar-expanded-w);
   box-shadow: 8px 0 28px rgba(15, 23, 42, 0.10), 2px 0 8px rgba(37, 99, 235, 0.06);
+}
+
+.app-sidebar.is-pinned {
+  box-shadow: 2px 0 10px rgba(15, 23, 42, 0.05);
+}
+
+.app-sidebar.is-pinned ~ .app-main {
+  margin-left: var(--sidebar-expanded-w);
 }
 
 /* Header */
@@ -133,10 +143,53 @@ a {
   pointer-events: none;
 }
 
-.app-sidebar:hover .brand-title {
+.app-sidebar:hover .brand-title,
+.app-sidebar.is-expanded .brand-title,
+.app-sidebar.is-pinned .brand-title {
   opacity: 1;
   transform: translateX(0);
   pointer-events: auto;
+}
+
+/* Sidebar Pin toggle button */
+.btn-sidebar-pin {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  background: transparent;
+  margin-left: auto;
+  opacity: 0;
+  transform: scale(0.9);
+  transition: opacity 0.18s ease, transform 0.18s ease, background 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.btn-sidebar-pin svg,
+.btn-sidebar-pin i {
+  width: 15px;
+  height: 15px;
+}
+
+.app-sidebar:hover .btn-sidebar-pin,
+.app-sidebar.is-expanded .btn-sidebar-pin,
+.app-sidebar.is-pinned .btn-sidebar-pin {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.btn-sidebar-pin:hover {
+  background: #f1f5f9;
+  color: var(--primary);
+}
+
+.btn-sidebar-pin.pinned {
+  color: var(--primary);
+  background: var(--primary-light);
+  border: 1px solid var(--primary-border);
 }
 
 .brand-title strong {
@@ -273,7 +326,11 @@ a {
 }
 
 .app-sidebar:hover .nav-label,
-.app-sidebar:hover .nav-badge {
+.app-sidebar:hover .nav-badge,
+.app-sidebar.is-expanded .nav-label,
+.app-sidebar.is-expanded .nav-badge,
+.app-sidebar.is-pinned .nav-label,
+.app-sidebar.is-pinned .nav-badge {
   opacity: 1;
   transform: translateX(0);
   pointer-events: auto;
@@ -330,7 +387,9 @@ a {
   pointer-events: none;
 }
 
-.app-sidebar:hover .profile-info {
+.app-sidebar:hover .profile-info,
+.app-sidebar.is-expanded .profile-info,
+.app-sidebar.is-pinned .profile-info {
   opacity: 1;
   transform: translateX(0);
   pointer-events: auto;
@@ -750,14 +809,15 @@ a {
 /* Case Detail Tabs */
 .case-tabs-nav {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   border-bottom: 1px solid var(--border);
   margin-bottom: 24px;
+  position: relative;
 }
 
 .case-tab-btn {
-  padding: 10px 16px;
-  font-size: 13px;
+  padding: 10px 18px;
+  font-size: 13.5px;
   font-weight: 550;
   color: var(--text-muted);
   display: flex;
@@ -765,8 +825,10 @@ a {
   gap: 8px;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
-  border-radius: 6px 6px 0 0;
-  transition: all 0.15s ease;
+  border-radius: 8px 8px 0 0;
+  transition: color 0.18s ease, background-color 0.18s ease, border-color 0.18s ease;
+  position: relative;
+  overflow: hidden;
 }
 
 .case-tab-btn:hover {
@@ -777,8 +839,72 @@ a {
 .case-tab-btn.active {
   color: var(--primary);
   border-bottom-color: var(--primary);
-  font-weight: 600;
+  font-weight: 650;
   background: var(--primary-light);
+}
+
+.case-tab-btn::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2.5px;
+  background: var(--primary);
+  border-radius: 2px 2px 0 0;
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.case-tab-btn.active::after {
+  transform: scaleX(1);
+}
+
+/* =========================================================================
+   SMOOTH TAB & VIEW TRANSITION ANIMATIONS
+   ========================================================================= */
+@keyframes tabPaneSlideFade {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.case-tab-pane {
+  animation: tabPaneSlideFade 0.26s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: opacity, transform;
+}
+
+@keyframes viewPaneSlideFade {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.view-pane {
+  animation: viewPaneSlideFade 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: opacity, transform;
+}
+
+/* View Transitions API (Chrome / Edge hardware-accelerated crossfade) */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.22s;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#app-sidebar {
+  view-transition-name: app-sidebar;
 }
 
 /* Panel */
