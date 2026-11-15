@@ -202,9 +202,6 @@ function renderTopbarContent(activeCase) {
     </div>
 
     <div class="topbar-right">
-      <a href="/pitch.html" target="_blank" class="btn btn-secondary btn-sm" id="btn-top-pitch" title="Открыть питч-презентацию для заказчика">
-        ${icon('presentation')} Презентация
-      </a>
       <span class="save-status-badge">
         ${icon('check')} Сохранено
       </span>
@@ -955,73 +952,102 @@ function renderTabObject(activeCase) {
       <form id="form-case-object">
         <div class="form-grid-3">
           <div class="form-field">
-            <label>Номер отчёта / дела <span class="badge-auto">🤖 Шаблон</span></label>
+            <label>Номер отчёта / дела <span class="badge-source">Шаблон</span></label>
             <input type="text" name="reportNumber" value="${o.reportNumber}" required>
           </div>
           <div class="form-field">
-            <label>Кадастровый номер <span class="badge-auto">🤖 Из ЕГРН</span></label>
+            <label>Кадастровый номер <span class="badge-source">ЕГРН</span></label>
             <input type="text" name="cadastralNumber" value="${o.cadastralNumber}" required>
           </div>
           <div class="form-field">
-            <label>Дата оценки <span class="badge-auto">🤖 Авто</span></label>
+            <label>Дата оценки <span class="badge-source">Авто</span></label>
             <input type="date" name="valuationDate" value="${o.valuationDate}" required>
           </div>
         </div>
 
         <div class="form-field">
-          <label>Полный адрес объекта оценки <span class="badge-auto">🤖 Из ЕГРН / Шаблона</span></label>
+          <label>Полный адрес объекта оценки <span class="badge-source">ЕГРН</span></label>
           <input type="text" name="address" value="${o.address}" required>
         </div>
 
-        <div class="form-grid-3">
+        <div class="form-grid-2">
           <div class="form-field">
-            <label>Общая площадь (кв.м) <span class="badge-auto">🤖 Из ЕГРН</span></label>
-            <input type="number" step="0.1" name="area" value="${o.area}" required>
+            <label>Заказчик оценки <span class="badge-source">Договор</span></label>
+            <input type="text" name="client" value="${o.client}" required>
           </div>
           <div class="form-field">
-            <label>Этаж расположения <span class="badge-auto">🤖 Из ЕГРН</span></label>
-            <input type="number" name="floor" value="${o.floor}" required>
-          </div>
-          <div class="form-field">
-            <label>Этажность дома <span class="badge-auto">🤖 Из ГИС ЖКХ</span></label>
-            <input type="number" name="totalFloors" value="${o.totalFloors}" required>
+            <label>Цель оценки <span class="badge-source">Шаблон</span></label>
+            <input type="text" name="purpose" value="${o.purpose}">
           </div>
         </div>
 
-        <div class="form-grid-3">
+        <div class="form-grid-4">
           <div class="form-field">
-            <label>Тип отделки <span class="badge-manual">👤 Оценщик (осмотр)</span></label>
-            <select name="finish">
-              <option value="улучшенная" ${o.finish === 'улучшенная' ? 'selected' : ''}>Улучшенная</option>
-              <option value="простая" ${o.finish === 'простая' ? 'selected' : ''}>Простая</option>
-            </select>
+            <label>Общая площадь (кв.м) <span class="badge-source">ЕГРН</span></label>
+            <input type="number" step="0.1" name="area" value="${o.area}" required>
           </div>
           <div class="form-field">
-            <label>Материал стен дома <span class="badge-auto">🤖 Из ГИС ЖКХ</span></label>
+            <label>Этаж расположения <span class="badge-source">ЕГРН</span></label>
+            <input type="number" name="floor" value="${o.floor}" required>
+          </div>
+          <div class="form-field">
+            <label>Этажность дома <span class="badge-source">ГИС ЖКХ</span></label>
+            <input type="number" name="totalFloors" value="${o.totalFloors}" required>
+          </div>
+          <div class="form-field">
+            <label>Материал стен здания <span class="badge-source">ГИС ЖКХ</span></label>
             <select name="wallMaterial">
               <option value="панель" ${o.wallMaterial === 'панель' ? 'selected' : ''}>Панель</option>
               <option value="кирпич" ${o.wallMaterial === 'кирпич' ? 'selected' : ''}>Кирпич</option>
               <option value="монолит" ${o.wallMaterial === 'монолит' ? 'selected' : ''}>Монолит</option>
             </select>
           </div>
-          <div class="form-field">
-            <label>Техническое состояние <span class="badge-manual">👤 Оценщик (осмотр)</span></label>
-            <select name="condition">
-              <option value="хорошее" ${o.condition === 'хорошее' ? 'selected' : ''}>Хорошее</option>
-              <option value="отличное" ${o.condition === 'отличное' ? 'selected' : ''}>Отличное</option>
-              <option value="требует ремонта" ${o.condition === 'требует ремонта' ? 'selected' : ''}>Требует ремонта</option>
-            </select>
-          </div>
         </div>
 
-        <div class="form-grid-2">
-          <div class="form-field">
-            <label>Заказчик оценки <span class="badge-auto">🤖 Из договора</span></label>
-            <input type="text" name="client" value="${o.client}" required>
+        <!-- Профессиональный блок технического состояния и отделки (Акт натурного осмотра) -->
+        <div class="inspection-section">
+          <div class="inspection-section-head">
+            <div class="inspection-head-left">
+              <span class="inspection-head-icon">${icon('clipboard-check')}</span>
+              <div>
+                <h4 class="inspection-title">Техническое состояние и внутренняя отделка</h4>
+                <p class="inspection-desc">Параметры фиксируются оценщиком по результатам натурного визуального осмотра квартиры</p>
+              </div>
+            </div>
+            <span class="inspection-badge">
+              ${icon('shield-check')} Акт осмотра оценщика
+            </span>
           </div>
-          <div class="form-field">
-            <label>Цель оценки <span class="badge-auto">🤖 Шаблон</span></label>
-            <input type="text" name="purpose" value="${o.purpose}">
+
+          <div class="inspection-grid">
+            <div class="inspection-card">
+              <div class="inspection-card-top">
+                <label for="field-finish" class="inspection-label">Тип внутренней отделки</label>
+                <span class="inspection-tag">Методика Лейфера</span>
+              </div>
+              <select name="finish" id="field-finish" class="inspection-select">
+                <option value="улучшенная" ${o.finish === 'улучшенная' ? 'selected' : ''}>Улучшенная отделка (современный ремонт, качественные материалы)</option>
+                <option value="простая" ${o.finish === 'простая' ? 'selected' : ''}>Простая отделка (муниципальная / стандартный типовой ремонт)</option>
+              </select>
+              <div class="inspection-hint">
+                ${icon('info')} Влияет на расчёт корректировки к аналогам в сравнительном подходе
+              </div>
+            </div>
+
+            <div class="inspection-card">
+              <div class="inspection-card-top">
+                <label for="field-condition" class="inspection-label">Физическое состояние помещений</label>
+                <span class="inspection-tag">Фототаблица</span>
+              </div>
+              <select name="condition" id="field-condition" class="inspection-select">
+                <option value="хорошее" ${o.condition === 'хорошее' ? 'selected' : ''}>Хорошее (эксплуатационный износ минимален, дефекты отсутствуют)</option>
+                <option value="отличное" ${o.condition === 'отличное' ? 'selected' : ''}>Отличное (новое состояние / высококачественный евроремонт)</option>
+                <option value="требует ремонта" ${o.condition === 'требует ремонта' ? 'selected' : ''}>Требует ремонта (наличие дефектов, требуется ремонт)</option>
+              </select>
+              <div class="inspection-hint">
+                ${icon('info')} Отражается в описании объекта и подтверждается фототаблицей
+              </div>
+            </div>
           </div>
         </div>
       </form>
@@ -1079,11 +1105,11 @@ function renderTabAnalogs(activeCase, res) {
       </div>
 
       <div class="banner-calc-info">
-        <span style="font-size: 16px;">💡</span>
+        <span class="banner-calc-icon">${icon('info')}</span>
         <div>
-          <strong>Разделение труда по ФСО:</strong>
-          <span>🤖 <b>Робот</b> по утвержденным формулам считает скидку на торг, поправки Лейфера (этаж, площадь, отделка), скорректированную стоимость и весовые коэффициенты $w_i$.</span>
-          <span style="margin-left: 8px;">👤 <b>Оценщик</b> отбирает 3–5 проверенных аналогов из открытых источников и подтверждает класс отделки по осмотру.</span>
+          <strong>Методология расчёта по ФСО:</strong>
+          <span><b>Программный расчёт:</b> автоматический расчёт скидки на торг (-6%), поправок Лейфера (этаж, площадь, отделка), скорректированных цен и весовых коэффициентов $w_i$.</span>
+          <span style="margin-left: 12px;"><b>Оценщик:</b> выборка проверенных объектов-аналогов из открытого рынка и подтверждение класса отделки по акту осмотра.</span>
         </div>
       </div>
 
@@ -1354,10 +1380,10 @@ function renderTabReport(activeCase, res) {
           ${icon('download')} Скачать официальный Word (.docx)
         </button>
 
-        <!-- Audit Card 1: Робот сделал за вас -->
+        <!-- Audit Card 1: Автоматизированные разделы отчёта -->
         <div class="audit-card robot">
           <div class="audit-head">
-            ${icon('check-circle')} 🤖 Заполнено программой по шаблону (100%)
+            ${icon('check-circle-2')} Автоматизировано программой по шаблону (100%)
           </div>
           <ul class="audit-list">
             <li>${icon('check')} Подставлены реквизиты объекта, адрес, кадастровый номер и заказчик</li>
@@ -1371,10 +1397,10 @@ function renderTabReport(activeCase, res) {
           </ul>
         </div>
 
-        <!-- Audit Card 2: Зона ответственности человека -->
+        <!-- Audit Card 2: Зона контроля оценщика -->
         <div class="audit-card human">
           <div class="audit-head">
-            ${icon('alert-circle')} 👤 Зона ответственности оценщика (Человек)
+            ${icon('shield-alert')} Зона контроля оценщика
           </div>
           <ul class="audit-list">
             <li><b>1. Проверка аналогов:</b> подтвердить отсутствие дублей риелторов на Авито/Циан.</li>
