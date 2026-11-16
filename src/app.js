@@ -239,13 +239,60 @@ function renderGlassChart(period) {
   const minPrice = 48000;
   const maxPrice = 56000;
   const width = 600;
-  const height = 130;
+  const height = 140;
+  const padX = 16;
+  const padTop = 14;
+  const padBottom = 20;
+  const usableW = width - padX * 2;
+  const usableH = height - padTop - padBottom;
 
-  const getX = i => (i * width) / (points.length - 1);
-  const getY = val => height - ((val - minPrice) / (maxPrice - minPrice)) * (height - 24) - 12;
+  const getX = i => padX + (i * usableW) / (points.length - 1);
+  const getY = val => padTop + usableH - ((val - minPrice) / (maxPrice - minPrice)) * usableH;
 
-  const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${getX(i).toFixed(1)} ${getY(p.price).toFixed(1)}`).join(' ');
-  const areaD = `${pathD} L ${width} ${height} L 0 ${height} Z`;
+  const coords = points.map((p, i) => ({
+    x: getX(i),
+    y: getY(p.price),
+    p,
+    i
+  }));
+
+  // Build Catmull-Rom cubic bezier smooth curve
+  let lineD = `M ${coords[0].x.toFixed(1)} ${coords[0].y.toFixed(1)}`;
+  for (let i = 0; i < coords.length - 1; i++) {
+    const p0 = coords[Math.max(0, i - 1)];
+    const p1 = coords[i];
+    const p2 = coords[i + 1];
+    const p3 = coords[Math.min(coords.length - 1, i + 2)];
+
+    const cp1x = p1.x + (p2.x - p0.x) / 6;
+    const cp1y = p1.y + (p2.y - p0.y) / 6;
+    const cp2x = p2.x - (p3.x - p1.x) / 6;
+    const cp2y = p2.y - (p3.y - p1.y) / 6;
+
+    lineD += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+  }
+
+  const first = coords[0];
+  const last = coords[coords.length - 1];
+  const baselineY = height - padBottom;
+  const areaD = `${lineD} L ${last.x.toFixed(1)} ${baselineY} L ${first.x.toFixed(1)} ${baselineY} Z`;
+
+  const activeIndex = points.findIndex(p => p.price === 54380) !== -1
+    ? points.findIndex(p => p.price === 54380)
+    : points.length - 1;
+  const activeCoord = coords[activeIndex];
+  const activePoint = points[activeIndex];
+
+  const badgeW = 68;
+  const badgeH = 20;
+  let badgeX = activeCoord.x - badgeW / 2;
+  if (badgeX < 6) badgeX = 6;
+  if (badgeX + badgeW > width - 6) badgeX = width - badgeW - 6;
+  const badgeY = Math.max(2, activeCoord.y - badgeH - 7);
+
+  const y56 = getY(56000).toFixed(1);
+  const y52 = getY(52000).toFixed(1);
+  const y48 = getY(48000).toFixed(1);
 
   return `
     <div class="gw-chart-wrap">
@@ -256,19 +303,44 @@ function renderGlassChart(period) {
       </div>
       <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
         <defs>
-          <linearGradient id="gw-chart-grad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#2563eb" stopOpacity="0.22" />
-            <stop offset="100%" stopColor="#2563eb" stopOpacity="0.0" />
+          <linearGradient id="gw-chart-grad-${period}" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.25" />
+            <stop offset="55%" stop-color="#60a5fa" stop-opacity="0.08" />
+            <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.0" />
           </linearGradient>
+          <filter id="gw-chart-glow-${period}" x="-10%" y="-20%" width="120%" height="150%">
+            <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="#2563eb" flood-opacity="0.25" />
+          </filter>
         </defs>
-        <line x1="0" y1="${height * 0.2}" x2="${width}" y2="${height * 0.2}" stroke="#cbd5e1" stroke-dasharray="3 4" stroke-width="0.8" />
-        <line x1="0" y1="${height * 0.5}" x2="${width}" y2="${height * 0.5}" stroke="#cbd5e1" stroke-dasharray="3 4" stroke-width="0.8" />
-        <line x1="0" y1="${height * 0.8}" x2="${width}" y2="${height * 0.8}" stroke="#cbd5e1" stroke-dasharray="3 4" stroke-width="0.8" />
-        <path d="${areaD}" fill="url(#gw-chart-grad)" />
-        <path d="${pathD}" fill="none" stroke="#2563eb" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
-        ${points.map((p, i) => `
-          <circle cx="${getX(i).toFixed(1)}" cy="${getY(p.price).toFixed(1)}" r="3.5" fill="#ffffff" stroke="#2563eb" stroke-width="2" />
+
+        <!-- Subtle horizontal grid lines matching price labels -->
+        <line x1="0" y1="${y56}" x2="${width}" y2="${y56}" stroke="#cbd5e1" stroke-dasharray="3 4" stroke-width="0.8" opacity="0.65" />
+        <line x1="0" y1="${y52}" x2="${width}" y2="${y52}" stroke="#cbd5e1" stroke-dasharray="3 4" stroke-width="0.8" opacity="0.65" />
+        <line x1="0" y1="${y48}" x2="${width}" y2="${y48}" stroke="#cbd5e1" stroke-dasharray="3 4" stroke-width="0.8" opacity="0.65" />
+
+        <!-- Vertical guide marker for the active valuation point -->
+        <line x1="${activeCoord.x.toFixed(1)}" y1="${padTop}" x2="${activeCoord.x.toFixed(1)}" y2="${baselineY}" stroke="#93c5fd" stroke-width="1.2" stroke-dasharray="2 3" opacity="0.75" />
+
+        <!-- Soft translucent gradient fill under the curve -->
+        <path d="${areaD}" fill="url(#gw-chart-grad-${period})" />
+
+        <!-- Smooth cubic bezier market curve -->
+        <path d="${lineD}" fill="none" stroke="#2563eb" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" filter="url(#gw-chart-glow-${period})" />
+
+        <!-- Regular point markers -->
+        ${coords.map(c => `
+          <circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="3" fill="#ffffff" stroke="#3b82f6" stroke-width="1.8" />
         `).join('')}
+
+        <!-- Active point marker with soft pulsing aura -->
+        <circle cx="${activeCoord.x.toFixed(1)}" cy="${activeCoord.y.toFixed(1)}" r="8" fill="#3b82f6" fill-opacity="0.18" />
+        <circle cx="${activeCoord.x.toFixed(1)}" cy="${activeCoord.y.toFixed(1)}" r="4.2" fill="#2563eb" stroke="#ffffff" stroke-width="2" />
+
+        <!-- Floating pill badge for current market rate -->
+        <g transform="translate(${badgeX.toFixed(1)}, ${badgeY.toFixed(1)})">
+          <rect width="${badgeW}" height="${badgeH}" rx="5" fill="#0f172a" fill-opacity="0.88" />
+          <text x="${(badgeW / 2).toFixed(1)}" y="13.5" text-anchor="middle" fill="#ffffff" font-size="9" font-weight="600" font-family="system-ui, -apple-system, sans-serif">${activePoint.price.toLocaleString('ru-RU')} ₽</text>
+        </g>
       </svg>
       <div class="gw-chart-months">
         ${points.map(p => `<span>${p.label}</span>`).join('')}

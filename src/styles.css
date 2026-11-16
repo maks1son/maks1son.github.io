@@ -682,47 +682,62 @@ a {
   border-color: var(--primary-border);
 }
 
-/* Cases Grid */
+/* =========================================================================
+   ULTRA-MINIMALIST CASE CARDS (Large scale, clean, no microtext)
+   ========================================================================= */
 .cases-grid {
-  display: grid;
-  gap: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .case-card {
   background: #ffffff;
-  border: 1px solid var(--border);
+  border: 1px solid #e2e8f0;
   border-radius: 16px;
-  padding: 24px 28px;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 24px;
+  padding: 22px 28px;
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.02);
+  gap: 28px;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+  position: relative;
 }
 
 .case-card:hover {
   border-color: #cbd5e1;
-  transform: translateY(-3px);
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08), 0 3px 8px rgba(37, 99, 235, 0.04);
+  box-shadow: 0 12px 28px -10px rgba(15, 23, 42, 0.1), 0 2px 6px rgba(0, 0, 0, 0.03);
+  transform: translateY(-2px);
 }
 
-.case-header-row {
+.case-card.is-pinned-card {
+  border-left: 4px solid #f59e0b;
+}
+
+.case-card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.case-card-header {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 8px;
 }
 
 .case-num {
+  font-size: 16.5px;
   font-weight: 750;
-  font-size: 15px;
   color: var(--primary);
   letter-spacing: -0.2px;
 }
 
 .badge-status {
-  font-size: 12px;
+  font-size: 13px;
   padding: 3px 10px;
   border-radius: 20px;
   font-weight: 650;
@@ -748,62 +763,86 @@ a {
 
 .case-addr {
   font-size: 18.5px;
-  font-weight: 750;
-  color: var(--text-dark);
+  font-weight: 700;
+  color: #0f172a;
   letter-spacing: -0.3px;
   line-height: 1.35;
 }
 
-.case-sub-meta {
+.case-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 10px;
-  font-size: 13.5px;
-  color: var(--text-muted);
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
 }
 
-.case-sub-meta span {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
+.case-tag {
+  font-size: 14.5px;
+  font-weight: 550;
+  color: #475569;
   background: #f8fafc;
-  border: 1px solid var(--border-light);
+  border: 1px solid #e2e8f0;
+  padding: 3px 11px;
   border-radius: 6px;
 }
 
-.case-sub-meta span svg, .case-sub-meta span i {
-  color: #2563eb;
-  width: 15px;
-  height: 15px;
-}
-
-.case-right-meta {
+.case-card-side {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 14px;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.case-price-box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
 }
 
 .case-val-amount {
-  font-size: 25px;
+  font-size: 27px;
   font-weight: 850;
-  color: var(--primary);
+  color: #0f172a;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.6px;
+  line-height: 1.15;
 }
 
 .case-val-sub {
-  font-size: 13px;
-  color: var(--text-muted);
-  text-align: right;
+  font-size: 14px;
+  font-weight: 500;
+  color: #64748b;
+  margin-top: 3px;
 }
 
 .case-actions {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.btn-icon-only {
+  padding: 8px 10px !important;
+}
+
+@media (max-width: 860px) {
+  .case-card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+  .case-card-side {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid #f1f5f9;
+    padding-top: 14px;
+  }
+  .case-price-box {
+    align-items: flex-start;
+  }
 }
 
 /* Case Detail Tabs */
@@ -3072,8 +3111,8 @@ dialog::backdrop {
 /* Glass Chart Wrap */
 .gw-chart-wrap {
   position: relative;
-  padding-left: 45px;
-  padding-top: 6px;
+  padding-left: 52px;
+  padding-top: 4px;
 }
 
 .gw-chart-wrap svg {
@@ -3086,14 +3125,20 @@ dialog::backdrop {
 .gw-chart-labels {
   position: absolute;
   left: 0;
-  top: 6px;
-  bottom: 24px;
+  top: 14px;
+  height: 106px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  font-size: 9px;
+  font-size: 9.5px;
   font-weight: 600;
   color: #94a3b8;
+  pointer-events: none;
+  line-height: 1;
+}
+
+.gw-chart-labels span {
+  transform: translateY(-50%);
 }
 
 .gw-chart-months {
@@ -3102,7 +3147,9 @@ dialog::backdrop {
   font-size: 9.5px;
   color: #64748b;
   margin-top: 8px;
-  padding-top: 6px;
+  padding-top: 8px;
+  padding-left: 12px;
+  padding-right: 12px;
   border-top: 1px dashed rgba(148, 163, 184, 0.25);
 }
 
