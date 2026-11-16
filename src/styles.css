@@ -2812,3 +2812,491 @@ dialog::backdrop {
   color: #d97706;
 }
 
+/* ==========================================================================
+   Liquid / Frosted Glass Design System (Rosocenka Glass Dashboard)
+   ========================================================================== */
+
+:root {
+  --gw-blur: 22px;
+  --gw-opacity: 0.35;
+  --gw-saturation: 1.25;
+  --gw-edge: 0.65;
+  --gw-tint: #ffffff;
+  --gw-accent: #2563eb;
+  --gw-surface: #ffffff;
+}
+
+/* Atmospheric room background */
+.gw-room {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover;
+  background-size: cover;
+  background-position: center;
+  z-index: -3;
+  pointer-events: none;
+  opacity: 0.38;
+  filter: blur(1.5px);
+}
+
+.gw-room-shade {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at 50% 20%, rgba(248, 250, 252, 0.72) 0%, rgba(226, 232, 240, 0.88) 100%);
+  z-index: -2;
+  pointer-events: none;
+}
+
+/* Glass material styling */
+.gw-glass {
+  background: color-mix(in srgb, var(--gw-surface) calc(var(--gw-opacity) * 100%), transparent) !important;
+  backdrop-filter: blur(var(--gw-blur)) saturate(var(--gw-saturation));
+  -webkit-backdrop-filter: blur(var(--gw-blur)) saturate(var(--gw-saturation));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #ffffff calc(var(--gw-edge) * 100%), transparent),
+    inset 0 0 0 1px color-mix(in srgb, #ffffff calc(var(--gw-edge) * 35%), transparent),
+    0 20px 52px -25px rgba(15, 23, 42, 0.15) !important;
+  position: relative;
+}
+
+.gw-glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--gw-tint);
+  opacity: 0.08;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* Glass Panels */
+.gw-panel {
+  background: color-mix(in srgb, #ffffff calc((0.25 + var(--gw-opacity) * 0.5) * 100%), transparent);
+  backdrop-filter: blur(var(--gw-blur)) saturate(var(--gw-saturation));
+  -webkit-backdrop-filter: blur(var(--gw-blur)) saturate(var(--gw-saturation));
+  border-radius: 18px;
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #ffffff calc(var(--gw-edge) * 85%), transparent),
+    inset 0 0 0 1px color-mix(in srgb, #ffffff calc(var(--gw-edge) * 30%), transparent),
+    0 12px 32px -16px rgba(15, 23, 42, 0.12);
+  padding: 22px;
+  position: relative;
+}
+
+.gw-overview-grid {
+  display: grid;
+  grid-template-columns: 0.85fr 1.45fr;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+@media (max-width: 1024px) {
+  .gw-overview-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.gw-lower-grid {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 1024px) {
+  .gw-lower-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Glass Balance / Portfolio Card */
+.gw-balance {
+  display: flex;
+  flex-direction: column;
+}
+
+.gw-balance-value {
+  font-size: clamp(30px, 3vw, 42px);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  color: #0f172a;
+  line-height: 1.15;
+  margin: 8px 0 6px;
+}
+
+.gw-balance-meta {
+  font-size: 12px;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.gw-positive {
+  color: #059669;
+  background: #ecfdf5;
+  border-radius: 5px;
+  padding: 2px 6px;
+  font-weight: 600;
+}
+
+/* Spotlight Account / Case */
+.gw-account {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+}
+
+.gw-account-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #2563eb;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.gw-account-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.gw-account-info strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gw-account-info span {
+  font-size: 11.5px;
+  color: #64748b;
+}
+
+.gw-account-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  display: grid;
+  place-items: center;
+  color: #2563eb;
+  transition: transform 0.15s ease, background 0.15s ease;
+  cursor: pointer;
+}
+
+.gw-account-btn:hover {
+  transform: translateX(2px);
+  background: #eff6ff;
+}
+
+/* Glass Segment Control */
+.gw-segment {
+  display: flex;
+  gap: 3px;
+  background: rgba(148, 163, 184, 0.15);
+  border-radius: 8px;
+  padding: 3px;
+  font-size: 11px;
+}
+
+.gw-segment button {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 0;
+  background: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.gw-segment button.active,
+.gw-segment button[aria-pressed="true"] {
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Glass Chart Summary */
+.gw-chart-summary {
+  display: flex;
+  gap: 32px;
+  margin-bottom: 16px;
+}
+
+.gw-chart-summary > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.gw-chart-summary span {
+  font-size: 11px;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gw-chart-summary span i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #2563eb;
+}
+
+.gw-chart-summary strong {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+/* Glass Chart Wrap */
+.gw-chart-wrap {
+  position: relative;
+  padding-left: 45px;
+  padding-top: 6px;
+}
+
+.gw-chart-wrap svg {
+  display: block;
+  width: 100%;
+  height: 140px;
+  overflow: visible;
+}
+
+.gw-chart-labels {
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: 9px;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.gw-chart-months {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9.5px;
+  color: #64748b;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px dashed rgba(148, 163, 184, 0.25);
+}
+
+/* Floating Glass Dock */
+.gw-desktop-dock {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+}
+
+.gw-dock {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 36px;
+  padding: 6px 8px;
+  white-space: nowrap;
+  background: color-mix(in srgb, #ffffff 78%, transparent);
+  backdrop-filter: blur(24px) saturate(1.3);
+  -webkit-backdrop-filter: blur(24px) saturate(1.3);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.4),
+    0 16px 38px -12px rgba(15, 23, 42, 0.22);
+}
+
+.gw-dock button,
+.gw-dock a {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 28px;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  text-decoration: none;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.gw-dock button:hover,
+.gw-dock a:hover {
+  background: rgba(241, 245, 249, 0.7);
+  color: #0f172a;
+}
+
+.gw-dock button.active {
+  background: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+}
+
+/* Glass Material Drawer */
+.gw-material {
+  position: fixed;
+  z-index: 50;
+  right: 20px;
+  top: 75px;
+  width: 320px;
+  border-radius: 20px;
+  padding: 22px;
+  background: color-mix(in srgb, #ffffff 94%, transparent);
+  backdrop-filter: blur(28px) saturate(1.3);
+  -webkit-backdrop-filter: blur(28px) saturate(1.3);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 24px 60px -15px rgba(15, 23, 42, 0.25);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.gw-material-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.gw-material h2 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.gw-material > p {
+  font-size: 11.5px;
+  color: #64748b;
+  margin: 6px 0 16px;
+}
+
+.gw-material-sample {
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  background: color-mix(in srgb, var(--gw-tint, #ffffff) calc(var(--gw-opacity, 0.35) * 100%), transparent);
+  backdrop-filter: blur(var(--gw-blur, 22px));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 8px 20px -10px rgba(0, 0, 0, 0.1);
+  font-size: 12px;
+  font-weight: 600;
+  color: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+.gw-presets {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+
+.gw-presets button {
+  flex: 1;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  border-radius: 6px;
+  padding: 6px 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.gw-presets button:hover {
+  background: #f1f5f9;
+}
+
+.gw-range {
+  display: block;
+  margin: 14px 0;
+}
+
+.gw-range > span {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.gw-range output {
+  font-size: 11px;
+  color: #2563eb;
+}
+
+.gw-range input {
+  width: 100%;
+  accent-color: #2563eb;
+  margin-top: 6px;
+  cursor: pointer;
+}
+
+.gw-tint {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #334155;
+  margin-top: 14px;
+}
+
+.gw-tint input {
+  height: 28px;
+  width: 44px;
+  padding: 2px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.gw-reset {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 8px;
+  margin-top: 16px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+}
+
+.gw-reset:hover {
+  background: #f1f5f9;
+}
+

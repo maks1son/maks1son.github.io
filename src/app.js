@@ -36,6 +36,28 @@ let isSidebarHovered = false;
 let isSidebarPinned = typeof localStorage !== 'undefined' && localStorage.getItem('rosocenka_sidebar_pinned') === 'true';
 let sidebarLeaveTimer = null;
 
+// Glass Design System State
+let glassSettings = {
+  blur: 22,
+  opacity: 0.35,
+  saturation: 1.25,
+  edge: 0.65,
+  tint: '#ffffff',
+};
+let isGlassDrawerOpen = false;
+let chartPeriod = 'month'; // 'week' | 'month' | 'year'
+
+function applyGlassSettings() {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  root.style.setProperty('--gw-blur', `${glassSettings.blur}px`);
+  root.style.setProperty('--gw-opacity', glassSettings.opacity);
+  root.style.setProperty('--gw-saturation', glassSettings.saturation);
+  root.style.setProperty('--gw-edge', glassSettings.edge);
+  root.style.setProperty('--gw-tint', glassSettings.tint);
+}
+applyGlassSettings();
+
 const icon = name => `<i data-lucide="${name}"></i>`;
 const CLOSE_ICON_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
 
@@ -178,6 +200,150 @@ function renderSidebarContent(activeCase, inProgressCount, readyCount) {
 }
 
 /**
+ * Живая диаграмма динамики цен за 1 м² и портфеля оценки
+ */
+function renderGlassChart(period) {
+  let points = [];
+  if (period === 'week') {
+    points = [
+      { label: 'Пн', price: 53800, total: 38.5 },
+      { label: 'Вт', price: 54000, total: 40.2 },
+      { label: 'Ср', price: 54150, total: 42.0 },
+      { label: 'Чт', price: 54300, total: 44.8 },
+      { label: 'Пт', price: 54380, total: 47.1 },
+      { label: 'Сб', price: 54450, total: 47.8 },
+      { label: 'Вс', price: 54500, total: 48.2 },
+    ];
+  } else if (period === 'year') {
+    points = [
+      { label: 'Янв', price: 48500, total: 18.2 },
+      { label: 'Мар', price: 49800, total: 24.5 },
+      { label: 'Май', price: 51200, total: 31.0 },
+      { label: 'Июл', price: 52500, total: 37.4 },
+      { label: 'Сен', price: 53600, total: 43.1 },
+      { label: 'Ноя', price: 54380, total: 48.2 },
+    ];
+  } else {
+    // month
+    points = [
+      { label: '01 ноя', price: 52900, total: 28.4 },
+      { label: '06 ноя', price: 53300, total: 32.8 },
+      { label: '11 ноя', price: 53700, total: 38.1 },
+      { label: '16 ноя', price: 54100, total: 42.5 },
+      { label: '21 ноя', price: 54380, total: 45.9 },
+      { label: '26 ноя', price: 54650, total: 47.4 },
+      { label: '30 ноя', price: 54900, total: 48.2 },
+    ];
+  }
+
+  const minPrice = 48000;
+  const maxPrice = 56000;
+  const width = 600;
+  const height = 130;
+
+  const getX = i => (i * width) / (points.length - 1);
+  const getY = val => height - ((val - minPrice) / (maxPrice - minPrice)) * (height - 24) - 12;
+
+  const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${getX(i).toFixed(1)} ${getY(p.price).toFixed(1)}`).join(' ');
+  const areaD = `${pathD} L ${width} ${height} L 0 ${height} Z`;
+
+  return `
+    <div class="gw-chart-wrap">
+      <div class="gw-chart-labels">
+        <span>56 000 ₽</span>
+        <span>52 000 ₽</span>
+        <span>48 000 ₽</span>
+      </div>
+      <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="gw-chart-grad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#2563eb" stopOpacity="0.22" />
+            <stop offset="100%" stopColor="#2563eb" stopOpacity="0.0" />
+          </linearGradient>
+        </defs>
+        <line x1="0" y1="${height * 0.2}" x2="${width}" y2="${height * 0.2}" stroke="#cbd5e1" stroke-dasharray="3 4" stroke-width="0.8" />
+        <line x1="0" y1="${height * 0.5}" x2="${width}" y2="${height * 0.5}" stroke="#cbd5e1" stroke-dasharray="3 4" stroke-width="0.8" />
+        <line x1="0" y1="${height * 0.8}" x2="${width}" y2="${height * 0.8}" stroke="#cbd5e1" stroke-dasharray="3 4" stroke-width="0.8" />
+        <path d="${areaD}" fill="url(#gw-chart-grad)" />
+        <path d="${pathD}" fill="none" stroke="#2563eb" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
+        ${points.map((p, i) => `
+          <circle cx="${getX(i).toFixed(1)}" cy="${getY(p.price).toFixed(1)}" r="3.5" fill="#ffffff" stroke="#2563eb" stroke-width="2" />
+        `).join('')}
+      </svg>
+      <div class="gw-chart-months">
+        ${points.map(p => `<span>${p.label}</span>`).join('')}
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Панель настроек стекла (Glass Appearance Adjuster)
+ */
+function renderGlassSettingsDrawer() {
+  return `
+    <div class="gw-material-title">
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <span style="color: #2563eb; display: grid; place-items: center;">${icon('settings-2')}</span>
+        <h2>Настройка стекла (Glass)</h2>
+      </div>
+      <button type="button" class="btn-icon-sm" id="btn-close-glass" aria-label="Закрыть">${CLOSE_ICON_SVG}</button>
+    </div>
+    <p>Интерактивная регулировка матовости, прозрачности и кромки интерфейса</p>
+    <div class="gw-material-sample">
+      ${icon('layers')} <span>Живой предпросмотр стекла</span>
+    </div>
+    <div class="gw-presets">
+      <button type="button" data-preset="clear">Прозрачное</button>
+      <button type="button" data-preset="frosted">Матовое</button>
+      <button type="button" data-preset="solid">Плотное</button>
+    </div>
+    <label class="gw-range">
+      <span>Размытие (Blur) <output id="out-blur">${glassSettings.blur} px</output></span>
+      <input type="range" id="range-blur" min="0" max="40" step="1" value="${glassSettings.blur}">
+    </label>
+    <label class="gw-range">
+      <span>Прозрачность (Opacity) <output id="out-opacity">${Math.round(glassSettings.opacity * 100)}%</output></span>
+      <input type="range" id="range-opacity" min="0.08" max="0.9" step="0.01" value="${glassSettings.opacity}">
+    </label>
+    <label class="gw-range">
+      <span>Световая кромка (Edge) <output id="out-edge">${Math.round(glassSettings.edge * 100)}%</output></span>
+      <input type="range" id="range-edge" min="0" max="1" step="0.05" value="${glassSettings.edge}">
+    </label>
+    <label class="gw-tint">
+      <span>Оттенок стекла</span>
+      <input type="color" id="picker-tint" value="${glassSettings.tint}">
+    </label>
+    <button class="gw-reset" type="button" id="btn-reset-glass">Сбросить настройки</button>
+  `;
+}
+
+/**
+ * Плавающий стеклянный док навигации внизу экрана
+ */
+function renderFloatingDock() {
+  return `
+    <div class="gw-dock">
+      <button type="button" class="${currentView === 'dashboard' ? 'active' : ''}" data-nav="dashboard" title="Главная">
+        ${icon('layout-dashboard')} <span>Главная</span>
+      </button>
+      <button type="button" class="${currentView === 'cabinet' && filterStatus === 'all' ? 'active' : ''}" data-nav="all-cases" title="Все дела">
+        ${icon('folder')} <span>Все дела</span>
+      </button>
+      <button type="button" class="${currentView === 'cabinet' && filterStatus === 'В работе' ? 'active' : ''}" data-nav="in-progress" title="В работе">
+        ${icon('clock')} <span>В работе</span>
+      </button>
+      <button type="button" class="${currentView === 'cabinet' && filterStatus === 'Готов' ? 'active' : ''}" data-nav="ready" title="Готовые">
+        ${icon('check-circle')} <span>Готовые отчёты</span>
+      </button>
+      <a href="/pitch.html" target="_blank" title="Открыть питч-презентацию">
+        ${icon('presentation')} <span>Презентация</span>
+      </a>
+    </div>
+  `;
+}
+
+/**
  * HTML содержимое верхней панели
  */
 function renderTopbarContent(activeCase) {
@@ -202,6 +368,12 @@ function renderTopbarContent(activeCase) {
     </div>
 
     <div class="topbar-right">
+      <button class="btn btn-secondary btn-sm" id="btn-toggle-glass" title="Настроить стекло и прозрачность">
+        ${icon('settings-2')} Настроить стекло
+      </button>
+      <a href="/pitch.html" target="_blank" class="btn btn-secondary btn-sm" id="btn-top-pitch" title="Открыть питч-презентацию для заказчика">
+        ${icon('presentation')} Презентация
+      </a>
       <span class="save-status-badge">
         ${icon('check')} Сохранено
       </span>
@@ -233,14 +405,26 @@ function render() {
   // Создаем постоянный каркас приложения один раз, чтобы сайдбар не пересоздавался и не захлопывался
   if (!sidebar || !topbar || !pageContainer) {
     app.innerHTML = `
+      <!-- Atmospheric Room Background & Ambient Shade -->
+      <div class="gw-room" style="background-image: url('/images/dashboard-hero.jpg');"></div>
+      <div class="gw-room-shade"></div>
+
       <!-- Chrome-like Expandable Sidebar (White & Light Blue) -->
       <aside class="app-sidebar ${isSidebarPinned ? 'is-pinned is-expanded' : ''}" id="app-sidebar"></aside>
 
       <!-- Main Content Area -->
       <div class="app-main">
-        <header class="app-topbar" id="app-topbar"></header>
+        <header class="app-topbar gw-glass" id="app-topbar"></header>
         <main class="page-container" id="page-container"></main>
       </div>
+
+      <!-- Floating Glass Dock Navigation -->
+      <nav class="gw-desktop-dock" id="gw-desktop-dock">${renderFloatingDock()}</nav>
+
+      <!-- Glass Appearance Adjuster Drawer -->
+      <aside class="gw-material gw-glass" id="glass-settings-drawer" style="display: ${isGlassDrawerOpen ? 'block' : 'none'};">
+        ${renderGlassSettingsDrawer()}
+      </aside>
 
       <div id="toast" role="status" aria-live="polite"></div>
       <dialog id="modal-dialog"></dialog>
@@ -249,6 +433,14 @@ function render() {
     topbar = document.getElementById('app-topbar');
     pageContainer = document.getElementById('page-container');
     setupSidebarEvents(sidebar);
+  }
+
+  const dock = document.getElementById('gw-desktop-dock');
+  if (dock) dock.innerHTML = renderFloatingDock();
+  const drawer = document.getElementById('glass-settings-drawer');
+  if (drawer) {
+    drawer.style.display = isGlassDrawerOpen ? 'block' : 'none';
+    drawer.innerHTML = renderGlassSettingsDrawer();
   }
 
   // Сохраняем состояние раскрытия/закрепления при перерисовке
@@ -386,9 +578,12 @@ function renderDashboardView() {
   const spotlightSharesCount = (spotlightCase && spotlightCase.objectData.shares && spotlightCase.objectData.shares.length) || 5;
 
   return `
-    <!-- Clean Unboxed Greeting Header (No Frame, No Microtext) -->
+    <!-- Clean Unboxed Greeting Header -->
     <section class="dashboard-welcome anim-fade-up">
-      <h1 class="welcome-title">Здравствуйте, Анна Александровна!</h1>
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+        <span style="font-size: 13px; color: var(--text-muted); font-weight: 500;">Личный кабинет оценщика · г. Тольятти</span>
+        <h1 class="welcome-title">Здравствуйте, Анна Александровна!</h1>
+      </div>
       <div class="welcome-actions">
         <button class="btn btn-primary" id="btn-hero-new">
           ${icon('plus')} Добавить объект оценки
@@ -399,104 +594,169 @@ function renderDashboardView() {
       </div>
     </section>
 
-    <!-- Key Metrics Ribbon (KPIs with Mini Sparklines) -->
-    <section class="kpi-grid">
-      <div class="kpi-card kpi-card-blue anim-fade-up anim-delay-1">
-        <div class="kpi-top">
-          <span class="kpi-icon-wrap kpi-icon-blue">${icon('wallet')}</span>
-          <span class="kpi-pill kpi-pill-blue">+12% ноябрь</span>
+    <!-- Upper Frosted Glass Grid: Portfolio Balance + Market Valuation Chart -->
+    <div class="gw-overview-grid anim-fade-up anim-delay-1">
+      <!-- Left Glass Panel: Portfolio Balance & Spotlight Case -->
+      <section class="gw-panel gw-balance">
+        <div class="panel-head-row" style="display: flex; align-items: center; justify-content: space-between; color: var(--text-muted); font-size: 13px;">
+          <span>Портфель объектов в оценке</span>
+          <span style="color: #2563eb;">${icon('wallet')}</span>
         </div>
-        <div class="kpi-value">${money(totalValuation)}</div>
-        <div class="kpi-foot-row">
-          <div class="kpi-label">Портфель объектов</div>
-          <svg class="kpi-spark" viewBox="0 0 74 26" fill="none">
-            <path d="M2 22 C14 20, 22 14, 34 15 C46 16, 56 6, 72 3" stroke="#2563eb" stroke-width="2.4" stroke-linecap="round"/>
-            <circle cx="72" cy="3" r="3" fill="#2563eb"/>
-          </svg>
+        <div class="gw-balance-value">${money(totalValuation)}</div>
+        <div class="gw-balance-meta">
+          <span class="gw-positive">+12% ноябрь</span>
+          <span>к прошлому месяцу</span>
         </div>
-        <div class="kpi-meter">
-          <div class="kpi-meter-fill" style="width: 100%; background: linear-gradient(90deg, #2563eb, #60a5fa);"></div>
-        </div>
-      </div>
 
-      <div class="kpi-card kpi-card-purple anim-fade-up anim-delay-2">
-        <div class="kpi-top">
-          <span class="kpi-icon-wrap kpi-icon-purple">${icon('trending-up')}</span>
-          <span class="kpi-pill kpi-pill-purple">г. Тольятти</span>
-        </div>
-        <div class="kpi-value">${moneyPerSqm(avgPricePerSqm)}</div>
-        <div class="kpi-foot-row">
-          <div class="kpi-label">Средняя цена 1 м²</div>
-          <svg class="kpi-spark" viewBox="0 0 74 26" fill="none">
-            <path d="M2 19 C16 18, 28 11, 40 12 C52 13, 60 5, 72 4" stroke="#7c3aed" stroke-width="2.4" stroke-linecap="round"/>
-            <circle cx="72" cy="4" r="3" fill="#7c3aed"/>
-          </svg>
-        </div>
-        <div class="kpi-meter">
-          <div class="kpi-meter-fill" style="width: 78%; background: linear-gradient(90deg, #7c3aed, #a78bfa);"></div>
-        </div>
-      </div>
-
-      <div class="kpi-card kpi-card-green anim-fade-up anim-delay-3">
-        <div class="kpi-top">
-          <span class="kpi-icon-wrap kpi-icon-green">${icon('shield-check')}</span>
-          <span class="kpi-pill kpi-pill-green">ФСО ≤ 33%</span>
-        </div>
-        <div class="kpi-value">V = ${variationCoeff.toFixed(1).replace('.', ',')}%</div>
-        <div class="kpi-foot-row">
-          <div class="kpi-label">Вариация выборки</div>
-          <svg class="kpi-spark" viewBox="0 0 74 26" fill="none">
-            <path d="M2 12 C14 14, 24 8, 38 11 C50 14, 60 9, 72 10" stroke="#10b981" stroke-width="2.4" stroke-linecap="round"/>
-            <circle cx="72" cy="10" r="3" fill="#10b981"/>
-          </svg>
-        </div>
-        <div class="kpi-meter">
-          <div class="kpi-meter-fill" style="width: 88%; background: linear-gradient(90deg, #10b981, #34d399);"></div>
-        </div>
-      </div>
-
-      <div class="kpi-card kpi-card-amber anim-fade-up anim-delay-4">
-        <div class="kpi-top">
-          <span class="kpi-icon-wrap kpi-icon-amber">${icon('pie-chart')}</span>
-          <span class="kpi-pill kpi-pill-amber">${readyCases.length} готов / ${unfinishedCases.length} в работе</span>
-        </div>
-        <div class="kpi-value">${readyCases.length} / ${cases.length}</div>
-        <div class="kpi-foot-row">
-          <div class="kpi-label">Готовность отчётов</div>
-          <svg class="kpi-spark" viewBox="0 0 74 26" fill="none">
-            <path d="M2 23 C18 22, 30 16, 44 13 C56 10, 64 7, 72 5" stroke="#d97706" stroke-width="2.4" stroke-linecap="round"/>
-            <circle cx="72" cy="5" r="3" fill="#d97706"/>
-          </svg>
-        </div>
-        <div class="kpi-meter">
-          <div class="kpi-meter-fill" style="width: ${Math.max(18, readyPct)}%; background: linear-gradient(90deg, #f59e0b, #fbbf24);"></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Main Workspace Grid RIGHT ON FIRST SCREEN: Pinned Cases + In-Progress + Activity -->
-    <div class="dash-main-grid">
-      <div class="dash-left-col">
-        <!-- Block 1: Закреплённые дела (Сразу на первом экране!) -->
-        <section class="dash-section anim-fade-up anim-delay-5">
-          <div class="dash-section-head">
-            <div class="dash-section-title">
-              <span class="icon-star-badge">${icon('star')}</span>
-              <strong>Закреплённые дела</strong>
-              <span class="dash-counter">${pinnedCases.length}</span>
+        ${spotlightCase ? `
+          <div class="gw-account" style="margin-top: auto;">
+            <div class="gw-account-icon">${icon('home')}</div>
+            <div class="gw-account-info">
+              <strong>Дело № ${spotlightCase.number}</strong>
+              <span>${spotlightCase.objectData.address.split(',').slice(-2).join(',')} · ${spotlightAmount}</span>
             </div>
+            <button type="button" class="gw-account-btn" data-action="open-case" data-id="${spotlightCase.id}" title="Открыть дело в расчётах">
+              ${icon('arrow-right')}
+            </button>
+          </div>
+        ` : ''}
+      </section>
+
+      <!-- Right Glass Panel: Interactive Dynamics Chart -->
+      <section class="gw-panel gw-cashflow">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+          <h2 style="font-size: 14.5px; font-weight: 700; color: #0f172a; margin: 0;">Динамика рынка г. Тольятти и портфеля</h2>
+          <div class="gw-segment" role="group" aria-label="Период графика">
+            <button type="button" class="${chartPeriod === 'week' ? 'active' : ''}" data-period="week">Неделя</button>
+            <button type="button" class="${chartPeriod === 'month' ? 'active' : ''}" data-period="month">Месяц</button>
+            <button type="button" class="${chartPeriod === 'year' ? 'active' : ''}" data-period="year">Год</button>
+          </div>
+        </div>
+
+        <div class="gw-chart-summary">
+          <div>
+            <span><i></i> Средняя цена 1 м²</span>
+            <strong>${moneyPerSqm(avgPricePerSqm)}</strong>
+          </div>
+          <div>
+            <span><i style="background: #10b981;"></i> Контроль выборки ФСО</span>
+            <strong>V = ${variationCoeff.toFixed(1).replace('.', ',')}% ≤ 33%</strong>
+          </div>
+        </div>
+
+        ${renderGlassChart(chartPeriod)}
+      </section>
+    </div>
+
+    <!-- Lower Frosted Glass Grid: Active Appraisal Cases + Appraiser's Quotas & Goals -->
+    <div class="gw-lower-grid anim-fade-up anim-delay-2">
+      <!-- Left Glass Panel: Current Cases Feed -->
+      <section class="gw-panel">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+          <h2 style="font-size: 14.5px; font-weight: 700; color: #0f172a; margin: 0;">
+            Текущие объекты оценки <span style="font-size: 12px; font-weight: 600; color: #64748b; margin-left: 6px;">(${cases.length})</span>
+          </h2>
+          <button class="btn btn-secondary btn-sm" data-nav="all-cases" style="padding: 4px 10px; font-size: 11.5px;">
+            Все дела ${icon('arrow-right')}
+          </button>
+        </div>
+
+        <div class="glass-cases-feed" style="display: flex; flex-direction: column; gap: 10px;">
+          ${cases.slice(0, 4).map(c => {
+            const res = calculateValuation(c.objectData, c.analogs, c.objectData.tradeAdjustment);
+            const statusClass = c.status === 'Готов' ? 'ready' : (c.status === 'В работе' ? 'in-progress' : 'draft');
+            const totalVal = res.total ? money(res.total) : money(Math.round((c.objectData.area * 47000) / 1000) * 1000);
+            return `
+              <div style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: rgba(255, 255, 255, 0.55); border: 1px solid rgba(226, 232, 240, 0.7); border-radius: 10px;">
+                <div style="width: 34px; height: 34px; border-radius: 8px; background: ${c.status === 'Готов' ? '#ecfdf5' : '#eff6ff'}; color: ${c.status === 'Готов' ? '#059669' : '#2563eb'}; display: grid; place-items: center; flex-shrink: 0;">
+                  ${icon(c.status === 'Готов' ? 'check-circle' : 'clock')}
+                </div>
+                <div style="display: flex; flex-direction: column; min-width: 0; flex: 1;">
+                  <strong style="font-size: 12.5px; font-weight: 600; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    Дело № ${c.number} · ${c.objectData.address}
+                  </strong>
+                  <span style="font-size: 11px; color: #64748b;">
+                    ${c.objectData.client} · ${sqm(c.objectData.area)} · ${c.objectData.valuationDate}
+                  </span>
+                </div>
+                <span class="badge-status ${statusClass}" style="font-size: 11px; padding: 2px 8px;">${c.status}</span>
+                <strong style="font-size: 13px; font-weight: 700; color: #0f172a; white-space: nowrap;">${totalVal}</strong>
+                <button class="btn btn-secondary btn-sm" data-action="${c.status === 'Готов' ? 'open-case' : 'continue-case'}" data-id="${c.id}" style="padding: 4px 8px;" title="Открыть дело">
+                  ${icon('arrow-right')}
+                </button>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </section>
+
+      <!-- Right Glass Panel: Appraiser's Standards & Monthly Goals -->
+      <section class="gw-panel">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+          <h2 style="font-size: 14.5px; font-weight: 700; color: #0f172a; margin: 0;">Нормативы и цели оценщика</h2>
+          <span style="font-size: 11px; font-weight: 600; color: #059669; background: #ecfdf5; padding: 2px 8px; border-radius: 12px;">Ноябрь 2026</span>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+          <!-- Goal 1 -->
+          <div>
+            <div style="display: flex; justify-content: space-between; font-size: 12.5px; margin-bottom: 6px;">
+              <strong>Выпуск отчётов (план месяца)</strong>
+              <span style="font-weight: 600; color: #2563eb;">8 из 10 (80%)</span>
+            </div>
+            <div style="height: 6px; background: rgba(148, 163, 184, 0.2); border-radius: 4px; overflow: hidden;">
+              <div style="height: 100%; width: 80%; background: linear-gradient(90deg, #2563eb, #60a5fa); border-radius: 4px;"></div>
+            </div>
+            <span style="font-size: 11px; color: #64748b; margin-top: 4px; display: block;">Целевая нагрузка ведущего оценщика</span>
           </div>
 
-          ${pinnedCases.length ? `
-            <div class="cases-grid">
-              ${pinnedCases.map(c => renderCaseDashboardCard(c, true)).join('')}
+          <!-- Goal 2 -->
+          <div>
+            <div style="display: flex; justify-content: space-between; font-size: 12.5px; margin-bottom: 6px;">
+              <strong>Контроль выборки ФСО (V ≤ 33%)</strong>
+              <span style="font-weight: 600; color: #059669;">100% соблюдение</span>
             </div>
-          ` : `
-            <div class="empty-pinned-box">
-              <p>Нет закреплённых дел. Нажмите звёздочку рядом с делом, чтобы закрепить его здесь.</p>
+            <div style="height: 6px; background: rgba(148, 163, 184, 0.2); border-radius: 4px; overflow: hidden;">
+              <div style="height: 100%; width: 100%; background: #10b981; border-radius: 4px;"></div>
             </div>
-          `}
-        </section>
+            <span style="font-size: 11px; color: #64748b; margin-top: 4px; display: block;">Статистическая однородность аналогов Лейфера</span>
+          </div>
+
+          <!-- Goal 3 -->
+          <div>
+            <div style="display: flex; justify-content: space-between; font-size: 12.5px; margin-bottom: 6px;">
+              <strong>Аккредитация в банках-партнёрах</strong>
+              <span style="font-weight: 600; color: #7c3aed;">Сбер, ВТБ, ДОМ.РФ</span>
+            </div>
+            <div style="height: 6px; background: rgba(148, 163, 184, 0.2); border-radius: 4px; overflow: hidden;">
+              <div style="height: 100%; width: 100%; background: linear-gradient(90deg, #7c3aed, #a78bfa); border-radius: 4px;"></div>
+            </div>
+            <span style="font-size: 11px; color: #64748b; margin-top: 4px; display: block;">Формат отчёта соответствует банковским регламентам</span>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Pinned Cases Section -->
+    <section class="dash-section anim-fade-up anim-delay-3" style="margin-top: 10px;">
+      <div class="dash-section-head">
+        <div class="dash-section-title">
+          <span class="icon-star-badge">${icon('star')}</span>
+          <strong>Закреплённые дела на главной</strong>
+          <span class="dash-counter">${pinnedCases.length}</span>
+        </div>
+      </div>
+
+      ${pinnedCases.length ? `
+        <div class="cases-grid">
+          ${pinnedCases.map(c => renderCaseDashboardCard(c, true)).join('')}
+        </div>
+      ` : `
+        <div class="empty-pinned-box">
+          <p>Нет закреплённых дел. Нажмите звёздочку рядом с делом, чтобы закрепить его здесь.</p>
+        </div>
+      `}
+    </section>
 
         <!-- Block 2: В работе и незаконченные -->
         <section class="dash-section reveal-on-scroll">
@@ -1439,6 +1699,73 @@ function renderTabReport(activeCase, res) {
  * Обработчики событий UI
  */
 function bindEvents() {
+  // Glass Appearance Adjuster Toggle & Close
+  document.getElementById('btn-toggle-glass')?.addEventListener('click', e => {
+    e.stopPropagation();
+    isGlassDrawerOpen = !isGlassDrawerOpen;
+    render();
+  });
+  document.getElementById('btn-close-glass')?.addEventListener('click', () => {
+    isGlassDrawerOpen = false;
+    render();
+  });
+
+  // Glass Sliders
+  document.getElementById('range-blur')?.addEventListener('input', e => {
+    glassSettings.blur = Number(e.target.value);
+    applyGlassSettings();
+    const out = document.getElementById('out-blur');
+    if (out) out.textContent = `${glassSettings.blur} px`;
+  });
+  document.getElementById('range-opacity')?.addEventListener('input', e => {
+    glassSettings.opacity = Number(e.target.value);
+    applyGlassSettings();
+    const out = document.getElementById('out-opacity');
+    if (out) out.textContent = `${Math.round(glassSettings.opacity * 100)}%`;
+  });
+  document.getElementById('range-edge')?.addEventListener('input', e => {
+    glassSettings.edge = Number(e.target.value);
+    applyGlassSettings();
+    const out = document.getElementById('out-edge');
+    if (out) out.textContent = `${Math.round(glassSettings.edge * 100)}%`;
+  });
+  document.getElementById('picker-tint')?.addEventListener('input', e => {
+    glassSettings.tint = e.target.value;
+    applyGlassSettings();
+  });
+
+  // Glass Presets
+  document.querySelectorAll('[data-preset]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const preset = btn.dataset.preset;
+      if (preset === 'clear') {
+        glassSettings = { blur: 8, opacity: 0.15, saturation: 1.1, edge: 0.8, tint: '#ffffff' };
+      } else if (preset === 'frosted') {
+        glassSettings = { blur: 22, opacity: 0.35, saturation: 1.25, edge: 0.65, tint: '#ffffff' };
+      } else if (preset === 'solid') {
+        glassSettings = { blur: 32, opacity: 0.85, saturation: 1.0, edge: 0.35, tint: '#ffffff' };
+      }
+      applyGlassSettings();
+      render();
+      toast(`Применён стиль стекла: ${btn.textContent}`);
+    });
+  });
+
+  document.getElementById('btn-reset-glass')?.addEventListener('click', () => {
+    glassSettings = { blur: 22, opacity: 0.35, saturation: 1.25, edge: 0.65, tint: '#ffffff' };
+    applyGlassSettings();
+    render();
+    toast('Свойства стекла сброшены по умолчанию');
+  });
+
+  // Chart Period Switcher (Week / Month / Year)
+  document.querySelectorAll('[data-period]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      chartPeriod = btn.dataset.period;
+      render();
+    });
+  });
+
   // Закрепление боковой панели (Pin toggle)
   document.getElementById('btn-sidebar-pin')?.addEventListener('click', e => {
     e.stopPropagation();
