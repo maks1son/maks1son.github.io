@@ -470,6 +470,14 @@ function render() {
 }
 
 /**
+ * Очистка адреса от префикса «Самарская область» для лаконичного отображения
+ */
+function cleanDisplayAddress(addr) {
+  if (!addr) return '';
+  return addr.replace(/^(Самарская область|Самарская обл\.),?\s*/i, '');
+}
+
+/**
  * Карточка дела для отображения на Главной и в Личном кабинете
  * Ультра-минималистичная, крупная, без визуального шума
  */
@@ -482,6 +490,7 @@ function renderCaseDashboardCard(c) {
   const displayPerSqm = res.pricePerSqm
     ? moneyPerSqm(res.pricePerSqm)
     : '~47 000 ₽/м²';
+  const displayAddr = cleanDisplayAddress(c.objectData.address);
 
   return `
     <div class="case-card ${c.isPinned ? 'is-pinned-card' : ''}">
@@ -494,21 +503,15 @@ function renderCaseDashboardCard(c) {
           <span class="badge-status ${statusClass}">${c.status}</span>
           <span class="case-date-tag">${c.objectData.valuationDate}</span>
         </div>
-        <div class="case-addr">${c.objectData.address}</div>
+        <div class="case-addr">${displayAddr}</div>
+        <div class="case-tags">
+          <span class="case-tag">${sqm(c.objectData.area)}</span>
+          <span class="case-tag">${c.objectData.floor}/${c.objectData.totalFloors} эт.</span>
+          <span class="case-tag">${c.objectData.client}</span>
+        </div>
       </div>
 
       <div class="case-card-side">
-        <!-- Object Specifications placed in the right section -->
-        <div class="case-specs-col">
-          <div class="case-spec-chips">
-            <span class="case-spec-chip" title="Общая площадь">${icon('maximize')} ${sqm(c.objectData.area)}</span>
-            <span class="case-spec-chip" title="Этаж / Этажность">${icon('building')} ${c.objectData.floor}/${c.objectData.totalFloors} эт.</span>
-          </div>
-          <div class="case-client-chip" title="Заказчик оценки">
-            ${icon('user')} <span>${c.objectData.client}</span>
-          </div>
-        </div>
-
         <div class="case-price-box">
           <div class="case-val-amount">${displayTotal}</div>
           <div class="case-val-sub">${displayPerSqm}</div>
@@ -603,7 +606,7 @@ function renderDashboardView() {
             <div class="gw-account-icon">${icon('home')}</div>
             <div class="gw-account-info">
               <strong>Дело № ${spotlightCase.number}</strong>
-              <span>${spotlightCase.objectData.address.split(',').slice(-2).join(',')} · ${spotlightAmount}</span>
+              <span>${cleanDisplayAddress(spotlightCase.objectData.address).split(',').slice(-2).join(',')} · ${spotlightAmount}</span>
             </div>
             <button type="button" class="gw-account-btn" data-action="open-case" data-id="${spotlightCase.id}" title="Открыть дело в расчётах">
               ${icon('arrow-right')}
@@ -820,6 +823,7 @@ function renderDashboardView() {
             <div class="spotlight-body">
               <div class="spotlight-title">Дело № ${spotlightCase.number}</div>
               <div class="spotlight-desc">
+                ${cleanDisplayAddress(spotlightCase.objectData.address)}<br>
                 Стоимость: <strong>${spotlightAmount}</strong> · ${spotlightSharesCount} сособственников
               </div>
               <div class="spotlight-actions">
