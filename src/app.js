@@ -304,8 +304,8 @@ function renderGlassChart(period) {
       <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
         <defs>
           <linearGradient id="gw-chart-grad-${period}" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.25" />
-            <stop offset="55%" stop-color="#60a5fa" stop-opacity="0.08" />
+            <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.22" />
+            <stop offset="60%" stop-color="#60a5fa" stop-opacity="0.06" />
             <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.0" />
           </linearGradient>
           <filter id="gw-chart-glow-${period}" x="-10%" y="-20%" width="120%" height="150%">
@@ -321,8 +321,8 @@ function renderGlassChart(period) {
         <!-- Vertical guide marker for the active valuation point -->
         <line x1="${activeCoord.x.toFixed(1)}" y1="${padTop}" x2="${activeCoord.x.toFixed(1)}" y2="${baselineY}" stroke="#93c5fd" stroke-width="1.2" stroke-dasharray="2 3" opacity="0.75" />
 
-        <!-- Soft translucent gradient fill under the curve -->
-        <path d="${areaD}" fill="url(#gw-chart-grad-${period})" />
+        <!-- Soft translucent gradient fill under the curve (guaranteed safe fill) -->
+        <path d="${areaD}" fill="url(#gw-chart-grad-${period})" fill-opacity="1" />
 
         <!-- Smooth cubic bezier market curve -->
         <path d="${lineD}" fill="none" stroke="#2563eb" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" filter="url(#gw-chart-glow-${period})" />
@@ -338,8 +338,8 @@ function renderGlassChart(period) {
 
         <!-- Floating pill badge for current market rate -->
         <g transform="translate(${badgeX.toFixed(1)}, ${badgeY.toFixed(1)})">
-          <rect width="${badgeW}" height="${badgeH}" rx="5" fill="#0f172a" fill-opacity="0.88" />
-          <text x="${(badgeW / 2).toFixed(1)}" y="13.5" text-anchor="middle" fill="#ffffff" font-size="9" font-weight="600" font-family="system-ui, -apple-system, sans-serif">${activePoint.price.toLocaleString('ru-RU')} ₽</text>
+          <rect width="82" height="24" rx="6" fill="#0f172a" fill-opacity="0.9" />
+          <text x="41" y="16.5" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="700" font-family="system-ui, -apple-system, sans-serif">${activePoint.price.toLocaleString('ru-RU')} ₽</text>
         </g>
       </svg>
       <div class="gw-chart-months">
@@ -353,66 +353,14 @@ function renderGlassChart(period) {
  * Панель настроек стекла (Glass Appearance Adjuster)
  */
 function renderGlassSettingsDrawer() {
-  return `
-    <div class="gw-material-title">
-      <div style="display: flex; gap: 8px; align-items: center;">
-        <span style="color: #2563eb; display: grid; place-items: center;">${icon('settings-2')}</span>
-        <h2>Настройка стекла (Glass)</h2>
-      </div>
-      <button type="button" class="btn-icon-sm" id="btn-close-glass" aria-label="Закрыть">${CLOSE_ICON_SVG}</button>
-    </div>
-    <p>Интерактивная регулировка матовости, прозрачности и кромки интерфейса</p>
-    <div class="gw-material-sample">
-      ${icon('layers')} <span>Живой предпросмотр стекла</span>
-    </div>
-    <div class="gw-presets">
-      <button type="button" data-preset="clear">Прозрачное</button>
-      <button type="button" data-preset="frosted">Матовое</button>
-      <button type="button" data-preset="solid">Плотное</button>
-    </div>
-    <label class="gw-range">
-      <span>Размытие (Blur) <output id="out-blur">${glassSettings.blur} px</output></span>
-      <input type="range" id="range-blur" min="0" max="40" step="1" value="${glassSettings.blur}">
-    </label>
-    <label class="gw-range">
-      <span>Прозрачность (Opacity) <output id="out-opacity">${Math.round(glassSettings.opacity * 100)}%</output></span>
-      <input type="range" id="range-opacity" min="0.08" max="0.9" step="0.01" value="${glassSettings.opacity}">
-    </label>
-    <label class="gw-range">
-      <span>Световая кромка (Edge) <output id="out-edge">${Math.round(glassSettings.edge * 100)}%</output></span>
-      <input type="range" id="range-edge" min="0" max="1" step="0.05" value="${glassSettings.edge}">
-    </label>
-    <label class="gw-tint">
-      <span>Оттенок стекла</span>
-      <input type="color" id="picker-tint" value="${glassSettings.tint}">
-    </label>
-    <button class="gw-reset" type="button" id="btn-reset-glass">Сбросить настройки</button>
-  `;
+  return '';
 }
 
 /**
  * Плавающий стеклянный док навигации внизу экрана
  */
 function renderFloatingDock() {
-  return `
-    <div class="gw-dock">
-      <button type="button" class="${currentView === 'dashboard' ? 'active' : ''}" data-nav="dashboard" title="Главная">
-        ${icon('layout-dashboard')} <span>Главная</span>
-      </button>
-      <button type="button" class="${currentView === 'cabinet' && filterStatus === 'all' ? 'active' : ''}" data-nav="all-cases" title="Все дела">
-        ${icon('folder')} <span>Все дела</span>
-      </button>
-      <button type="button" class="${currentView === 'cabinet' && filterStatus === 'В работе' ? 'active' : ''}" data-nav="in-progress" title="В работе">
-        ${icon('clock')} <span>В работе</span>
-      </button>
-      <button type="button" class="${currentView === 'cabinet' && filterStatus === 'Готов' ? 'active' : ''}" data-nav="ready" title="Готовые">
-        ${icon('check-circle')} <span>Готовые отчёты</span>
-      </button>
-      <a href="/pitch.html" target="_blank" title="Открыть питч-презентацию">
-        ${icon('presentation')} <span>Презентация</span>
-      </a>
-    </div>
-  `;
+  return '';
 }
 
 /**
@@ -440,12 +388,6 @@ function renderTopbarContent(activeCase) {
     </div>
 
     <div class="topbar-right">
-      <button class="btn btn-secondary btn-sm" id="btn-toggle-glass" title="Настроить стекло и прозрачность">
-        ${icon('settings-2')} Настроить стекло
-      </button>
-      <a href="/pitch.html" target="_blank" class="btn btn-secondary btn-sm" id="btn-top-pitch" title="Открыть питч-презентацию для заказчика">
-        ${icon('presentation')} Презентация
-      </a>
       <span class="save-status-badge">
         ${icon('check')} Сохранено
       </span>
@@ -490,14 +432,6 @@ function render() {
         <main class="page-container" id="page-container"></main>
       </div>
 
-      <!-- Floating Glass Dock Navigation -->
-      <nav class="gw-desktop-dock" id="gw-desktop-dock">${renderFloatingDock()}</nav>
-
-      <!-- Glass Appearance Adjuster Drawer -->
-      <aside class="gw-material gw-glass" id="glass-settings-drawer" style="display: ${isGlassDrawerOpen ? 'block' : 'none'};">
-        ${renderGlassSettingsDrawer()}
-      </aside>
-
       <div id="toast" role="status" aria-live="polite"></div>
       <dialog id="modal-dialog"></dialog>
     `;
@@ -505,14 +439,6 @@ function render() {
     topbar = document.getElementById('app-topbar');
     pageContainer = document.getElementById('page-container');
     setupSidebarEvents(sidebar);
-  }
-
-  const dock = document.getElementById('gw-desktop-dock');
-  if (dock) dock.innerHTML = renderFloatingDock();
-  const drawer = document.getElementById('glass-settings-drawer');
-  if (drawer) {
-    drawer.style.display = isGlassDrawerOpen ? 'block' : 'none';
-    drawer.innerHTML = renderGlassSettingsDrawer();
   }
 
   // Сохраняем состояние раскрытия/закрепления при перерисовке
@@ -543,51 +469,39 @@ function render() {
 
 /**
  * Карточка дела для отображения на Главной и в Личном кабинете
+ * Ультра-минималистичная, крупная, без визуального шума
  */
-function renderCaseDashboardCard(c, isPinnedSection = false) {
+function renderCaseDashboardCard(c) {
   const res = calculateValuation(c.objectData, c.analogs, c.objectData.tradeAdjustment);
   const statusClass = c.status === 'Готов' ? 'ready' : (c.status === 'В работе' ? 'in-progress' : 'draft');
   const displayTotal = res.total
     ? money(res.total)
-    : money(Math.round((c.objectData.area * 47000) / 1000) * 1000) + ' (расч.)';
+    : money(Math.round((c.objectData.area * 47000) / 1000) * 1000);
   const displayPerSqm = res.pricePerSqm
     ? moneyPerSqm(res.pricePerSqm)
     : '~47 000 ₽/м²';
 
   return `
     <div class="case-card ${c.isPinned ? 'is-pinned-card' : ''}">
-      <div>
-        <div class="case-header-row">
+      <div class="case-card-main">
+        <div class="case-card-header">
           <button class="btn-star ${c.isPinned ? 'pinned' : ''}" data-action="toggle-pin" data-id="${c.id}" title="${c.isPinned ? 'Открепить дело' : 'Закрепить дело на главной'}">
             ${icon('star')}
           </button>
-          <span class="case-num">ДЕЛО № ${c.number}</span>
+          <span class="case-num">Дело № ${c.number}</span>
           <span class="badge-status ${statusClass}">${c.status}</span>
-          <span style="font-size: 13px; color: var(--text-dim);">Дата: ${c.objectData.valuationDate}</span>
+          <span class="case-date-tag">${c.objectData.valuationDate}</span>
         </div>
         <div class="case-addr">${c.objectData.address}</div>
-        <div class="case-sub-meta">
-          <span>${icon('user')} Заказчик: <b>${c.objectData.client}</b></span>
-          <span>${icon('maximize')} Площадь: <b>${sqm(c.objectData.area)}</b></span>
-          <span>${icon('building')} Этаж: <b>${c.objectData.floor}/${c.objectData.totalFloors}</b></span>
-          <span>${icon('layers')} Аналогов в расчёте: <b>${res.selectedCount} из ${c.analogs.length}</b></span>
+        <div class="case-tags">
+          <span class="case-tag">${sqm(c.objectData.area)}</span>
+          <span class="case-tag">${c.objectData.floor}/${c.objectData.totalFloors} эт.</span>
+          <span class="case-tag">${c.objectData.client}</span>
         </div>
-
-        ${c.status !== 'Готов' ? `
-          <div class="case-progress-wrap">
-            <div class="case-progress-meta">
-              <span>${c.progressStep || 'В процессе расчёта'}</span>
-              <strong>${c.progress || 50}% выполнено</strong>
-            </div>
-            <div class="case-progress-track">
-              <div class="case-progress-bar" style="width: ${c.progress || 50}%; background: ${c.status === 'Черновик' ? '#94a3b8' : 'linear-gradient(90deg, #f59e0b, #eab308)'};"></div>
-            </div>
-          </div>
-        ` : ''}
       </div>
 
-      <div class="case-right-meta">
-        <div>
+      <div class="case-card-side">
+        <div class="case-price-box">
           <div class="case-val-amount">${displayTotal}</div>
           <div class="case-val-sub">${displayPerSqm}</div>
         </div>
@@ -597,7 +511,7 @@ function renderCaseDashboardCard(c, isPinnedSection = false) {
               ${icon('file-text')} Word
             </button>
           ` : ''}
-          <button class="btn btn-danger btn-sm" data-action="delete-case" data-id="${c.id}" title="Удалить дело">
+          <button class="btn btn-danger btn-sm btn-icon-only" data-action="delete-case" data-id="${c.id}" title="Удалить дело">
             ${icon('trash-2')}
           </button>
           <button class="btn btn-primary btn-sm" data-action="${c.status === 'Готов' ? 'open-case' : 'continue-case'}" data-id="${c.id}">
@@ -652,10 +566,7 @@ function renderDashboardView() {
   return `
     <!-- Clean Unboxed Greeting Header -->
     <section class="dashboard-welcome anim-fade-up">
-      <div style="display: flex; flex-direction: column; gap: 4px;">
-        <span style="font-size: 13px; color: var(--text-muted); font-weight: 500;">Личный кабинет оценщика · г. Тольятти</span>
-        <h1 class="welcome-title">Здравствуйте, Анна Александровна!</h1>
-      </div>
+      <h1 class="welcome-title">Здравствуйте, Анна Александровна!</h1>
       <div class="welcome-actions">
         <button class="btn btn-primary" id="btn-hero-new">
           ${icon('plus')} Добавить объект оценки
@@ -670,14 +581,13 @@ function renderDashboardView() {
     <div class="gw-overview-grid anim-fade-up anim-delay-1">
       <!-- Left Glass Panel: Portfolio Balance & Spotlight Case -->
       <section class="gw-panel gw-balance">
-        <div class="panel-head-row" style="display: flex; align-items: center; justify-content: space-between; color: var(--text-muted); font-size: 13px;">
-          <span>Портфель объектов в оценке</span>
+        <div class="panel-head-row">
+          <span class="gw-panel-caption">Портфель объектов в оценке</span>
           <span style="color: #2563eb;">${icon('wallet')}</span>
         </div>
         <div class="gw-balance-value">${money(totalValuation)}</div>
         <div class="gw-balance-meta">
           <span class="gw-positive">+12% ноябрь</span>
-          <span>к прошлому месяцу</span>
         </div>
 
         ${spotlightCase ? `
@@ -696,8 +606,8 @@ function renderDashboardView() {
 
       <!-- Right Glass Panel: Interactive Dynamics Chart -->
       <section class="gw-panel gw-cashflow">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
-          <h2 style="font-size: 14.5px; font-weight: 700; color: #0f172a; margin: 0;">Динамика рынка г. Тольятти и портфеля</h2>
+        <div class="gw-cashflow-header">
+          <h2 class="gw-cashflow-title">Динамика рынка г. Тольятти и портфеля</h2>
           <div class="gw-segment" role="group" aria-label="Период графика">
             <button type="button" class="${chartPeriod === 'week' ? 'active' : ''}" data-period="week">Неделя</button>
             <button type="button" class="${chartPeriod === 'month' ? 'active' : ''}" data-period="month">Месяц</button>
@@ -707,12 +617,12 @@ function renderDashboardView() {
 
         <div class="gw-chart-summary">
           <div>
-            <span><i></i> Средняя цена 1 м²</span>
-            <strong>${moneyPerSqm(avgPricePerSqm)}</strong>
+            <span class="gw-summary-lbl"><i class="dot-indicator"></i> Средняя цена 1 м²</span>
+            <strong class="gw-summary-val">${moneyPerSqm(avgPricePerSqm)}</strong>
           </div>
           <div>
-            <span><i style="background: #10b981;"></i> Контроль выборки ФСО</span>
-            <strong>V = ${variationCoeff.toFixed(1).replace('.', ',')}% ≤ 33%</strong>
+            <span class="gw-summary-lbl"><i class="dot-indicator dot-green"></i> Контроль выборки ФСО</span>
+            <strong class="gw-summary-val">V = ${variationCoeff.toFixed(1).replace('.', ',')}% ≤ 33%</strong>
           </div>
         </div>
 
@@ -720,118 +630,122 @@ function renderDashboardView() {
       </section>
     </div>
 
-    <!-- Lower Frosted Glass Grid: Active Appraisal Cases + Appraiser's Quotas & Goals -->
+    <!-- Lower Frosted Glass Grid: Registry Stats + Appraiser's Goals -->
     <div class="gw-lower-grid anim-fade-up anim-delay-2">
-      <!-- Left Glass Panel: Current Cases Feed -->
+      <!-- Left Glass Panel: Spacious Registry Metric Tiles -->
       <section class="gw-panel">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
-          <h2 style="font-size: 14.5px; font-weight: 700; color: #0f172a; margin: 0;">
-            Текущие объекты оценки <span style="font-size: 12px; font-weight: 600; color: #64748b; margin-left: 6px;">(${cases.length})</span>
-          </h2>
-          <button class="btn btn-secondary btn-sm" data-nav="all-cases" style="padding: 4px 10px; font-size: 11.5px;">
+        <div class="panel-head-flex" style="margin-bottom: 16px;">
+          <h2 class="gw-cashflow-title">Реестр дел в работе</h2>
+          <button class="btn btn-secondary btn-sm" data-nav="all-cases">
             Все дела ${icon('arrow-right')}
           </button>
         </div>
 
-        <div class="glass-cases-feed" style="display: flex; flex-direction: column; gap: 10px;">
-          ${cases.slice(0, 4).map(c => {
-            const res = calculateValuation(c.objectData, c.analogs, c.objectData.tradeAdjustment);
-            const statusClass = c.status === 'Готов' ? 'ready' : (c.status === 'В работе' ? 'in-progress' : 'draft');
-            const totalVal = res.total ? money(res.total) : money(Math.round((c.objectData.area * 47000) / 1000) * 1000);
-            return `
-              <div style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: rgba(255, 255, 255, 0.55); border: 1px solid rgba(226, 232, 240, 0.7); border-radius: 10px;">
-                <div style="width: 34px; height: 34px; border-radius: 8px; background: ${c.status === 'Готов' ? '#ecfdf5' : '#eff6ff'}; color: ${c.status === 'Готов' ? '#059669' : '#2563eb'}; display: grid; place-items: center; flex-shrink: 0;">
-                  ${icon(c.status === 'Готов' ? 'check-circle' : 'clock')}
-                </div>
-                <div style="display: flex; flex-direction: column; min-width: 0; flex: 1;">
-                  <strong style="font-size: 12.5px; font-weight: 600; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                    Дело № ${c.number} · ${c.objectData.address}
-                  </strong>
-                  <span style="font-size: 11px; color: #64748b;">
-                    ${c.objectData.client} · ${sqm(c.objectData.area)} · ${c.objectData.valuationDate}
-                  </span>
-                </div>
-                <span class="badge-status ${statusClass}" style="font-size: 11px; padding: 2px 8px;">${c.status}</span>
-                <strong style="font-size: 13px; font-weight: 700; color: #0f172a; white-space: nowrap;">${totalVal}</strong>
-                <button class="btn btn-secondary btn-sm" data-action="${c.status === 'Готов' ? 'open-case' : 'continue-case'}" data-id="${c.id}" style="padding: 4px 8px;" title="Открыть дело">
-                  ${icon('arrow-right')}
-                </button>
-              </div>
-            `;
-          }).join('')}
+        <div class="registry-stats-grid">
+          <div class="reg-stat-card" data-nav="all-cases" title="Открыть весь реестр дел">
+            <div class="reg-stat-head">
+              <span>Всего в архиве</span>
+              <div class="reg-stat-icon" style="background: #eff6ff; color: #2563eb;">${icon('folder')}</div>
+            </div>
+            <div class="reg-stat-val">${cases.length}</div>
+          </div>
+
+          <div class="reg-stat-card" data-nav="in-progress" title="Показать дела в работе">
+            <div class="reg-stat-head">
+              <span>В работе</span>
+              <div class="reg-stat-icon" style="background: #fef3c7; color: #d97706;">${icon('clock')}</div>
+            </div>
+            <div class="reg-stat-val" style="color: #d97706;">${inProgressCases.length}</div>
+          </div>
+
+          <div class="reg-stat-card" data-nav="ready" title="Показать готовые отчёты">
+            <div class="reg-stat-head">
+              <span>Готовые отчёты</span>
+              <div class="reg-stat-icon" style="background: #ecfdf5; color: #059669;">${icon('check-circle')}</div>
+            </div>
+            <div class="reg-stat-val" style="color: #059669;">${readyCases.length}</div>
+          </div>
+
+          <div class="reg-stat-card" data-nav="dashboard" title="Закреплённые дела">
+            <div class="reg-stat-head">
+              <span>Закреплено</span>
+              <div class="reg-stat-icon" style="background: #fdf4ff; color: #9333ea;">${icon('star')}</div>
+            </div>
+            <div class="reg-stat-val" style="color: #9333ea;">${pinnedCases.length}</div>
+          </div>
         </div>
       </section>
 
-      <!-- Right Glass Panel: Appraiser's Standards & Monthly Goals -->
+      <!-- Right Glass Panel: Appraiser's Standards & Monthly Goals (Clean, No Microtext) -->
       <section class="gw-panel">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
-          <h2 style="font-size: 14.5px; font-weight: 700; color: #0f172a; margin: 0;">Нормативы и цели оценщика</h2>
-          <span style="font-size: 11px; font-weight: 600; color: #059669; background: #ecfdf5; padding: 2px 8px; border-radius: 12px;">Ноябрь 2026</span>
+        <div class="panel-head-flex" style="margin-bottom: 20px;">
+          <h2 class="gw-cashflow-title">Нормативы и цели оценщика</h2>
+          <span class="gw-month-badge">Ноябрь 2026</span>
         </div>
 
-        <div style="display: flex; flex-direction: column; gap: 16px;">
+        <div style="display: flex; flex-direction: column; gap: 20px; justify-content: space-around; height: calc(100% - 48px);">
           <!-- Goal 1 -->
           <div>
-            <div style="display: flex; justify-content: space-between; font-size: 12.5px; margin-bottom: 6px;">
-              <strong>Выпуск отчётов (план месяца)</strong>
-              <span style="font-weight: 600; color: #2563eb;">8 из 10 (80%)</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <strong style="font-size: 15px; font-weight: 700; color: #0f172a;">Выпуск отчётов (план месяца)</strong>
+              <span style="font-size: 15px; font-weight: 800; color: #2563eb;">8 из 10 (80%)</span>
             </div>
-            <div style="height: 6px; background: rgba(148, 163, 184, 0.2); border-radius: 4px; overflow: hidden;">
-              <div style="height: 100%; width: 80%; background: linear-gradient(90deg, #2563eb, #60a5fa); border-radius: 4px;"></div>
+            <div class="goal-progress-bar">
+              <div style="height: 100%; width: 80%; background: linear-gradient(90deg, #2563eb, #60a5fa); border-radius: 6px;"></div>
             </div>
-            <span style="font-size: 11px; color: #64748b; margin-top: 4px; display: block;">Целевая нагрузка ведущего оценщика</span>
           </div>
 
           <!-- Goal 2 -->
           <div>
-            <div style="display: flex; justify-content: space-between; font-size: 12.5px; margin-bottom: 6px;">
-              <strong>Контроль выборки ФСО (V ≤ 33%)</strong>
-              <span style="font-weight: 600; color: #059669;">100% соблюдение</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <strong style="font-size: 15px; font-weight: 700; color: #0f172a;">Контроль выборки ФСО (V ≤ 33%)</strong>
+              <span style="font-size: 15px; font-weight: 800; color: #059669;">100% соблюдение</span>
             </div>
-            <div style="height: 6px; background: rgba(148, 163, 184, 0.2); border-radius: 4px; overflow: hidden;">
-              <div style="height: 100%; width: 100%; background: #10b981; border-radius: 4px;"></div>
+            <div class="goal-progress-bar">
+              <div style="height: 100%; width: 100%; background: #10b981; border-radius: 6px;"></div>
             </div>
-            <span style="font-size: 11px; color: #64748b; margin-top: 4px; display: block;">Статистическая однородность аналогов Лейфера</span>
           </div>
 
           <!-- Goal 3 -->
           <div>
-            <div style="display: flex; justify-content: space-between; font-size: 12.5px; margin-bottom: 6px;">
-              <strong>Аккредитация в банках-партнёрах</strong>
-              <span style="font-weight: 600; color: #7c3aed;">Сбер, ВТБ, ДОМ.РФ</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <strong style="font-size: 15px; font-weight: 700; color: #0f172a;">Аккредитация в банках</strong>
+              <span style="font-size: 15px; font-weight: 800; color: #7c3aed;">Сбер, ВТБ, ДОМ.РФ</span>
             </div>
-            <div style="height: 6px; background: rgba(148, 163, 184, 0.2); border-radius: 4px; overflow: hidden;">
-              <div style="height: 100%; width: 100%; background: linear-gradient(90deg, #7c3aed, #a78bfa); border-radius: 4px;"></div>
+            <div class="goal-progress-bar">
+              <div style="height: 100%; width: 100%; background: linear-gradient(90deg, #7c3aed, #a78bfa); border-radius: 6px;"></div>
             </div>
-            <span style="font-size: 11px; color: #64748b; margin-top: 4px; display: block;">Формат отчёта соответствует банковским регламентам</span>
           </div>
         </div>
       </section>
     </div>
 
-    <!-- Pinned Cases Section -->
-    <section class="dash-section anim-fade-up anim-delay-3" style="margin-top: 10px;">
-      <div class="dash-section-head">
-        <div class="dash-section-title">
-          <span class="icon-star-badge">${icon('star')}</span>
-          <strong>Закреплённые дела на главной</strong>
-          <span class="dash-counter">${pinnedCases.length}</span>
-        </div>
-      </div>
+    <!-- Cases & Activity Workspace Grid -->
+    <div class="dash-main-grid anim-fade-up anim-delay-3" style="margin-top: 14px;">
+      <div class="dash-left-col">
+        <!-- Pinned Cases Section -->
+        <section class="dash-section">
+          <div class="dash-section-head">
+            <div class="dash-section-title">
+              <span class="icon-star-badge">${icon('star')}</span>
+              <strong>Закреплённые дела на главной</strong>
+              <span class="dash-counter">${pinnedCases.length}</span>
+            </div>
+          </div>
 
-      ${pinnedCases.length ? `
-        <div class="cases-grid">
-          ${pinnedCases.map(c => renderCaseDashboardCard(c, true)).join('')}
-        </div>
-      ` : `
-        <div class="empty-pinned-box">
-          <p>Нет закреплённых дел. Нажмите звёздочку рядом с делом, чтобы закрепить его здесь.</p>
-        </div>
-      `}
-    </section>
+          ${pinnedCases.length ? `
+            <div class="cases-grid">
+              ${pinnedCases.map(c => renderCaseDashboardCard(c)).join('')}
+            </div>
+          ` : `
+            <div class="empty-pinned-box">
+              <p>Нет закреплённых дел. Нажмите звёздочку рядом с делом, чтобы закрепить его здесь.</p>
+            </div>
+          `}
+        </section>
 
         <!-- Block 2: В работе и незаконченные -->
-        <section class="dash-section reveal-on-scroll">
+        <section class="dash-section">
           <div class="dash-section-head">
             <div class="dash-section-title">
               <span class="icon-clock-badge">${icon('clock')}</span>
@@ -841,7 +755,7 @@ function renderDashboardView() {
           </div>
 
           <div class="cases-grid">
-            ${unfinishedCases.map(c => renderCaseDashboardCard(c, false)).join('')}
+            ${unfinishedCases.map(c => renderCaseDashboardCard(c)).join('')}
           </div>
         </section>
       </div>
