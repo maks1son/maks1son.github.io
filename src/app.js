@@ -293,6 +293,7 @@ function renderGlassChart(period) {
   const y56 = getY(56000).toFixed(1);
   const y52 = getY(52000).toFixed(1);
   const y48 = getY(48000).toFixed(1);
+  const activePctX = ((activeCoord.x / width) * 100).toFixed(2);
 
   return `
     <div class="gw-chart-wrap">
@@ -301,47 +302,48 @@ function renderGlassChart(period) {
         <span>52 000 ₽</span>
         <span>48 000 ₽</span>
       </div>
-      <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
-        <defs>
-          <linearGradient id="gw-chart-grad-${period}" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.22" />
-            <stop offset="60%" stop-color="#60a5fa" stop-opacity="0.06" />
-            <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.0" />
-          </linearGradient>
-          <filter id="gw-chart-glow-${period}" x="-10%" y="-20%" width="120%" height="150%">
-            <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="#2563eb" flood-opacity="0.25" />
-          </filter>
-        </defs>
+      <div class="gw-chart-canvas-wrap">
+        <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="gw-chart-grad-${period}" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.22" />
+              <stop offset="60%" stop-color="#60a5fa" stop-opacity="0.06" />
+              <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.0" />
+            </linearGradient>
+            <filter id="gw-chart-glow-${period}" x="-10%" y="-20%" width="120%" height="150%">
+              <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="#2563eb" flood-opacity="0.25" />
+            </filter>
+          </defs>
 
-        <!-- Subtle horizontal grid lines matching price labels -->
-        <line x1="0" y1="${y56}" x2="${width}" y2="${y56}" stroke="#cbd5e1" stroke-dasharray="3 4" stroke-width="0.8" opacity="0.65" />
-        <line x1="0" y1="${y52}" x2="${width}" y2="${y52}" stroke="#cbd5e1" stroke-dasharray="3 4" stroke-width="0.8" opacity="0.65" />
-        <line x1="0" y1="${y48}" x2="${width}" y2="${y48}" stroke="#cbd5e1" stroke-dasharray="3 4" stroke-width="0.8" opacity="0.65" />
+          <!-- Subtle horizontal grid lines matching price labels -->
+          <line x1="0" y1="${y56}" x2="${width}" y2="${y56}" stroke="#cbd5e1" stroke-dasharray="3 4" stroke-width="0.8" opacity="0.65" />
+          <line x1="0" y1="${y52}" x2="${width}" y2="${y52}" stroke="#cbd5e1" stroke-dasharray="3 4" stroke-width="0.8" opacity="0.65" />
+          <line x1="0" y1="${y48}" x2="${width}" y2="${y48}" stroke="#cbd5e1" stroke-dasharray="3 4" stroke-width="0.8" opacity="0.65" />
 
-        <!-- Vertical guide marker for the active valuation point -->
-        <line x1="${activeCoord.x.toFixed(1)}" y1="${padTop}" x2="${activeCoord.x.toFixed(1)}" y2="${baselineY}" stroke="#93c5fd" stroke-width="1.2" stroke-dasharray="2 3" opacity="0.75" />
+          <!-- Vertical guide marker for the active valuation point -->
+          <line x1="${activeCoord.x.toFixed(1)}" y1="${padTop}" x2="${activeCoord.x.toFixed(1)}" y2="${baselineY}" stroke="#93c5fd" stroke-width="1.2" stroke-dasharray="2 3" opacity="0.75" />
 
-        <!-- Soft translucent gradient fill under the curve (guaranteed safe fill) -->
-        <path d="${areaD}" fill="url(#gw-chart-grad-${period})" fill-opacity="1" />
+          <!-- Soft translucent gradient fill under the curve -->
+          <path d="${areaD}" fill="url(#gw-chart-grad-${period})" fill-opacity="1" />
 
-        <!-- Smooth cubic bezier market curve -->
-        <path d="${lineD}" fill="none" stroke="#2563eb" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" filter="url(#gw-chart-glow-${period})" />
+          <!-- Smooth cubic bezier market curve -->
+          <path d="${lineD}" fill="none" stroke="#2563eb" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" filter="url(#gw-chart-glow-${period})" />
 
-        <!-- Regular point markers -->
-        ${coords.map(c => `
-          <circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="3" fill="#ffffff" stroke="#3b82f6" stroke-width="1.8" />
-        `).join('')}
+          <!-- Regular point markers -->
+          ${coords.map(c => `
+            <circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="3" fill="#ffffff" stroke="#3b82f6" stroke-width="1.8" />
+          `).join('')}
 
-        <!-- Active point marker with soft pulsing aura -->
-        <circle cx="${activeCoord.x.toFixed(1)}" cy="${activeCoord.y.toFixed(1)}" r="8" fill="#3b82f6" fill-opacity="0.18" />
-        <circle cx="${activeCoord.x.toFixed(1)}" cy="${activeCoord.y.toFixed(1)}" r="4.2" fill="#2563eb" stroke="#ffffff" stroke-width="2" />
+          <!-- Active point marker with soft pulsing aura -->
+          <circle cx="${activeCoord.x.toFixed(1)}" cy="${activeCoord.y.toFixed(1)}" r="8" fill="#3b82f6" fill-opacity="0.18" />
+          <circle cx="${activeCoord.x.toFixed(1)}" cy="${activeCoord.y.toFixed(1)}" r="4.2" fill="#2563eb" stroke="#ffffff" stroke-width="2" />
+        </svg>
 
-        <!-- Floating pill badge for current market rate -->
-        <g transform="translate(${badgeX.toFixed(1)}, ${badgeY.toFixed(1)})">
-          <rect width="82" height="24" rx="6" fill="#0f172a" fill-opacity="0.9" />
-          <text x="41" y="16.5" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="700" font-family="system-ui, -apple-system, sans-serif">${activePoint.price.toLocaleString('ru-RU')} ₽</text>
-        </g>
-      </svg>
+        <!-- HTML Pin Badge: immune to SVG horizontal distortion -->
+        <div class="gw-chart-pin-badge" style="left: ${activePctX}%; top: ${activeCoord.y.toFixed(1)}px;">
+          ${activePoint.price.toLocaleString('ru-RU')} ₽
+        </div>
+      </div>
       <div class="gw-chart-months">
         ${points.map(p => `<span>${p.label}</span>`).join('')}
       </div>
@@ -493,14 +495,20 @@ function renderCaseDashboardCard(c) {
           <span class="case-date-tag">${c.objectData.valuationDate}</span>
         </div>
         <div class="case-addr">${c.objectData.address}</div>
-        <div class="case-tags">
-          <span class="case-tag">${sqm(c.objectData.area)}</span>
-          <span class="case-tag">${c.objectData.floor}/${c.objectData.totalFloors} эт.</span>
-          <span class="case-tag">${c.objectData.client}</span>
-        </div>
       </div>
 
       <div class="case-card-side">
+        <!-- Object Specifications placed in the right section -->
+        <div class="case-specs-col">
+          <div class="case-spec-chips">
+            <span class="case-spec-chip" title="Общая площадь">${icon('maximize')} ${sqm(c.objectData.area)}</span>
+            <span class="case-spec-chip" title="Этаж / Этажность">${icon('building')} ${c.objectData.floor}/${c.objectData.totalFloors} эт.</span>
+          </div>
+          <div class="case-client-chip" title="Заказчик оценки">
+            ${icon('user')} <span>${c.objectData.client}</span>
+          </div>
+        </div>
+
         <div class="case-price-box">
           <div class="case-val-amount">${displayTotal}</div>
           <div class="case-val-sub">${displayPerSqm}</div>
@@ -607,7 +615,7 @@ function renderDashboardView() {
       <!-- Right Glass Panel: Interactive Dynamics Chart -->
       <section class="gw-panel gw-cashflow">
         <div class="gw-cashflow-header">
-          <h2 class="gw-cashflow-title">Динамика рынка г. Тольятти и портфеля</h2>
+          <h2 class="gw-cashflow-title">Динамика рынка недвижимости и портфеля</h2>
           <div class="gw-segment" role="group" aria-label="Период графика">
             <button type="button" class="${chartPeriod === 'week' ? 'active' : ''}" data-period="week">Неделя</button>
             <button type="button" class="${chartPeriod === 'month' ? 'active' : ''}" data-period="month">Месяц</button>
@@ -830,10 +838,10 @@ function renderDashboardView() {
 
     <!-- ENLARGED VISUAL SHOWCASE DASHBOARDS (Scroll Down!) -->
     <div class="showcase-stack">
-      <!-- Showcase 1: Аналитика цен 1 м² по районам Тольятти -->
+      <!-- Showcase 1: Аналитика цен 1 м² по районам и регионам -->
       <section class="showcase-panel reveal-on-scroll">
         <div class="panel-head-flex">
-          <h3 class="panel-head-title">${icon('building')} Аналитика цен 1 м² по районам Тольятти</h3>
+          <h3 class="panel-head-title">${icon('building')} Аналитика стоимости 1 м² по районам и регионам</h3>
           <span class="badge-status ready">Ноябрь 2026</span>
         </div>
 
@@ -842,11 +850,11 @@ function renderDashboardView() {
             <div class="district-stat-pills">
               <div class="dstat-chip dstat-chip-blue">
                 <span class="dstat-val">54 380 ₽/м²</span>
-                <span class="dstat-lbl">Средняя по городу</span>
+                <span class="dstat-lbl">Средняя по выборке</span>
               </div>
               <div class="dstat-chip">
                 <span class="dstat-val">65 566 ₽/м²</span>
-                <span class="dstat-lbl">Максимум (Автозаводский)</span>
+                <span class="dstat-lbl">Максимум (Центральный)</span>
               </div>
               <div class="dstat-chip dstat-chip-emerald">
                 <span class="dstat-val">−6,0%</span>
@@ -857,7 +865,7 @@ function renderDashboardView() {
             <div class="district-list">
               <div class="district-item">
                 <div class="district-head">
-                  <span class="district-name"><strong>Автозаводский район</strong> · Новый город</span>
+                  <span class="district-name"><strong>Центральный район</strong> · Мегаполис</span>
                   <span class="district-price">65 566 ₽/м² <small class="text-green">+4.2%</small></span>
                 </div>
                 <div class="district-bar-bg">
@@ -867,7 +875,7 @@ function renderDashboardView() {
 
               <div class="district-item">
                 <div class="district-head">
-                  <span class="district-name"><strong>Центральный район</strong> · Старый город</span>
+                  <span class="district-name"><strong>Октябрьский район</strong> · Престиж</span>
                   <span class="district-price">58 900 ₽/м² <small class="text-blue">+1.9%</small></span>
                 </div>
                 <div class="district-bar-bg">
@@ -877,7 +885,7 @@ function renderDashboardView() {
 
               <div class="district-item">
                 <div class="district-head">
-                  <span class="district-name"><strong>Комсомольский район</strong> · Набережная</span>
+                  <span class="district-name"><strong>Прибрежный район</strong> · Комфорт</span>
                   <span class="district-price">52 973 ₽/м² <small class="text-amber">эталон</small></span>
                 </div>
                 <div class="district-bar-bg">
@@ -887,7 +895,7 @@ function renderDashboardView() {
 
               <div class="district-item">
                 <div class="district-head">
-                  <span class="district-name"><strong>мкрн Поволжский</strong></span>
+                  <span class="district-name"><strong>Перспективный микрорайон</strong></span>
                   <span class="district-price">50 630 ₽/м² <small class="text-muted">база</small></span>
                 </div>
                 <div class="district-bar-bg">
@@ -898,7 +906,7 @@ function renderDashboardView() {
 
             <div class="trend-chart-card">
               <div class="trend-chart-head">
-                <span>Индекс средней цены 1 м² (Июн — Ноя 2026)</span>
+                <span>Индекс средней стоимости 1 м² (Июн — Ноя 2026)</span>
                 <span class="kpi-pill kpi-pill-green">+4,8% за 6 мес.</span>
               </div>
               <svg class="trend-svg" viewBox="0 0 560 90" preserveAspectRatio="none">
@@ -921,9 +929,9 @@ function renderDashboardView() {
           </div>
 
           <div class="visual-stage-box">
-            <img src="/images/togliatti-skyline-widget.jpg" alt="Аналитика районов Тольятти" class="visual-stage-img">
+            <img src="/images/togliatti-skyline-widget.jpg" alt="Аналитика рынка недвижимости" class="visual-stage-img">
             <div class="district-avg-footer" style="width: 100%; margin-top: 0;">
-              <span>Жилой фонд г. Тольятти</span>
+              <span>Рынок жилой недвижимости РФ</span>
               <strong>54 380 ₽/м²</strong>
             </div>
           </div>
@@ -2152,8 +2160,8 @@ function openCreateCaseModal() {
       </div>
 
       <div class="form-group">
-        <label>Адрес объекта (г. Тольятти)</label>
-        <input type="text" name="address" placeholder="г. Тольятти, Автозаводский район, ул. ..." required>
+        <label>Адрес объекта оценки (Любой регион РФ)</label>
+        <input type="text" name="address" placeholder="г. Москва / Санкт-Петербург / Самара / Казань / Тольятти, ул. ..." required>
       </div>
 
       <div class="form-row">
@@ -2192,7 +2200,7 @@ function openCreateCaseModal() {
       <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 10px;">
         <input type="checkbox" id="check-include-sample-analogs" checked style="width: 16px; height: 16px; flex-shrink: 0;">
         <label for="check-include-sample-analogs" style="cursor: pointer;">
-          Загрузить типовую выборку реальных аналогов г. Тольятти
+          Загрузить типовую выборку рыночных аналогов
         </label>
       </div>
 
@@ -2251,8 +2259,8 @@ function openAddAnalogModal() {
     </div>
     <form id="form-add-analog" class="modal-form">
       <div class="form-group">
-        <label>Адрес предложения (г. Тольятти)</label>
-        <input type="text" name="address" placeholder="г. Тольятти, ул. ..." required>
+        <label>Адрес предложения (аналога)</label>
+        <input type="text" name="address" placeholder="Любой город РФ, ул. ..." required>
       </div>
       <div class="form-row">
         <div class="form-group">
