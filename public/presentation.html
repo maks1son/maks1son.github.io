@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>РусОценка — Концепт и технологическое развитие платформы</title>
+  <title>Инструмент оценщика — Концепт и технологический роадмап</title>
   <link rel="icon" type="image/png" href="/images/rosocenka-emblem.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -40,7 +40,6 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    /* Presentation Layout */
     .deck-container {
       position: relative;
       width: 100vw;
@@ -55,10 +54,10 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 22px 52px;
+      padding: 20px 48px;
       z-index: 100;
       border-bottom: 1px solid var(--pitch-border);
-      background: rgba(9, 13, 22, 0.92);
+      background: rgba(9, 13, 22, 0.94);
       backdrop-filter: blur(16px);
       flex-shrink: 0;
     }
@@ -66,13 +65,13 @@
     .deck-brand {
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 14px;
       text-decoration: none;
     }
 
     .deck-brand img {
-      width: 38px;
-      height: 38px;
+      width: 36px;
+      height: 36px;
       object-fit: contain;
     }
 
@@ -80,38 +79,38 @@
       font-size: 22px;
       font-weight: 800;
       color: #ffffff;
-      letter-spacing: -0.4px;
+      letter-spacing: -0.3px;
     }
 
     .brand-tag {
-      font-size: 14px;
-      padding: 4px 14px;
+      font-size: 13px;
+      padding: 4px 12px;
       background: rgba(56, 189, 248, 0.15);
       color: var(--pitch-accent);
       border: 1px solid rgba(56, 189, 248, 0.35);
       border-radius: 20px;
       font-weight: 700;
-      margin-left: 10px;
+      margin-left: 8px;
     }
 
     .deck-controls {
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 14px;
     }
 
     .btn-deck {
       background: var(--pitch-surface);
       color: #ffffff;
       border: 1px solid var(--pitch-border);
-      padding: 11px 20px;
+      padding: 10px 18px;
       border-radius: 10px;
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 650;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       transition: all 0.2s ease;
       text-decoration: none;
     }
@@ -146,11 +145,11 @@
       left: 0;
       width: 100%;
       height: 100%;
-      padding: 52px 72px;
+      padding: 44px 64px;
       display: none;
       opacity: 0;
       transform: scale(0.98);
-      transition: opacity 0.32s cubic-bezier(0.16, 1, 0.3, 1), transform 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
       overflow-y: auto;
     }
 
@@ -162,11 +161,11 @@
       transform: scale(1);
     }
 
-    /* Slide Grids */
+    /* Layout Grids */
     .slide-grid-2 {
       display: grid;
       grid-template-columns: 1.15fr 0.85fr;
-      gap: 60px;
+      gap: 56px;
       align-items: center;
       max-width: 1520px;
       margin: 0 auto;
@@ -179,13 +178,13 @@
       width: 100%;
     }
 
-    /* Visual Media Cards */
+    /* Screenshot Cards */
     .slide-image-card {
       position: relative;
-      border-radius: 22px;
+      border-radius: 20px;
       overflow: hidden;
       border: 1px solid var(--pitch-border);
-      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6), 0 0 35px rgba(37, 99, 235, 0.18);
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6), 0 0 35px rgba(37, 99, 235, 0.16);
       background: #000;
     }
 
@@ -194,7 +193,12 @@
       height: auto;
       display: block;
       object-fit: cover;
-      aspect-ratio: 16 / 9;
+      aspect-ratio: 16 / 10;
+      transition: transform 0.4s ease;
+    }
+
+    .slide-image-card:hover img {
+      transform: scale(1.02);
     }
 
     .image-caption-overlay {
@@ -202,9 +206,9 @@
       bottom: 0;
       left: 0;
       right: 0;
-      padding: 18px 26px;
+      padding: 16px 24px;
       background: linear-gradient(180deg, transparent 0%, rgba(9, 13, 22, 0.96) 100%);
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 650;
       color: #e2e8f0;
       display: flex;
@@ -212,123 +216,63 @@
       align-items: center;
     }
 
-    /* Large Minimalist Typography */
+    /* Typography */
     .slide-tag {
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 800;
       text-transform: uppercase;
-      letter-spacing: 1.5px;
+      letter-spacing: 1.4px;
       color: var(--pitch-accent);
-      margin-bottom: 16px;
+      margin-bottom: 14px;
     }
 
     .slide-title {
-      font-size: 54px;
+      font-size: 46px;
       font-weight: 900;
-      line-height: 1.16;
-      letter-spacing: -1.4px;
+      line-height: 1.18;
+      letter-spacing: -1.2px;
       color: #ffffff;
-      margin-bottom: 24px;
+      margin-bottom: 18px;
     }
 
     .slide-title span {
-      background: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
+      background: linear-gradient(135deg, #38bdf8 0%, #60a5fa 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
 
     .slide-desc {
-      font-size: 25px;
-      line-height: 1.5;
+      font-size: 22px;
+      line-height: 1.45;
       color: var(--pitch-text-muted);
-      margin-bottom: 36px;
+      margin-bottom: 28px;
       font-weight: 450;
     }
 
-    /* Minimalist Cards */
-    .card-glass {
-      background: var(--pitch-surface-card);
-      border: 1px solid var(--pitch-border);
-      border-radius: 20px;
-      padding: 32px 36px;
-      backdrop-filter: blur(14px);
-      transition: all 0.25s ease;
-    }
-
-    .card-glass:hover {
-      border-color: var(--pitch-border-hover);
-      transform: translateY(-2px);
-      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4);
-    }
-
-    .card-glass.highlight-emerald {
-      border-color: rgba(52, 211, 153, 0.45);
-      background: linear-gradient(135deg, rgba(17, 24, 39, 0.92) 0%, rgba(6, 78, 59, 0.28) 100%);
-    }
-
-    .card-glass.highlight-blue {
-      border-color: rgba(56, 189, 248, 0.45);
-      background: linear-gradient(135deg, rgba(17, 24, 39, 0.92) 0%, rgba(30, 58, 138, 0.28) 100%);
-    }
-
-    .card-glass.highlight-amber {
-      border-color: rgba(251, 191, 36, 0.45);
-      background: linear-gradient(135deg, rgba(17, 24, 39, 0.92) 0%, rgba(120, 53, 15, 0.28) 100%);
-    }
-
-    .card-title {
-      font-size: 26px;
-      font-weight: 800;
-      color: #ffffff;
-      margin-bottom: 14px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .card-text {
-      font-size: 20px;
-      line-height: 1.6;
-      color: #cbd5e1;
-    }
-
-    /* Grids */
-    .feature-grid-3 {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 28px;
-    }
-
-    .feature-grid-2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 28px;
-    }
-
-    /* Options Stack */
+    /* Roadmap & Feature Items */
     .option-list {
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      gap: 16px;
     }
 
     .option-item {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
       background: rgba(17, 24, 39, 0.85);
       border: 1px solid var(--pitch-border);
-      padding: 24px 30px;
-      border-radius: 18px;
+      padding: 20px 26px;
+      border-radius: 16px;
       transition: all 0.2s ease;
     }
 
     .option-item:hover {
-      border-color: var(--pitch-accent);
-      transform: translateX(4px);
+      border-color: var(--pitch-border-hover);
+      transform: translateY(-2px);
     }
 
     .option-head {
@@ -339,35 +283,100 @@
     }
 
     .option-name {
-      font-size: 24px;
+      font-size: 22px;
       font-weight: 800;
       color: #ffffff;
     }
 
     .option-badge {
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 750;
-      padding: 4px 12px;
-      border-radius: 8px;
+      padding: 4px 10px;
+      border-radius: 6px;
       background: rgba(56, 189, 248, 0.15);
       color: var(--pitch-accent);
       border: 1px solid rgba(56, 189, 248, 0.35);
+      white-space: nowrap;
+    }
+
+    .badge-ready {
+      background: rgba(52, 211, 153, 0.15);
+      color: var(--pitch-accent-emerald);
+      border-color: rgba(52, 211, 153, 0.35);
+    }
+
+    .badge-next {
+      background: rgba(251, 191, 36, 0.15);
+      color: var(--pitch-accent-amber);
+      border-color: rgba(251, 191, 36, 0.35);
     }
 
     .option-desc {
-      font-size: 19px;
-      line-height: 1.55;
+      font-size: 18px;
+      line-height: 1.45;
       color: #cbd5e1;
     }
 
-    /* Bottom Deck Footer */
+    /* 3-Card Grid */
+    .feature-grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+
+    .card-glass {
+      background: var(--pitch-surface-card);
+      border: 1px solid var(--pitch-border);
+      border-radius: 18px;
+      padding: 28px 30px;
+      backdrop-filter: blur(14px);
+      transition: all 0.25s ease;
+    }
+
+    .card-glass:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4);
+    }
+
+    .highlight-blue {
+      border-color: rgba(56, 189, 248, 0.45);
+      background: linear-gradient(135deg, rgba(17, 24, 39, 0.92) 0%, rgba(30, 58, 138, 0.25) 100%);
+    }
+
+    .highlight-emerald {
+      border-color: rgba(52, 211, 153, 0.45);
+      background: linear-gradient(135deg, rgba(17, 24, 39, 0.92) 0%, rgba(6, 78, 59, 0.25) 100%);
+    }
+
+    .highlight-amber {
+      border-color: rgba(251, 191, 36, 0.45);
+      background: linear-gradient(135deg, rgba(17, 24, 39, 0.92) 0%, rgba(120, 53, 15, 0.25) 100%);
+    }
+
+    .card-title {
+      font-size: 24px;
+      font-weight: 800;
+      color: #ffffff;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-text {
+      font-size: 18px;
+      line-height: 1.5;
+      color: #cbd5e1;
+    }
+
+    /* Footer Navigation */
     .deck-footer {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 22px 52px;
+      padding: 18px 48px;
       border-top: 1px solid var(--pitch-border);
-      background: rgba(9, 13, 22, 0.92);
+      background: rgba(9, 13, 22, 0.94);
       backdrop-filter: blur(16px);
       z-index: 100;
       flex-shrink: 0;
@@ -376,17 +385,17 @@
     .footer-left {
       display: flex;
       align-items: center;
-      gap: 24px;
+      gap: 20px;
     }
 
     .slide-counter {
-      font-size: 18px;
+      font-size: 17px;
       font-weight: 750;
       color: var(--pitch-accent);
     }
 
     .progress-bar-wrap {
-      width: 260px;
+      width: 240px;
       height: 6px;
       background: rgba(255, 255, 255, 0.12);
       border-radius: 4px;
@@ -401,13 +410,13 @@
 
     .nav-buttons {
       display: flex;
-      gap: 14px;
+      gap: 12px;
     }
 
     .btn-nav {
-      width: 48px;
-      height: 48px;
-      border-radius: 12px;
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
       background: var(--pitch-surface);
       color: #ffffff;
       border: 1px solid var(--pitch-border);
@@ -420,17 +429,30 @@
 
     .btn-nav:hover {
       background: #1e293b;
-      border-color: var(--pitch-accent);
-      color: var(--pitch-accent);
+      border-color: rgba(255, 255, 255, 0.35);
     }
 
-    /* Print styles */
+    @media (max-width: 1080px) {
+      .slide-grid-2 {
+        grid-template-columns: 1fr;
+        gap: 32px;
+      }
+      .slide-title {
+        font-size: 34px;
+      }
+      .slide-desc {
+        font-size: 18px;
+      }
+      .feature-grid-3 {
+        grid-template-columns: 1fr;
+      }
+    }
+
     @media print {
       body {
-        overflow: visible;
-        height: auto;
-        background: #ffffff;
-        color: #0f172a;
+        background: #ffffff !important;
+        color: #0f172a !important;
+        overflow: visible !important;
       }
       .deck-header, .deck-footer, .nav-buttons {
         display: none !important;
@@ -444,14 +466,14 @@
         height: 100vh;
         padding: 40px;
       }
-      .card-glass {
+      .card-glass, .option-item {
         border-color: #cbd5e1;
         background: #f8fafc;
       }
-      .slide-title, .card-title {
+      .card-title, .option-name, .slide-title {
         color: #0f172a !important;
       }
-      .slide-desc, .card-text {
+      .card-text, .option-desc, .slide-desc {
         color: #475569 !important;
       }
     }
@@ -460,58 +482,69 @@
 <body>
 
 <div class="deck-container">
-  <!-- Top Header -->
+  <!-- Top Navigation Header -->
   <header class="deck-header">
     <a href="/" class="deck-brand">
-      <img src="/images/rosocenka-emblem.png" alt="РусОценка">
-      <span class="brand-title">РусОценка</span>
-      <span class="brand-tag">Концепт и развитие</span>
+      <img src="/images/rosocenka-emblem.png" alt="Инструмент оценщика">
+      <div>
+        <span class="brand-title">Инструмент оценщика</span>
+        <span class="brand-tag">Автоматизация отчётов</span>
+      </div>
     </a>
 
     <div class="deck-controls">
-      <a href="/" class="btn-deck" target="_blank" title="Открыть рабочее место оценщика">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-        Открыть живую систему
+      <button class="btn-deck" id="btn-fullscreen" title="Полноэкранный режим (F)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+        Экран
+      </button>
+      <a href="/" class="btn-deck btn-deck-primary">
+        <span>В систему</span>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
       </a>
-      <button class="btn-deck" id="btn-fullscreen" title="Полноэкранный режим (Клавиша F)">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
-        На весь экран
-      </button>
-      <button class="btn-deck" onclick="window.print()" title="Сохранить в PDF">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
-        Экспорт в PDF
-      </button>
     </div>
   </header>
 
-  <!-- Viewport of Slides -->
+  <!-- Presentation Slides -->
   <main class="slides-viewport">
 
-    <!-- СЛАЙД 1: О ПРОЕКТЕ (ЧТО ЭТО ТАКОЕ) -->
+    <!-- СЛАЙД 1: КОНЦЕПТ И РОАДМАП ПРОЕКТА -->
     <section class="slide active" data-slide="1">
       <div class="slide-grid-2">
         <div>
-          <span class="slide-tag">О проекте</span>
-          <h1 class="slide-title">РусОценка: <span>Платформа для профессиональной оценки недвижимости</span></h1>
+          <span class="slide-tag">Роадмап проекта</span>
+          <h1 class="slide-title">Рабочий инструмент оценщика: <span>От рутины к конвейеру отчётов</span></h1>
           <p class="slide-desc">
-            Единое цифровое рабочее место оценщика жилой недвижимости: ввод параметров квартиры, подбор аналогов, расчет формул ФСО и Лейфера, и мгновенная выгрузка официального Word-отчёта.
+            Софт для автоматизации подготовки официальных отчётов по жилой недвижимости.
           </p>
 
-          <div class="feature-grid-2" style="margin-top: 28px;">
-            <div class="card-glass highlight-blue">
-              <div class="card-title">
-                <span style="color: var(--pitch-accent);">●</span> Версия 1.0 (Работает сейчас)
+          <div class="option-list">
+            <div class="option-item">
+              <div class="option-head">
+                <span class="option-name">1. Расчётное ядро</span>
+                <span class="option-badge badge-ready">Готово сейчас</span>
               </div>
-              <p class="card-text">
-                Готовое математическое ядро, расчёт матрицы Лейфера, точные доли собственников и генератор чистого Word-отчета на 60 страниц.
+              <p class="option-desc">
+                Матрица поправок Лейфера, расчёт сложных долей и мгновенная выгрузка Word-отчёта.
               </p>
             </div>
-            <div class="card-glass highlight-emerald">
-              <div class="card-title">
-                <span style="color: var(--pitch-accent-emerald);">●</span> Версия 2.0 (Планы развития)
+
+            <div class="option-item">
+              <div class="option-head">
+                <span class="option-name">2. Автоматизация рутины</span>
+                <span class="option-badge badge-next">В разработке</span>
               </div>
-              <p class="card-text">
-                Интерактивная карта цен, подключение AI для чтения сканов выписок ЕГРН и автогенерация описаний инфраструктуры района.
+              <p class="option-desc">
+                Распознавание выписок ЕГРН (OCR) и автоматический сбор объявлений-аналогов с площадок.
+              </p>
+            </div>
+
+            <div class="option-item">
+              <div class="option-head">
+                <span class="option-name">3. Нейросети & Гео-API</span>
+                <span class="option-badge">Следующий шаг</span>
+              </div>
+              <p class="option-desc">
+                Автогенерация разделов инфраструктуры и экологии района, анализ фотографий объекта.
               </p>
             </div>
           </div>
@@ -519,193 +552,205 @@
 
         <div>
           <div class="slide-image-card">
-            <img src="/images/pitch-hero.jpg" alt="Интерфейс платформы РусОценка">
+            <img src="/images/screen-main.jpg" alt="Главный экран инструмента оценщика">
             <div class="image-caption-overlay">
-              <span>Рабочее пространство оценщика</span>
-              <span style="color: var(--pitch-accent); font-weight: 700;">РусОценка v1.0</span>
+              <span style="font-weight: 700; color: #ffffff;">Главный экран</span>
+              <span style="color: var(--pitch-accent); font-weight: 700;">Реальный интерфейс</span>
             </div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- СЛАЙД 2: ЧТО УЖЕ РАБОТАЕТ В ТЕКУЩЕЙ ВЕРСИИ -->
+    <!-- СЛАЙД 2: ЧТО ПРОГРАММА СЧИТАЕТ СЕЙЧАС -->
     <section class="slide" data-slide="2">
       <div class="slide-grid-2">
         <div>
           <span class="slide-tag" style="color: var(--pitch-accent-emerald);">Функционал сегодня</span>
-          <h2 class="slide-title">Что уже готово и <span>работает в системе</span></h2>
+          <h2 class="slide-title">Расчётное ядро: <span>Что считает программа</span></h2>
           <p class="slide-desc">
-            Базовое ядро платформы полностью собрано и протестировано на реальных экспертных делах.
+            Все математические расчёты заложены в систему и проверены на реальных делах:
           </p>
 
           <div class="option-list">
             <div class="option-item">
               <div class="option-head">
-                <span class="option-name">1. Матрица поправок Лейфера</span>
-                <span class="option-badge">ФСО I–VI</span>
+                <span class="option-name">Поправки Лейфера</span>
+                <span class="option-badge badge-ready">Справочник</span>
               </div>
-              <div class="option-desc">Ползунок торга, поправки на этаж, площадь, отделку и материал стен. Автоматический расчёт весов и проверка вариации выборки $V \le 33\%$.</div>
+              <p class="option-desc">
+                Автоматический расчёт этажности, материала стен, площади и скидки на торг.
+              </p>
             </div>
 
             <div class="option-item">
               <div class="option-head">
-                <span class="option-name">2. Доли любой сложности</span>
-                <span class="option-badge">До копейки</span>
+                <span class="option-name">Расчёт сложных долей</span>
+                <span class="option-badge badge-ready">Формулы</span>
               </div>
-              <div class="option-desc">Расчёт сложных дробных долей (например, $193/461$) с точным округлением стоимости в рублях и автоматической суммой прописью.</div>
+              <p class="option-desc">
+                Точный расчёт стоимости 1/2, 1/3 или неравных долей с учётом дисконта.
+              </p>
             </div>
 
             <div class="option-item">
               <div class="option-head">
-                <span class="option-name">3. Выгрузка официального Word (.docx)</span>
-                <span class="option-badge">60 страниц</span>
+                <span class="option-name">Выгрузка отчёта в Word</span>
+                <span class="option-badge badge-ready">.docx</span>
               </div>
-              <div class="option-desc">Полноценный утверждённый отчёт об оценке: герб, колонтитулы, таблицы расчётов, обоснования подходов и подписи оценщика.</div>
+              <p class="option-desc">
+                Генерация официального отчёта со всеми расчётными таблицами в 1 клик.
+              </p>
             </div>
           </div>
         </div>
 
         <div>
           <div class="slide-image-card">
-            <img src="/images/pitch-final-result.jpg" alt="Официальный готовый отчёт об оценке">
+            <img src="/images/screen-analogs.jpg" alt="Матрица поправок Лейфера и расчет">
             <div class="image-caption-overlay">
-              <span style="font-weight: 700;">Итоговый результат системы</span>
-              <span style="color: var(--pitch-accent-emerald); font-weight: 700;">Готовый документ Word</span>
+              <span style="font-weight: 700; color: #ffffff;">Матрица поправок Лейфера</span>
+              <span style="color: var(--pitch-accent-emerald); font-weight: 700;">Работает онлайн</span>
             </div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- СЛАЙД 3: ЧТО ИЗ ЭТОГО БУДЕТ (РУСОЦЕНКА 2.0) -->
+    <!-- СЛАЙД 3: К ЧЕМУ ИДЁМ: АВТОМАТИЗАЦИЯ РУТИНЫ -->
     <section class="slide" data-slide="3">
       <div class="slide-grid-2">
         <div>
-          <span class="slide-tag" style="color: var(--pitch-accent);">Будущее продукта</span>
-          <h2 class="slide-title">Что из этого будет: <span>Экосистема РусОценка 2.0</span></h2>
+          <span class="slide-tag" style="color: var(--pitch-accent-amber);">Приоритет развития</span>
+          <h2 class="slide-title">К чему идём: <span>Автоматизация рутины</span></h2>
           <p class="slide-desc">
-            Финальный вид продукта объединяет расчётный движок, картографию и умную обработку документов.
+            Освобождение эксперта от механического перепечатывания параметров и поиска:
           </p>
 
           <div class="option-list">
             <div class="option-item">
               <div class="option-head">
-                <span class="option-name">Интерактивная карта рынка</span>
-                <span class="option-badge">3D & Тепловые слои</span>
+                <span class="option-name">1. Импорт выписок ЕГРН (OCR)</span>
+                <span class="option-badge badge-next">Приоритет 1</span>
               </div>
-              <div class="option-desc">Визуализация цен за 1 м² по районам Тольятти и Самары, привязка объектов к геокоординатам и автоматический подбор ближайших домов-аналогов.</div>
+              <p class="option-desc">
+                Загрузка PDF-выписки: адрес, площадь, этаж и кадастровый номер заполняются за 2 секунды.
+              </p>
             </div>
 
             <div class="option-item">
               <div class="option-head">
-                <span class="option-name">Автоматическое распознавание ЕГРН</span>
-                <span class="option-badge">Smart OCR</span>
+                <span class="option-name">2. Автосбор аналогов с площадок</span>
+                <span class="option-badge badge-next">Приоритет 2</span>
               </div>
-              <div class="option-desc">Перетаскиваешь скан выписки PDF — система сама извлекает кадастровый номер, площадь, этаж, правообладателей и ограничения.</div>
+              <p class="option-desc">
+                Парсинг объектов с Авито и Циан в радиусе квартиры с проверкой вариации (V ≤ 33%).
+              </p>
             </div>
 
             <div class="option-item">
               <div class="option-head">
-                <span class="option-name">Автогенерация инфраструктуры</span>
-                <span class="option-badge">AI Текст</span>
+                <span class="option-name">3. Контроль регламентов банков</span>
+                <span class="option-badge badge-next">Приоритет 3</span>
               </div>
-              <div class="option-desc">Автоматическое составление Раздела 8 отчёта: описание школ, поликлиник, парков, экологии и транспортной доступности по адресу дома.</div>
+              <p class="option-desc">
+                Автоматическая проверка соответствия отчёта стандартам Сбера, ВТБ и ДОМ.РФ.
+              </p>
             </div>
           </div>
         </div>
 
         <div>
           <div class="slide-image-card">
-            <img src="/images/pitch-final-product.jpg" alt="Финальный продукт РусОценка 2.0">
+            <img src="/images/screen-cabinet.jpg" alt="Кабинет оценщика и реестр дел">
             <div class="image-caption-overlay">
-              <span>Финальный вид экосистемы</span>
-              <span style="color: var(--pitch-accent); font-weight: 700;">РусОценка 2.0</span>
+              <span style="font-weight: 700; color: #ffffff;">Реестр объектов и дел</span>
+              <span style="color: var(--pitch-accent-amber); font-weight: 700;">Конвейер отчётов</span>
             </div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- СЛАЙД 4: ВАРИАНТЫ РАЗВИТИЯ И AI/API -->
+    <!-- СЛАЙД 4: ПОДКЛЮЧЕНИЕ НЕЙРОСЕТЕЙ И ВНЕШНИХ API -->
     <section class="slide" data-slide="4">
       <div class="slide-full">
-        <span class="slide-tag" style="color: var(--pitch-accent-amber);">Варианты развития</span>
-        <h2 class="slide-title">Какой API и какую нейросеть <span>можно подключить</span></h2>
+        <span class="slide-tag" style="color: var(--pitch-accent);">Технологии и API</span>
+        <h2 class="slide-title">Подключение нейросетей и гео-сервисов: <span>3 варианта</span></h2>
         <p class="slide-desc">
-          Технологические варианты интеграции AI-модулей под задачи компании.
+          Автогенерация описаний инфраструктуры и экологии района, анализ фотографий объекта.
         </p>
 
         <div class="feature-grid-3">
           <div class="card-glass highlight-blue">
-            <div class="card-title">Вариант 1: Yandex Cloud</div>
-            <p class="card-text" style="margin-bottom: 16px;">
-              <b>YandexGPT 4 + Yandex Vision OCR</b>
-            </p>
+            <div class="card-title">
+              <span style="font-size: 28px;">🌐</span>
+              Yandex Cloud
+            </div>
             <p class="card-text">
-              • Лучшее оптическое чтение сканов ЕГРН в РФ.<br>
-              • Мгновенное описание инфраструктуры района.<br>
-              • Официальный договор с юрлицом, серверы в РФ по 152-ФЗ.
+              <strong>YandexGPT + Maps API:</strong><br>
+              • Автогенерация текстов инфраструктуры (школы, парки, транспорт).<br>
+              • Официальный российский API с гарантированной скоростью работы.
             </p>
           </div>
 
           <div class="card-glass highlight-emerald">
-            <div class="card-title">Вариант 2: Сбер GigaChat</div>
-            <p class="card-text" style="margin-bottom: 16px;">
-              <b>GigaChat Pro / Max API</b>
-            </p>
+            <div class="card-title">
+              <span style="font-size: 28px;">⚡</span>
+              Сбер GigaChat API
+            </div>
             <p class="card-text">
-              • Обучен на банковских регламентах и Домклике.<br>
-              • Анализ фотографий комнат и определение отделки.<br>
-              • Оптимален для кредитных и залоговых отчётов.
+              <strong>Экосистема банков:</strong><br>
+              • Прямая совместимость с корпоративным контуром Сбера.<br>
+              • Заполнение описательных разделов отчёта по утверждённым шаблонам.
             </p>
           </div>
 
           <div class="card-glass highlight-amber">
-            <div class="card-title">Вариант 3: On-Premise AI</div>
-            <p class="card-text" style="margin-bottom: 16px;">
-              <b>Автономная модель (Qwen / Vikhr)</b>
-            </p>
+            <div class="card-title">
+              <span style="font-size: 28px;">🔒</span>
+              Локальный AI (On-Premise)
+            </div>
             <p class="card-text">
-              • Полная изоляция на локальном сервере компании.<br>
-              • Данные клиентов никогда не покидают офис.<br>
-              • Работает без внешнего интернета для спецзаказов.
+              <strong>Полная безопасность:</strong><br>
+              • Модель разворачивается на сервере оценщика.<br>
+              • 100% конфиденциальность: данные клиентов и объектов не уходят в сеть.
             </p>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- СЛАЙД 5: РАБОЧИЙ ПРОТОТИП И СТАРТ -->
+    <!-- СЛАЙД 5: ТЕСТИРОВАНИЕ ИНСТРУМЕНТА ОНЛАЙН -->
     <section class="slide" data-slide="5">
       <div class="slide-grid-2">
         <div>
           <span class="slide-tag" style="color: var(--pitch-accent-emerald);">Тестирование</span>
-          <h2 class="slide-title">Система готова: <span>Попробуйте прямо сейчас</span></h2>
+          <h2 class="slide-title">Инструмент готов: <span>Попробуйте прямо сейчас</span></h2>
           <p class="slide-desc">
-            Платформа развёрнута и доступна онлайн. Можно открыть рабочее место, ввести параметры квартиры и скачать готовый Word-отчёт.
+            Система развёрнута онлайн. Можно открыть рабочее место, ввести параметры квартиры и скачать готовый Word-отчёт.
           </p>
 
-          <div style="display: flex; gap: 20px; margin-top: 40px;">
-            <a href="/" class="btn-deck btn-deck-primary" style="padding: 18px 32px; font-size: 20px;">
-              Открыть рабочее место оценщика
+          <div style="display: flex; gap: 18px; margin-top: 36px;">
+            <a href="/" class="btn-deck btn-deck-primary" style="padding: 18px 30px; font-size: 19px;">
+              Открыть инструмент оценщика
             </a>
-            <button class="btn-deck" onclick="window.print()" style="padding: 18px 26px; font-size: 18px;">
+            <button class="btn-deck" onclick="window.print()" style="padding: 18px 24px; font-size: 17px;">
               Скачать в PDF
             </button>
           </div>
 
-          <p style="margin-top: 36px; font-size: 20px; color: var(--pitch-text-muted); font-weight: 500;">
-            Платформа РусОценка · Автоматизация жилой недвижимости
+          <p style="margin-top: 32px; font-size: 19px; color: var(--pitch-text-muted); font-weight: 500;">
+            Рабочий инструмент эксперта-оценщика · Автоматизация жилой недвижимости
           </p>
         </div>
 
         <div>
           <div class="slide-image-card">
-            <img src="/images/pitch-future-value.jpg" alt="Платформа РусОценка">
+            <img src="/images/screen-report.jpg" alt="Сформированный отчет в системе">
             <div class="image-caption-overlay">
-              <span style="font-weight: 700; color: #ffffff;">РусОценка</span>
-              <span style="color: var(--pitch-accent-emerald); font-weight: 700;">Онлайн-прототип готов</span>
+              <span style="font-weight: 700; color: #ffffff;">Готовый Word-отчёт</span>
+              <span style="color: var(--pitch-accent-emerald); font-weight: 700;">Сформирован в системе</span>
             </div>
           </div>
         </div>
