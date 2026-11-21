@@ -29,6 +29,19 @@ let cases = getStoredCases();
 let activeCaseId = getActiveCaseId() || (cases[0] ? cases[0].id : null);
 let currentView = 'dashboard'; // 'dashboard' | 'cabinet' | 'case'
 let activeTab = 'analogs'; // 'object' | 'analogs' | 'calculation' | 'report'
+
+// URL Query routing for direct tab/view access & screenshots
+if (typeof window !== 'undefined' && window.location) {
+  try {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('view')) currentView = urlParams.get('view');
+    if (urlParams.get('tab')) activeTab = urlParams.get('tab');
+    if (urlParams.get('case')) {
+      activeCaseId = urlParams.get('case');
+      setActiveCaseId(activeCaseId);
+    }
+  } catch (e) {}
+}
 let filterStatus = 'all';
 let searchQuery = '';
 let scrollObserver = null;
