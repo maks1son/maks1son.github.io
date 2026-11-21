@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Инструмент оценщика — Концепт и технологический роадмап</title>
+  <title>Инструмент оценщика — Автоматизация оценки недвижимости</title>
   <link rel="icon" type="image/png" href="/images/rosocenka-emblem.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -184,7 +184,7 @@
       border-radius: 20px;
       overflow: hidden;
       border: 1px solid var(--pitch-border);
-      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6), 0 0 35px rgba(37, 99, 235, 0.16);
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(56, 189, 248, 0.16);
       background: #000;
     }
 
@@ -224,18 +224,18 @@
       font-size: 14px;
       font-weight: 800;
       text-transform: uppercase;
-      letter-spacing: 1.4px;
+      letter-spacing: 1.5px;
       color: var(--pitch-accent);
-      margin-bottom: 14px;
+      margin-bottom: 16px;
     }
 
     .slide-title {
-      font-size: 46px;
+      font-size: 48px;
       font-weight: 900;
-      line-height: 1.18;
+      line-height: 1.16;
       letter-spacing: -1.2px;
       color: #ffffff;
-      margin-bottom: 18px;
+      margin-bottom: 20px;
     }
 
     .slide-title span {
@@ -244,12 +244,56 @@
       -webkit-text-fill-color: transparent;
     }
 
+    .hero-title {
+      font-size: 56px;
+      line-height: 1.12;
+      letter-spacing: -1.6px;
+      margin-bottom: 24px;
+    }
+
     .slide-desc {
-      font-size: 22px;
-      line-height: 1.45;
+      font-size: 23px;
+      line-height: 1.5;
       color: var(--pitch-text-muted);
-      margin-bottom: 28px;
+      margin-bottom: 32px;
       font-weight: 450;
+    }
+
+    .hero-desc {
+      font-size: 25px;
+      line-height: 1.45;
+      color: #cbd5e1;
+      margin-bottom: 36px;
+    }
+
+    /* Hero Pills (Slide 1 minimal tags) */
+    .hero-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-bottom: 40px;
+    }
+
+    .hero-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(17, 24, 39, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      padding: 12px 20px;
+      border-radius: 30px;
+      font-size: 17px;
+      font-weight: 650;
+      color: #f1f5f9;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+    }
+
+    .pill-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--pitch-accent);
+      box-shadow: 0 0 10px var(--pitch-accent);
     }
 
     /* Roadmap & Feature Items */
@@ -440,6 +484,9 @@
       .slide-title {
         font-size: 34px;
       }
+      .hero-title {
+        font-size: 38px;
+      }
       .slide-desc {
         font-size: 18px;
       }
@@ -507,46 +554,30 @@
   <!-- Presentation Slides -->
   <main class="slides-viewport">
 
-    <!-- СЛАЙД 1: КОНЦЕПТ И РОАДМАП ПРОЕКТА -->
+    <!-- СЛАЙД 1: ПРЕЗЕНТАЦИОННЫЙ ХИТ (КРАСИВЫЙ И МИНИМАЛИСТИЧНЫЙ) -->
     <section class="slide active" data-slide="1">
       <div class="slide-grid-2">
         <div>
-          <span class="slide-tag">Роадмап проекта</span>
-          <h1 class="slide-title">Рабочий инструмент оценщика: <span>От рутины к конвейеру отчётов</span></h1>
-          <p class="slide-desc">
-            Софт для автоматизации подготовки официальных отчётов по жилой недвижимости.
+          <span class="slide-tag">Концепт продукта · 2026</span>
+          <h1 class="slide-title hero-title">Автоматизация оценки <span>жилой недвижимости</span></h1>
+          <p class="slide-desc hero-desc">
+            Современный рабочий инструмент оценщика: ускорение подготовки официальных отчётов от первичных данных до файла Word.
           </p>
 
-          <div class="option-list">
-            <div class="option-item">
-              <div class="option-head">
-                <span class="option-name">1. Расчётное ядро</span>
-                <span class="option-badge badge-ready">Готово сейчас</span>
-              </div>
-              <p class="option-desc">
-                Матрица поправок Лейфера, расчёт сложных долей и мгновенная выгрузка Word-отчёта.
-              </p>
-            </div>
+          <div class="hero-pills">
+            <div class="hero-pill"><span class="pill-dot"></span> Поправки Лейфера</div>
+            <div class="hero-pill"><span class="pill-dot"></span> Расчёт сложных долей</div>
+            <div class="hero-pill"><span class="pill-dot"></span> Официальный Word-отчёт</div>
+          </div>
 
-            <div class="option-item">
-              <div class="option-head">
-                <span class="option-name">2. Автоматизация рутины</span>
-                <span class="option-badge badge-next">В разработке</span>
-              </div>
-              <p class="option-desc">
-                Распознавание выписок ЕГРН (OCR) и автоматический сбор объявлений-аналогов с площадок.
-              </p>
-            </div>
-
-            <div class="option-item">
-              <div class="option-head">
-                <span class="option-name">3. Нейросети & Гео-API</span>
-                <span class="option-badge">Следующий шаг</span>
-              </div>
-              <p class="option-desc">
-                Автогенерация разделов инфраструктуры и экологии района, анализ фотографий объекта.
-              </p>
-            </div>
+          <div style="display: flex; gap: 16px; align-items: center;">
+            <button class="btn-deck btn-deck-primary" onclick="nextSlide()" style="padding: 16px 30px; font-size: 18px;">
+              <span>Смотреть возможности</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+            <a href="/" class="btn-deck" style="padding: 16px 24px; font-size: 17px;">
+              Открыть демо
+            </a>
           </div>
         </div>
 
@@ -554,19 +585,19 @@
           <div class="slide-image-card">
             <img src="/images/screen-main.jpg" alt="Главный экран инструмента оценщика">
             <div class="image-caption-overlay">
-              <span style="font-weight: 700; color: #ffffff;">Главный экран</span>
-              <span style="color: var(--pitch-accent); font-weight: 700;">Реальный интерфейс</span>
+              <span style="font-weight: 700; color: #ffffff;">Рабочее место оценщика</span>
+              <span style="color: var(--pitch-accent); font-weight: 700;">Онлайн-прототип</span>
             </div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- СЛАЙД 2: ЧТО ПРОГРАММА СЧИТАЕТ СЕЙЧАС -->
+    <!-- СЛАЙД 2: ЧТО ПРОГРАММА СЧИТАЕТ СЕЙЧАС (РАСЧЁТНОЕ ЯДРО) -->
     <section class="slide" data-slide="2">
       <div class="slide-grid-2">
         <div>
-          <span class="slide-tag" style="color: var(--pitch-accent-emerald);">Функционал сегодня</span>
+          <span class="slide-tag" style="color: var(--pitch-accent-emerald);">Этап 1 · Готово сейчас</span>
           <h2 class="slide-title">Расчётное ядро: <span>Что считает программа</span></h2>
           <p class="slide-desc">
             Все математические расчёты заложены в систему и проверены на реальных делах:
@@ -621,7 +652,7 @@
     <section class="slide" data-slide="3">
       <div class="slide-grid-2">
         <div>
-          <span class="slide-tag" style="color: var(--pitch-accent-amber);">Приоритет развития</span>
+          <span class="slide-tag" style="color: var(--pitch-accent-amber);">Этап 2 · Приоритет развития</span>
           <h2 class="slide-title">К чему идём: <span>Автоматизация рутины</span></h2>
           <p class="slide-desc">
             Освобождение эксперта от механического перепечатывания параметров и поиска:
@@ -675,7 +706,7 @@
     <!-- СЛАЙД 4: ПОДКЛЮЧЕНИЕ НЕЙРОСЕТЕЙ И ВНЕШНИХ API -->
     <section class="slide" data-slide="4">
       <div class="slide-full">
-        <span class="slide-tag" style="color: var(--pitch-accent);">Технологии и API</span>
+        <span class="slide-tag" style="color: var(--pitch-accent);">Этап 3 · Технологии и API</span>
         <h2 class="slide-title">Подключение нейросетей и гео-сервисов: <span>3 варианта</span></h2>
         <p class="slide-desc">
           Автогенерация описаний инфраструктуры и экологии района, анализ фотографий объекта.
@@ -725,7 +756,7 @@
     <section class="slide" data-slide="5">
       <div class="slide-grid-2">
         <div>
-          <span class="slide-tag" style="color: var(--pitch-accent-emerald);">Тестирование</span>
+          <span class="slide-tag" style="color: var(--pitch-accent-emerald);">Онлайн-доступ</span>
           <h2 class="slide-title">Инструмент готов: <span>Попробуйте прямо сейчас</span></h2>
           <p class="slide-desc">
             Система развёрнута онлайн. Можно открыть рабочее место, ввести параметры квартиры и скачать готовый Word-отчёт.
