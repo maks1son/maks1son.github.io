@@ -28,6 +28,17 @@ export function getStoredCases() {
               c.progress = c.status === 'Готов' ? 100 : (c.status === 'Черновик' ? 25 : 75);
               modified = true;
             }
+            if (!c.checklist || typeof c.checklist !== 'object') {
+              const isReady = c.status === 'Готов';
+              c.checklist = {
+                egrn: isReady,
+                inspection: isReady,
+                market: isReady,
+                leifer: isReady,
+                shares: isReady,
+              };
+              modified = true;
+            }
           });
           if (modified) saveCases(parsed);
           return parsed;

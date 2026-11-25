@@ -9,6 +9,11 @@ export const money = value => {
   return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(Math.round(value)) + ' ₽';
 };
 
+export const moneyWithCents = value => {
+  if (value == null || !Number.isFinite(value)) return '—';
+  return new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value) + ' ₽/м²';
+};
+
 export const moneyPerSqm = value => {
   if (value == null || !Number.isFinite(value)) return '—';
   return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(Math.round(value)) + ' ₽/м²';
@@ -187,6 +192,13 @@ export function createNewCase(opts = {}) {
       ],
     },
     analogs: opts.analogs || [],
+    checklist: opts.checklist || {
+      egrn: Boolean(opts.status === 'Готов'),
+      inspection: Boolean(opts.status === 'Готов'),
+      market: Boolean(opts.status === 'Готов'),
+      leifer: Boolean(opts.status === 'Готов'),
+      shares: Boolean(opts.status === 'Готов'),
+    },
   };
 }
 
@@ -201,6 +213,13 @@ export function defaultCases() {
     progressStep: 'Отчёт согласован, доступен для скачивания Word (.docx)',
     createdAt: '2026-08-19T10:00:00Z',
     updatedAt: '2026-08-20T16:30:00Z',
+    checklist: {
+      egrn: true,
+      inspection: true,
+      market: true,
+      leifer: true,
+      shares: true,
+    },
     objectData: {
       reportNumber: '19/0826-2',
       valuationDate: '2026-08-19',
@@ -386,6 +405,89 @@ export function calculateAreaAdjustment(objArea, analogArea) {
 }
 
 /**
+ * Детальный пошаговый формульный аудит вычислений по аналогу
+ * Позволяет любому оценщику сверить расчет на калькуляторе Citizen или в Excel
+ */
+export function calculateAnalogAudit(analog, objectData, tradeAdjustment = -6.0, totalCorrections = 0, selectedCount = 1) {
+  const price = Number(analog.price) || 0;
+  const area = Number(analog.area) || 1;
+  const rawPricePerSqm = price / area;
+  const initialPricePerSqm = Math.round(rawPricePerSqm);
+
+  // Шаг 2. Корректировка на торг
+  const tradeAdj = Number.isFinite(tradeAdjustment) ? tradeAdjustment : -6.0;
+  const pTrade = rawPricePerSqm * (1 + tradeAdj / 100);
+  const priceAfterTrade = Math.round(pTrade);
+
+  // Шаг 3. Корректировка на отделку (справочник Лейфера)
+  const finishAdj = Number.isFinite(analog.finishAdj) ? analog.finishAdj : calculateFinishAdjustment(objectData.finish, analog.finish);
+  const pFinish = pTrade * (1 + finishAdj / 100);
+  const priceAfterFinish = Math.round(pFinish);
+
+  // Шаг 4. Корректировка на этаж (справочник Лейфера, таблица этажности)
+  const floorAdj = Number.isFinite(analog.floorAdj) ? analog.floorAdj : calculateFloorAdjustment(objectData.floor, objectData.totalFloors, analog.floor, analog.totalFloors);
+  const pFloor = pFinish * (1 + floorAdj / 100);
+  const priceAfterFloor = Math.round(pFloor);
+
+  // Шаг 5. Корректировка на масштаб площади (формула Лейфера)
+  const areaAdj = Number.isFinite(analog.areaAdj) ? analog.areaAdj : calculateAreaAdjustment(objectData.area, analog.area);
+  const pArea = pFloor * (1 + areaAdj / 100);
+  const priceAfterArea = Math.round(pArea);
+
+  // Шаг 6. Количество ненулевых корректировок (Ki)
+  let correctionsCount = 0;
+  if (Math.abs(tradeAdj) > 0.001) correctionsCount++;
+  if (Math.abs(finishAdj) > 0.001) correctionsCount++;
+  if (Math.abs(floorAdj) > 0.001) correctionsCount++;
+  if (Math.abs(areaAdj) > 0.001) correctionsCount++;
+
+  // Весовой коэффициент в итоговой выборке
+  let weight = 0;
+  const N = selectedCount;
+  if (analog.selected) {
+    if (N === 1) {
+      weight = 1.0;
+    } else if (totalCorrections === 0) {
+      weight = 1.0 / N;
+    } else {
+      const denom = totalCorrections * (N - 1);
+      weight = denom > 0 ? (totalCorrections - correctionsCount) / denom : 1.0 / N;
+    }
+  }
+
+  return {
+    price,
+    area,
+    rawPricePerSqm,
+    initialPricePerSqm,
+    tradeAdj,
+    pTrade,
+    priceAfterTrade,
+    finishAdj,
+    pFinish,
+    priceAfterFinish,
+    floorAdj,
+    pFloor,
+    priceAfterFloor,
+    areaAdj,
+    pArea,
+    priceAfterArea,
+    correctionsCount,
+    weight,
+    totalCorrections,
+    selectedCount: N,
+    objFinish: objectData.finish,
+    analogFinish: analog.finish,
+    objFloor: objectData.floor,
+    objTotalFloors: objectData.totalFloors,
+    analogFloor: analog.floor,
+    analogTotalFloors: analog.totalFloors,
+    objArea: objectData.area,
+    analogArea: analog.area,
+  };
+}
+
+/**
  * Полный сравнительный расчёт (Таблица 12.2, 12.5 и статистика вариации)
  */
 export function calculateValuation(objectData, analogsList, tradeAdjustment = -6.0) {
@@ -459,6 +561,8 @@ export function calculateValuation(objectData, analogsList, tradeAdjustment = -6
       const denom = totalCorrections * (N - 1);
       r.weight = denom > 0 ? (totalCorrections - r.correctionsCount) / denom : 1.0 / N;
     }
+    // Прикрепляем аудит
+    r.audit = calculateAnalogAudit(r, objectData, tradeAdjustment, totalCorrections, N);
   });
 
   // 3. Средневзвешенная цена за 1 кв.м

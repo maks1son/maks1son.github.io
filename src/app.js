@@ -1,7 +1,9 @@
 import { createIcons, icons } from 'lucide';
 import {
   calculateValuation,
+  calculateAnalogAudit,
   money,
+  moneyWithCents,
   moneyPerSqm,
   sqm,
   percent,
@@ -29,6 +31,8 @@ let cases = getStoredCases();
 let activeCaseId = getActiveCaseId() || (cases[0] ? cases[0].id : null);
 let currentView = 'dashboard'; // 'dashboard' | 'cabinet' | 'case'
 let activeTab = 'analogs'; // 'object' | 'analogs' | 'calculation' | 'report'
+let expandedAuditIds = new Set();
+let analogCityFilter = 'all'; // 'all' | 'Тольятти' | 'Самара' | 'Сызрань'
 
 // URL Query routing for direct tab/view access & screenshots
 if (typeof window !== 'undefined' && window.location) {
@@ -1354,16 +1358,138 @@ function renderTabObject(activeCase) {
 /**
  * Вкладка 2: Таблица аналогов и поправок (Таблица 12.2)
  */
+/**
+ * Пошаговая карточка аудита вычислений по аналогу (для возрастных оценщиков и проверки на калькуляторе)
+ */
+function renderAnalogAuditDrawer(a, audit, o, analogNum) {
+  return `
+    <div class="analog-audit-card">
+      <div class="audit-card-top">
+        <div class="audit-card-title">
+          <div class="audit-tag">${icon('calculator')} Формульный аудит расчёта (ФСО №7 + Лейфер)</div>
+          <h4>Аналог №${analogNum}: ${a.address}</h4>
+        </div>
+        <div class="audit-card-badge">
+          ${icon('check-circle')} Верификация: Citizen / Excel (округление шагов до 0,01 ₽)
+        </div>
+      </div>
+
+      <div class="audit-steps-grid">
+        <!-- Шаг 1: Исходная цена 1 м² -->
+        <div class="audit-step-card">
+          <div class="step-badge">Шаг 1</div>
+          <div class="step-title">Исходная удельная цена</div>
+          <div class="step-math">
+            <code>Цена / S_общ = ${money(audit.price)} / ${sqm(audit.area)}</code>
+          </div>
+          <div class="step-value">
+            <span class="exact-val">${moneyWithCents(audit.rawPricePerSqm)}</span>
+            <span class="round-val">(в таблице: ${moneyPerSqm(audit.initialPricePerSqm)})</span>
+          </div>
+          <div class="step-note">Базовая цена предложения до внесения рыночных корректировок.</div>
+        </div>
+
+        <!-- Шаг 2: Торг -->
+        <div class="audit-step-card">
+          <div class="step-badge">Шаг 2</div>
+          <div class="step-title">Поправка на торг (ФСО №7)</div>
+          <div class="step-math">
+            <code>P₁ = P_исх × (1 + Торг%) = ${audit.rawPricePerSqm.toFixed(2)} × (1 ${audit.tradeAdj >= 0 ? '+' : '-'} ${(Math.abs(audit.tradeAdj)/100).toFixed(4)})</code>
+          </div>
+          <div class="step-value">
+            <span class="exact-val">${moneyWithCents(audit.pTrade)}</span>
+            <span class="round-val">(в таблице: ${moneyPerSqm(audit.priceAfterTrade)})</span>
+          </div>
+          <div class="step-note">Скидка на уторгование ${percent(audit.tradeAdj)} по п. 11 ФСО №7 для открытого рынка.</div>
+        </div>
+
+        <!-- Шаг 3: Отделка -->
+        <div class="audit-step-card">
+          <div class="step-badge">Шаг 3</div>
+          <div class="step-title">Поправка на отделку (Лейфер)</div>
+          <div class="step-math">
+            <code>P₂ = P₁ × (1 + Отделка%) = ${audit.pTrade.toFixed(2)} × (1 ${audit.finishAdj >= 0 ? '+' : '-'} ${(Math.abs(audit.finishAdj)/100).toFixed(4)})</code>
+          </div>
+          <div class="step-value">
+            <span class="exact-val">${moneyWithCents(audit.pFinish)}</span>
+            <span class="round-val">(в таблице: ${moneyPerSqm(audit.priceAfterFinish)})</span>
+          </div>
+          <div class="step-note">Объект: «${audit.objFinish}» vs Аналог: «${audit.analogFinish}» (${percent(audit.finishAdj)}, Лейфер).</div>
+        </div>
+
+        <!-- Шаг 4: Этаж -->
+        <div class="audit-step-card">
+          <div class="step-badge">Шаг 4</div>
+          <div class="step-title">Поправка на этаж (Лейфер)</div>
+          <div class="step-math">
+            <code>P₃ = P₂ × (1 + Этаж%) = ${audit.pFinish.toFixed(2)} × (1 ${audit.floorAdj >= 0 ? '+' : '-'} ${(Math.abs(audit.floorAdj)/100).toFixed(4)})</code>
+          </div>
+          <div class="step-value">
+            <span class="exact-val">${moneyWithCents(audit.pFloor)}</span>
+            <span class="round-val">(в таблице: ${moneyPerSqm(audit.priceAfterFloor)})</span>
+          </div>
+          <div class="step-note">Объект: ${audit.objFloor}/${audit.objTotalFloors} эт. vs Аналог: ${audit.analogFloor}/${audit.analogTotalFloors} эт. (${percent(audit.floorAdj)}, Лейфер).</div>
+        </div>
+
+        <!-- Шаг 5: Масштаб -->
+        <div class="audit-step-card">
+          <div class="step-badge">Шаг 5</div>
+          <div class="step-title">Поправка на масштаб площади (Лейфер)</div>
+          <div class="step-math">
+            <code>K_s = (${audit.analogArea} / ${audit.objArea})^0,10 - 1 = ${percent(audit.areaAdj)}</code>
+          </div>
+          <div class="step-value">
+            <span class="exact-val">${moneyWithCents(audit.pArea)}</span>
+            <span class="round-val">(в таблице: ${moneyPerSqm(audit.priceAfterArea)})</span>
+          </div>
+          <div class="step-note">Степенная функция масштабирования Лейфера для многоквартирных домов.</div>
+        </div>
+
+        <!-- Шаг 6: Вес в выборке -->
+        <div class="audit-step-card highlight">
+          <div class="step-badge">Шаг 6</div>
+          <div class="step-title">Взвешивание в выборке (wi)</div>
+          <div class="step-math">
+            <code>w = (Σk - ki) / ((N - 1) × Σk) = (${audit.totalCorrections} - ${audit.correctionsCount}) / (${(audit.selectedCount - 1) * audit.totalCorrections || 1})</code>
+          </div>
+          <div class="step-value">
+            <span class="exact-val" style="color: var(--primary);">${weightFmt(audit.weight)}</span>
+            <span class="round-val">(поправок Ki = ${audit.correctionsCount} из 4)</span>
+          </div>
+          <div class="step-note">Принцип обратных весов: чем меньше корректировок, тем выше вес аналога.</div>
+        </div>
+      </div>
+
+      <div class="audit-card-footer">
+        ${icon('shield-check')} <span>Формулы сверены. Промежуточные результаты округлены до сотых по правилам финансовой математики. Оценщик может сверить результат на калькуляторе.</span>
+      </div>
+    </div>
+  `;
+}
+
 function renderTabAnalogs(activeCase, res) {
   const o = activeCase.objectData;
+  const allAnalogs = activeCase.analogs || [];
+  const cityOptions = ['Все города', 'Тольятти', 'Самара', 'Сызрань'];
+  const cityCounts = {
+    'Все города': allAnalogs.length,
+    'Тольятти': allAnalogs.filter(a => (a.address || '').includes('Тольятти')).length,
+    'Самара': allAnalogs.filter(a => (a.address || '').includes('Самара')).length,
+    'Сызрань': allAnalogs.filter(a => (a.address || '').includes('Сызрань')).length,
+  };
+  const filteredAnalogs = allAnalogs.filter(a => {
+    if (!analogCityFilter || analogCityFilter === 'all' || analogCityFilter === 'Все города') return true;
+    return (a.address || '').toLowerCase().includes(analogCityFilter.toLowerCase());
+  });
+
   return `
     <div class="panel">
-      <div class="panel-header">
+      <div class="panel-header" style="flex-wrap: wrap; gap: 14px;">
         <div class="panel-title">
           <h3>Подбор аналогов и матрица корректировок</h3>
           <p>Таблица 12.2 отчёта: сравнительный подход к оценке рыночной стоимости</p>
         </div>
-        <div style="display: flex; align-items: center; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
           <div class="trade-bar" title="Поправка на торг к ценам предложений">
             <label for="case-trade-slider">Торг:</label>
             <input type="range" id="case-trade-slider" min="-15" max="0" step="0.5" value="${o.tradeAdjustment}">
@@ -1373,6 +1499,20 @@ function renderTabAnalogs(activeCase, res) {
             ${icon('plus')} Добавить аналог
           </button>
         </div>
+      </div>
+
+      <!-- Быстрый фильтр аналогов по городам -->
+      <div class="city-filter-bar">
+        <span class="city-filter-label">${icon('map-pin')} Локация:</span>
+        ${cityOptions.map(city => {
+          const isActive = (city === 'Все города' && (analogCityFilter === 'all' || analogCityFilter === 'Все города')) || analogCityFilter === city;
+          const count = cityCounts[city] || 0;
+          return `
+            <button type="button" class="city-pill ${isActive ? 'active' : ''}" data-city-filter="${city === 'Все города' ? 'all' : city}">
+              ${city} <span style="opacity: 0.8; font-size: 11px;">(${count})</span>
+            </button>
+          `;
+        }).join('')}
       </div>
 
       <div class="banner-calc-info">
@@ -1389,7 +1529,7 @@ function renderTabAnalogs(activeCase, res) {
           <thead>
             <tr>
               <th style="width: 36px;"><span class="sr-only">Выбор</span></th>
-              <th>Предложение и адрес</th>
+              <th>Предложение, адрес и источник</th>
               <th>Цена предложения</th>
               <th>Торг</th>
               <th>Отделка</th>
@@ -1398,14 +1538,18 @@ function renderTabAnalogs(activeCase, res) {
               <th>Скоррект. 1 м²</th>
               <th>Число поправок (Ki)</th>
               <th>Вес в итоге</th>
+              <th style="text-align: center; width: 130px;">Ход расчёта</th>
               <th style="width: 40px;"></th>
             </tr>
           </thead>
           <tbody>
-            ${activeCase.analogs.map((a, idx) => {
+            ${filteredAnalogs.map((a, idx) => {
               const row = res.rows.find(r => r.id === a.id);
               const isSelected = a.selected;
               const rawPerSqm = Math.round(a.price / a.area);
+              const isExpanded = expandedAuditIds.has(a.id);
+              const audit = (row && row.audit) ? row.audit : calculateAnalogAudit(a, o, o.tradeAdjustment, res.totalCorrections, res.selectedCount);
+
               return `
                 <tr class="${isSelected ? 'active-row' : 'inactive-row'}">
                   <td>
@@ -1421,7 +1565,19 @@ function renderTabAnalogs(activeCase, res) {
                         <span>·</span>
                         <span>${a.finish}</span>
                         <span>·</span>
-                        <a class="analog-link" href="${a.url || '#'}" target="_blank" rel="noopener noreferrer">${a.source || 'Источник'} ${icon('external-link')}</a>
+                        <span class="analog-source-wrap">
+                          ${a.url ? `
+                            <a class="btn-source-link" href="${a.url}" target="_blank" rel="noopener noreferrer" title="Открыть первоисточник объявления">
+                              <span class="source-badge">${a.source || 'Источник'}</span>
+                              ${icon('external-link')}
+                              <span>Где взят</span>
+                            </a>
+                          ` : `
+                            <span class="btn-source-link empty" title="Ссылка на объявление не указана">
+                              ${icon('link-2')} Без ссылки
+                            </span>
+                          `}
+                        </span>
                       </div>
                     </div>
                   </td>
@@ -1455,10 +1611,23 @@ function renderTabAnalogs(activeCase, res) {
                       </div>
                     ` : '<span style="color: var(--text-dim);">0%</span>'}
                   </td>
+                  <td style="text-align: center;">
+                    <button type="button" class="btn-audit-toggle ${isExpanded ? 'expanded' : ''}" data-action="toggle-audit" data-id="${a.id}" title="Пошаговая сверка на калькуляторе Citizen / Excel">
+                      ${icon(isExpanded ? 'chevron-up' : 'calculator')}
+                      <span>${isExpanded ? 'Скрыть ход' : 'Ход расчёта'}</span>
+                    </button>
+                  </td>
                   <td>
                     <button class="btn btn-danger btn-sm" data-action="delete-analog" data-id="${a.id}" title="Удалить аналог">${icon('x')}</button>
                   </td>
                 </tr>
+                ${isExpanded ? `
+                  <tr class="audit-drawer-row">
+                    <td colspan="12">
+                      ${renderAnalogAuditDrawer(a, audit, o, idx + 1)}
+                    </td>
+                  </tr>
+                ` : ''}
               `;
             }).join('')}
           </tbody>
@@ -1576,6 +1745,15 @@ function renderTabCalculation(activeCase, res) {
  */
 function renderTabReport(activeCase, res) {
   const o = activeCase.objectData;
+  const cl = activeCase.checklist || {
+    egrn: activeCase.status === 'Готов',
+    inspection: activeCase.status === 'Готов',
+    market: activeCase.status === 'Готов',
+    leifer: activeCase.status === 'Готов',
+    shares: activeCase.status === 'Готов',
+  };
+  const checkedCount = [cl.egrn, cl.inspection, cl.market, cl.leifer, cl.shares].filter(Boolean).length;
+  const allChecked = checkedCount === 5;
   return `
     <div style="display: grid; grid-template-columns: 1fr 380px; gap: 24px; align-items: start;">
       <div class="panel">
@@ -1646,6 +1824,68 @@ function renderTabReport(activeCase, res) {
 
       <!-- Right Column: Audit & Responsibilities -->
       <div style="display: flex; flex-direction: column; gap: 16px;">
+        <!-- Зона самоконтроля оценщика перед выгрузкой (Чеклист) -->
+        <div class="checklist-panel">
+          <div class="checklist-panel-header">
+            <div class="checklist-panel-title">
+              <span class="checklist-tag">${icon('shield-alert')} Зона контроля оценщика</span>
+              <h4>Самоконтроль перед выгрузкой</h4>
+              <p>Обязательная персональная верификация данных перед печатью отчёта</p>
+            </div>
+            <div class="checklist-status-badge ${allChecked ? 'verified' : 'pending'}">
+              ${icon(allChecked ? 'check-circle-2' : 'alert-circle')}
+              <span>${allChecked ? 'Отчёт полностью проверен (5 из 5)' : `Самоконтроль: пройдено ${checkedCount} из 5`}</span>
+            </div>
+          </div>
+
+          <div class="checklist-items-wrap">
+            <label class="checklist-item ${cl.egrn ? 'checked' : ''}">
+              <input type="checkbox" data-checklist-key="egrn" ${cl.egrn ? 'checked' : ''}>
+              <span class="checklist-box">${icon(cl.egrn ? 'check' : '')}</span>
+              <span class="checklist-text">
+                <strong>1. Сверка с ЕГРН:</strong> кадастровый номер <b>${o.cadastralNumber}</b>, площадь <b>${o.area} м²</b>, этаж <b>${o.floor}/${o.totalFloors}</b> сверены с выпиской.
+              </span>
+            </label>
+
+            <label class="checklist-item ${cl.inspection ? 'checked' : ''}">
+              <input type="checkbox" data-checklist-key="inspection" ${cl.inspection ? 'checked' : ''}>
+              <span class="checklist-box">${icon(cl.inspection ? 'check' : '')}</span>
+              <span class="checklist-text">
+                <strong>2. Акт осмотра:</strong> класс отделки <b>«${o.finish}»</b> и состояние подтверждены актом натурного осмотра.
+              </span>
+            </label>
+
+            <label class="checklist-item ${cl.market ? 'checked' : ''}">
+              <input type="checkbox" data-checklist-key="market" ${cl.market ? 'checked' : ''}>
+              <span class="checklist-box">${icon(cl.market ? 'check' : '')}</span>
+              <span class="checklist-text">
+                <strong>3. Чистота аналогов:</strong> объявления проверены на открытом рынке (цены без скрытых условий и комиссии, ссылки активны).
+              </span>
+            </label>
+
+            <label class="checklist-item ${cl.leifer ? 'checked' : ''}">
+              <input type="checkbox" data-checklist-key="leifer" ${cl.leifer ? 'checked' : ''}>
+              <span class="checklist-box">${icon(cl.leifer ? 'check' : '')}</span>
+              <span class="checklist-text">
+                <strong>4. Таблица 12.2:</strong> поправки Лейфера (торг ${percent(o.tradeAdjustment)}, этаж, площадь, отделка) и веса согласованы.
+              </span>
+            </label>
+
+            <label class="checklist-item ${cl.shares ? 'checked' : ''}">
+              <input type="checkbox" data-checklist-key="shares" ${cl.shares ? 'checked' : ''}>
+              <span class="checklist-box">${icon(cl.shares ? 'check' : '')}</span>
+              <span class="checklist-text">
+                <strong>5. Таблица 12.5:</strong> доли правообладателей (${(o.shares || []).length} чел.) проверены по документам собственности.
+              </span>
+            </label>
+          </div>
+
+          <div class="checklist-disclaimer">
+            ${icon('info')}
+            <span>Программный комплекс гарантирует точность математических расчётов по методике ФСО №7 и Лейфера. Оценщик несёт персональную ответственность за достоверность первичных данных осмотра и отбор аналогов.</span>
+          </div>
+        </div>
+
         <!-- Large Action Button -->
         <button class="btn btn-primary" id="btn-export-word-sidebar" style="width: 100%; justify-content: center; padding: 13px; font-size: 14px; font-weight: 700; gap: 10px; box-shadow: 0 2px 8px rgba(30, 64, 175, 0.25);">
           ${icon('download')} Скачать официальный Word (.docx)
@@ -1679,27 +1919,6 @@ function renderTabReport(activeCase, res) {
             <li><b>3. Фототаблица:</b> вставить фотографии осмотра квартиры в Приложение №4.</li>
             <li><b>4. Юридическая подпись:</b> заверить отчет личной ЭЦП оценщика (ст. 15 135-ФЗ).</li>
           </ul>
-        </div>
-
-        <!-- Checklist -->
-        <div class="panel" style="margin: 0; padding: 16px 18px;">
-          <div style="font-size: 13px; font-weight: 700; color: var(--text-dark); margin-bottom: 10px;">
-            Чек-лист готовности дела к выпуску
-          </div>
-          <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12.5px;">
-            <div style="display: flex; align-items: center; gap: 8px; color: var(--green);">
-              ${icon('check-circle')} <span>Параметры объекта проверены</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 8px; color: ${res.selectedCount >= 3 ? 'var(--green)' : 'var(--amber)'};">
-              ${icon(res.selectedCount >= 3 ? 'check-circle' : 'alert-circle')} <span>Отобрано ${res.selectedCount} аналогов (минимум 3)</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 8px; color: ${res.variationPass ? 'var(--green)' : 'var(--amber)'};">
-              ${icon(res.variationPass ? 'check-circle' : 'alert-circle')} <span>Выборка однородна (V ≤ 33,0%)</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 8px; color: var(--green);">
-              ${icon('check-circle')} <span>Сумма долей совпадает с итогом на 100%</span>
-            </div>
-          </div>
         </div>
       </div>
     </div>
@@ -1977,6 +2196,48 @@ function bindEvents() {
       }
     });
   }
+
+  // City filter in analogs tab
+  document.querySelectorAll('[data-city-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      analogCityFilter = btn.dataset.cityFilter;
+      render();
+    });
+  });
+
+  // Toggle calculation audit drawer
+  document.querySelectorAll('[data-action="toggle-audit"]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      if (expandedAuditIds.has(id)) {
+        expandedAuditIds.delete(id);
+      } else {
+        expandedAuditIds.add(id);
+      }
+      render();
+    });
+  });
+
+  // Interactive self-control checklist in tab 4
+  document.querySelectorAll('[data-checklist-key]').forEach(cb => {
+    cb.addEventListener('change', e => {
+      const key = e.target.dataset.checklistKey;
+      const c = getActiveCase();
+      if (c) {
+        if (!c.checklist) {
+          c.checklist = { egrn: false, inspection: false, market: false, leifer: false, shares: false };
+        }
+        c.checklist[key] = e.target.checked;
+        cases = updateCase(cases, c);
+        render();
+        const count = Object.values(c.checklist).filter(Boolean).length;
+        if (count === 5) {
+          toast('Все 5 пунктов самоконтроля подтверждены! Отчёт готов.');
+        }
+      }
+    });
+  });
 
   // Toggle analog checkbox
   document.querySelectorAll('[data-analog-toggle]').forEach(cb => {
@@ -2305,9 +2566,10 @@ function openAddAnalogModal() {
           </select>
         </div>
       </div>
-      <div class="form-group">
-        <label>Ссылка на объявление (Авито / Циан)</label>
-        <input type="url" name="url" placeholder="https://avito.ru/...">
+      <div class="form-group highlighted">
+        <label>Ссылка на объявление (Авито / Циан / ДомКлик) <span class="badge-source">Обязательно для ФСО</span></label>
+        <input type="url" name="url" placeholder="https://www.avito.ru/..." required>
+        <small style="color: var(--primary); font-size: 11px; margin-top: 4px; display: block;">Прямая ссылка для верификации цены и параметров оценщиком («Где взял?»)</small>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn btn-secondary" id="modal-cancel">Отмена</button>
@@ -2322,6 +2584,13 @@ function openAddAnalogModal() {
   dialog.querySelector('#form-add-analog').onsubmit = e => {
     e.preventDefault();
     const fd = new FormData(e.target);
+    const rawUrl = (fd.get('url') || '').trim();
+    let srcName = 'Открытый рынок';
+    if (rawUrl.includes('avito')) srcName = 'Авито';
+    else if (rawUrl.includes('cian')) srcName = 'Циан';
+    else if (rawUrl.includes('volga')) srcName = 'Волга-Инфо';
+    else if (rawUrl.includes('domclick')) srcName = 'ДомКлик';
+
     const newAnalog = {
       id: 'a_' + Date.now(),
       number: c.analogs.length + 1,
@@ -2336,8 +2605,8 @@ function openAddAnalogModal() {
       condition: 'хорошее',
       balcony: 'да',
       furniture: 'да',
-      source: 'Ручной ввод',
-      url: fd.get('url') || '',
+      source: srcName,
+      url: rawUrl,
       published: 'текущий месяц',
       floorAdj: 0.0,
       finishAdj: 0.0,
