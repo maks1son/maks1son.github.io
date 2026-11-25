@@ -3899,4 +3899,182 @@ dialog::backdrop {
   font-weight: 700;
 }
 
+/* ==========================================================================
+   Вкладка 1 (Объект оценки): последовательный минималистичный поток + доли
+   ========================================================================== */
+
+.object-flow {
+  max-width: 880px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.object-flow-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 4px 2px 8px;
+  flex-wrap: wrap;
+}
+
+.object-flow-top h3 {
+  font-size: 18px;
+  font-weight: 750;
+  color: var(--text-dark);
+  letter-spacing: -0.3px;
+}
+
+.object-flow-top p {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.object-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.obj-step-card {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 24px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+
+.obj-step-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.obj-step-num {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--primary-light);
+  color: var(--primary);
+  font-size: 12.5px;
+  font-weight: 750;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.obj-step-head h4 {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.obj-step-head p {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.share-total-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 650;
+  padding: 5px 10px;
+  border-radius: 7px;
+  font-variant-numeric: tabular-nums;
+}
+
+.share-total-badge.ok {
+  background: var(--green-light);
+  color: #065f46;
+  border: 1px solid var(--green-border);
+}
+
+.share-total-badge.warn {
+  background: var(--amber-light);
+  color: #92400e;
+  border: 1px solid var(--amber-border);
+}
+
+.shares-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.share-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  padding: 10px 14px;
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+
+.share-idx {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.share-holder-input {
+  flex: 1;
+  min-width: 200px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  background: #ffffff;
+  font-family: inherit;
+}
+
+.share-fraction-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.share-fraction-box input {
+  width: 64px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  text-align: center;
+  background: #ffffff;
+  font-variant-numeric: tabular-nums;
+  font-family: inherit;
+}
+
+.share-pct {
+  min-width: 54px;
+  text-align: right;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+}
+
+
 

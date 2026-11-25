@@ -2,6 +2,8 @@ import { createIcons, icons } from 'lucide';
 import {
   calculateValuation,
   calculateAnalogAudit,
+  sumSharesFraction,
+  getRemainingShareFraction,
   money,
   moneyWithCents,
   moneyPerSqm,
@@ -1214,143 +1216,172 @@ function renderCaseWorkspaceView(activeCase) {
  */
 function renderTabObject(activeCase) {
   const o = activeCase.objectData;
+  const shares = o.shares || [];
+  const sharesSum = sumSharesFraction(shares);
+  const remShare = getRemainingShareFraction(shares);
+  const isFull100 = sharesSum.num === sharesSum.den && sharesSum.den > 0;
+
   return `
-    <div class="panel">
-      <div class="panel-header">
-        <div class="panel-title">
-          <h3>Основные параметры объекта оценки</h3>
-          <p>Характеристики вносятся на основании Выписки ЕГРН и акта осмотра</p>
+    <div class="object-flow">
+      <div class="object-flow-top">
+        <div>
+          <h3>Параметры объекта оценки</h3>
+          <p>Последовательное заполнение данных по договору, выписке ЕГРН и акту осмотра</p>
         </div>
-        <button class="btn btn-primary btn-sm" id="btn-save-obj">${icon('check')} Сохранить объект</button>
+        <button class="btn btn-primary btn-sm" id="btn-save-obj">${icon('check')} Сохранить изменения</button>
       </div>
 
-      <form id="form-case-object">
-        <div class="form-grid-3">
-          <div class="form-field">
-            <label>Номер отчёта / дела <span class="badge-source">Шаблон</span></label>
-            <input type="text" name="reportNumber" value="${o.reportNumber}" required>
-          </div>
-          <div class="form-field">
-            <label>Кадастровый номер <span class="badge-source">ЕГРН</span></label>
-            <input type="text" name="cadastralNumber" value="${o.cadastralNumber}" required>
-          </div>
-          <div class="form-field">
-            <label>Дата оценки <span class="badge-source">Авто</span></label>
-            <input type="date" name="valuationDate" value="${o.valuationDate}" required>
-          </div>
-        </div>
-
-        <div class="form-field">
-          <label>Полный адрес объекта оценки <span class="badge-source">ЕГРН</span></label>
-          <input type="text" name="address" value="${o.address}" required>
-        </div>
-
-        <div class="form-grid-2">
-          <div class="form-field">
-            <label>Заказчик оценки <span class="badge-source">Договор</span></label>
-            <input type="text" name="client" value="${o.client}" required>
-          </div>
-          <div class="form-field">
-            <label>Цель оценки <span class="badge-source">Шаблон</span></label>
-            <input type="text" name="purpose" value="${o.purpose}">
-          </div>
-        </div>
-
-        <div class="form-grid-4">
-          <div class="form-field">
-            <label>Общая площадь (кв.м) <span class="badge-source">ЕГРН</span></label>
-            <input type="number" step="0.1" name="area" value="${o.area}" required>
-          </div>
-          <div class="form-field">
-            <label>Этаж расположения <span class="badge-source">ЕГРН</span></label>
-            <input type="number" name="floor" value="${o.floor}" required>
-          </div>
-          <div class="form-field">
-            <label>Этажность дома <span class="badge-source">ГИС ЖКХ</span></label>
-            <input type="number" name="totalFloors" value="${o.totalFloors}" required>
-          </div>
-          <div class="form-field">
-            <label>Материал стен здания <span class="badge-source">ГИС ЖКХ</span></label>
-            <select name="wallMaterial">
-              <option value="панель" ${o.wallMaterial === 'панель' ? 'selected' : ''}>Панель</option>
-              <option value="кирпич" ${o.wallMaterial === 'кирпич' ? 'selected' : ''}>Кирпич</option>
-              <option value="монолит" ${o.wallMaterial === 'монолит' ? 'selected' : ''}>Монолит</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Профессиональный блок технического состояния и отделки (Акт натурного осмотра) -->
-        <div class="inspection-section">
-          <div class="inspection-section-head">
-            <div class="inspection-head-left">
-              <span class="inspection-head-icon">${icon('clipboard-check')}</span>
-              <div>
-                <h4 class="inspection-title">Техническое состояние и внутренняя отделка</h4>
-                <p class="inspection-desc">Параметры фиксируются оценщиком по результатам натурного визуального осмотра квартиры</p>
-              </div>
+      <form id="form-case-object" class="object-steps">
+        <!-- Шаг 1: Реквизиты дела и договора -->
+        <section class="obj-step-card">
+          <div class="obj-step-head">
+            <span class="obj-step-num">1</span>
+            <div>
+              <h4>Дело и договор</h4>
+              <p>Основные реквизиты отчёта и заказчика</p>
             </div>
-            <span class="inspection-badge">
-              ${icon('shield-check')} Акт осмотра оценщика
-            </span>
           </div>
+          <div class="form-grid-2">
+            <div class="form-field">
+              <label>Номер отчёта / дела</label>
+              <input type="text" name="reportNumber" value="${o.reportNumber}" required>
+            </div>
+            <div class="form-field">
+              <label>Дата оценки</label>
+              <input type="date" name="valuationDate" value="${o.valuationDate}" required>
+            </div>
+            <div class="form-field">
+              <label>Заказчик оценки</label>
+              <input type="text" name="client" value="${o.client}" required>
+            </div>
+            <div class="form-field">
+              <label>Цель оценки</label>
+              <input type="text" name="purpose" value="${o.purpose}">
+            </div>
+          </div>
+        </section>
 
-          <div class="inspection-grid">
-            <div class="inspection-card">
-              <div class="inspection-card-top">
-                <label for="field-finish" class="inspection-label">Тип внутренней отделки</label>
-                <span class="inspection-tag">Методика Лейфера</span>
-              </div>
-              <select name="finish" id="field-finish" class="inspection-select">
-                <option value="улучшенная" ${o.finish === 'улучшенная' ? 'selected' : ''}>Улучшенная отделка (современный ремонт, качественные материалы)</option>
-                <option value="простая" ${o.finish === 'простая' ? 'selected' : ''}>Простая отделка (муниципальная / стандартный типовой ремонт)</option>
+        <!-- Шаг 2: Характеристики из ЕГРН -->
+        <section class="obj-step-card">
+          <div class="obj-step-head">
+            <span class="obj-step-num">2</span>
+            <div>
+              <h4>Адрес и характеристики объекта</h4>
+              <p>Сведения из выписки ЕГРН и ГИС ЖКХ</p>
+            </div>
+          </div>
+          <div class="form-field" style="margin-bottom: 14px;">
+            <label>Полный адрес объекта оценки</label>
+            <input type="text" name="address" value="${o.address}" required>
+          </div>
+          <div class="form-grid-2" style="margin-bottom: 14px;">
+            <div class="form-field">
+              <label>Кадастровый номер</label>
+              <input type="text" name="cadastralNumber" value="${o.cadastralNumber}" required>
+            </div>
+            <div class="form-field">
+              <label>Материал стен здания</label>
+              <select name="wallMaterial">
+                <option value="панель" ${o.wallMaterial === 'панель' ? 'selected' : ''}>Панель</option>
+                <option value="кирпич" ${o.wallMaterial === 'кирпич' ? 'selected' : ''}>Кирпич</option>
+                <option value="монолит" ${o.wallMaterial === 'монолит' ? 'selected' : ''}>Монолит</option>
               </select>
-              <div class="inspection-hint">
-                ${icon('info')} Влияет на расчёт корректировки к аналогам в сравнительном подходе
-              </div>
-            </div>
-
-            <div class="inspection-card">
-              <div class="inspection-card-top">
-                <label for="field-condition" class="inspection-label">Физическое состояние помещений</label>
-                <span class="inspection-tag">Фототаблица</span>
-              </div>
-              <select name="condition" id="field-condition" class="inspection-select">
-                <option value="хорошее" ${o.condition === 'хорошее' ? 'selected' : ''}>Хорошее (эксплуатационный износ минимален, дефекты отсутствуют)</option>
-                <option value="отличное" ${o.condition === 'отличное' ? 'selected' : ''}>Отличное (новое состояние / высококачественный евроремонт)</option>
-                <option value="требует ремонта" ${o.condition === 'требует ремонта' ? 'selected' : ''}>Требует ремонта (наличие дефектов, требуется ремонт)</option>
-              </select>
-              <div class="inspection-hint">
-                ${icon('info')} Отражается в описании объекта и подтверждается фототаблицей
-              </div>
             </div>
           </div>
-        </div>
+          <div class="form-grid-3">
+            <div class="form-field">
+              <label>Общая площадь (м²)</label>
+              <input type="number" step="0.1" name="area" value="${o.area}" required>
+            </div>
+            <div class="form-field">
+              <label>Этаж</label>
+              <input type="number" name="floor" value="${o.floor}" required>
+            </div>
+            <div class="form-field">
+              <label>Этажность дома</label>
+              <input type="number" name="totalFloors" value="${o.totalFloors}" required>
+            </div>
+          </div>
+        </section>
+
+        <!-- Шаг 3: Акт осмотра -->
+        <section class="obj-step-card">
+          <div class="obj-step-head">
+            <span class="obj-step-num">3</span>
+            <div>
+              <h4>Состояние и отделка</h4>
+              <p>По результатам натурного осмотра оценщика</p>
+            </div>
+          </div>
+          <div class="form-grid-2">
+            <div class="form-field">
+              <label for="field-finish">Тип внутренней отделки</label>
+              <select name="finish" id="field-finish">
+                <option value="улучшенная" ${o.finish === 'улучшенная' ? 'selected' : ''}>Улучшенная (современный ремонт)</option>
+                <option value="простая" ${o.finish === 'простая' ? 'selected' : ''}>Простая (типовой ремонт)</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label for="field-condition">Физическое состояние</label>
+              <select name="condition" id="field-condition">
+                <option value="хорошее" ${o.condition === 'хорошее' ? 'selected' : ''}>Хорошее (дефекты отсутствуют)</option>
+                <option value="отличное" ${o.condition === 'отличное' ? 'selected' : ''}>Отличное (евроремонт)</option>
+                <option value="требует ремонта" ${o.condition === 'требует ремонта' ? 'selected' : ''}>Требует ремонта</option>
+              </select>
+            </div>
+          </div>
+        </section>
       </form>
-    </div>
 
-    <!-- Shares Block -->
-    <div class="panel">
-      <div class="panel-header">
-        <div class="panel-title">
-          <h3>Долевая собственность на объект</h3>
-          <p>Сведения о правообладателях и размерах долей из ЕГРН</p>
-        </div>
-        <button class="btn btn-secondary btn-sm" id="btn-add-share">${icon('plus')} Добавить собственника</button>
-      </div>
-
-      <div style="display: grid; gap: 10px;">
-        ${(o.shares || []).map((s, idx) => `
-          <div style="display: flex; align-items: center; gap: 12px; background: #f8fafc; border: 1px solid var(--border); padding: 10px 14px; border-radius: 6px;">
-            <span style="font-size: 12px; font-weight: 700; color: var(--text-muted); width: 20px;">#${idx+1}</span>
-            <input type="text" data-share-holder="${idx}" value="${s.holder}" placeholder="ФИО собственника" style="flex: 1; padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px;">
-            <span style="font-size: 12px; color: var(--text-muted);">Доля:</span>
-            <input type="number" data-share-num="${idx}" value="${s.num}" style="width: 70px; padding: 6px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px;" title="Числитель доли">
-            <span>/</span>
-            <input type="number" data-share-den="${idx}" value="${s.den}" style="width: 70px; padding: 6px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px;" title="Знаменатель доли">
-            <button class="btn btn-danger btn-sm" data-action="delete-share" data-index="${idx}" title="Удалить долю">${icon('trash-2')}</button>
+      <!-- Шаг 4: Долевая собственность -->
+      <section class="obj-step-card">
+        <div class="obj-step-head" style="justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <span class="obj-step-num">4</span>
+            <div>
+              <h4>Долевая собственность</h4>
+              <p>Единица (100%) распределяется между собственниками</p>
+            </div>
           </div>
-        `).join('')}
-      </div>
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span class="share-total-badge ${isFull100 ? 'ok' : 'warn'}">
+              ${isFull100
+                ? `${icon('check-circle')} Сумма: 100% (1/1)`
+                : `${icon('alert-circle')} Сумма: ${sharesSum.percent.toFixed(1).replace('.', ',')}% · Остаток ${remShare.num}/${remShare.den}`
+              }
+            </span>
+            ${shares.length > 1 ? `
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-equal-shares" title="Разделить 100% поровну на всех">
+                Поровну (1/${shares.length})
+              </button>
+            ` : ''}
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-add-share">
+              ${icon('plus')} Добавить собственника
+            </button>
+          </div>
+        </div>
+
+        <div class="shares-list">
+          ${shares.map((s, idx) => {
+            const pct = ((Number(s.num) || 0) / Math.max(1, Number(s.den) || 1) * 100).toFixed(1).replace('.', ',');
+            return `
+              <div class="share-row">
+                <span class="share-idx">${idx + 1}</span>
+                <input type="text" data-share-holder="${idx}" value="${s.holder}" placeholder="ФИО собственника" class="share-holder-input">
+                <div class="share-fraction-box">
+                  <input type="number" min="0" data-share-num="${idx}" value="${s.num}" title="Числитель доли">
+                  <span>/</span>
+                  <input type="number" min="1" data-share-den="${idx}" value="${s.den}" title="Знаменатель доли">
+                </div>
+                <span class="share-pct">${pct}%</span>
+                <button type="button" class="btn btn-danger btn-sm" data-action="delete-share" data-index="${idx}" title="Удалить собственника" ${shares.length <= 1 ? 'disabled style="opacity:0.4;pointer-events:none;"' : ''}>
+                  ${icon('trash-2')}
+                </button>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </section>
     </div>
   `;
 }
@@ -1890,36 +1921,6 @@ function renderTabReport(activeCase, res) {
         <button class="btn btn-primary" id="btn-export-word-sidebar" style="width: 100%; justify-content: center; padding: 13px; font-size: 14px; font-weight: 700; gap: 10px; box-shadow: 0 2px 8px rgba(30, 64, 175, 0.25);">
           ${icon('download')} Скачать официальный Word (.docx)
         </button>
-
-        <!-- Audit Card 1: Автоматизированные разделы отчёта -->
-        <div class="audit-card robot">
-          <div class="audit-head">
-            ${icon('check-circle-2')} Автоматизировано программой по шаблону (100%)
-          </div>
-          <ul class="audit-list">
-            <li>${icon('check')} Подставлены реквизиты объекта, адрес, кадастровый номер и заказчик</li>
-            <li>${icon('check')} Все нормативные разделы по 135-ФЗ, ФСО I-VI №200 и ФСО №7</li>
-            <li>${icon('check')} Методологическое обоснование отказа от затратного и доходного подходов</li>
-            <li>${icon('check')} Матрица корректировок Лейфера (скидка на торг, этаж, площадь, отделка)</li>
-            <li>${icon('check')} Алгоритмический расчет обратных весов каждого аналога</li>
-            <li>${icon('check')} Статистический контроль выборки (V = 4,09% ≤ 33,0% — соблюден)</li>
-            <li>${icon('check')} Расчет итоговой рыночной стоимости полного права и долей</li>
-            <li>${icon('check')} Формирование суммы прописью на русском языке</li>
-          </ul>
-        </div>
-
-        <!-- Audit Card 2: Зона контроля оценщика -->
-        <div class="audit-card human">
-          <div class="audit-head">
-            ${icon('shield-alert')} Зона контроля оценщика
-          </div>
-          <ul class="audit-list">
-            <li><b>1. Проверка аналогов:</b> подтвердить отсутствие дублей риелторов на Авито/Циан.</li>
-            <li><b>2. Сверка отделки:</b> сверить состояние с актом натурного визуального осмотра.</li>
-            <li><b>3. Фототаблица:</b> вставить фотографии осмотра квартиры в Приложение №4.</li>
-            <li><b>4. Юридическая подпись:</b> заверить отчет личной ЭЦП оценщика (ст. 15 135-ФЗ).</li>
-          </ul>
-        </div>
       </div>
     </div>
   `;
@@ -2298,20 +2299,52 @@ function bindEvents() {
     }
   });
 
-  // Add share button
+  // Add share button (строго <= 100%: остаток или деление 1 поровну на всех)
   document.getElementById('btn-add-share')?.addEventListener('click', () => {
     const c = getActiveCase();
     if (c) {
       if (!c.objectData.shares) c.objectData.shares = [];
-      c.objectData.shares.push({
-        id: 's_' + Date.now(),
-        holder: 'Новый собственник',
-        num: 1,
-        den: 2,
+      const shares = c.objectData.shares;
+      const rem = getRemainingShareFraction(shares);
+
+      if (rem.num > 0) {
+        shares.push({
+          id: 's_' + Date.now(),
+          holder: 'Новый собственник',
+          num: rem.num,
+          den: rem.den,
+        });
+      } else {
+        shares.push({
+          id: 's_' + Date.now(),
+          holder: 'Новый собственник',
+          num: 1,
+          den: 1,
+        });
+        const totalOwners = shares.length;
+        shares.forEach(s => {
+          s.num = 1;
+          s.den = totalOwners;
+        });
+      }
+      cases = updateCase(cases, c);
+      render();
+      toast('Собственник добавлен, доли распределены на 100%');
+    }
+  });
+
+  // Equal shares button (разделить 100% поровну)
+  document.getElementById('btn-equal-shares')?.addEventListener('click', () => {
+    const c = getActiveCase();
+    if (c && c.objectData.shares && c.objectData.shares.length > 0) {
+      const n = c.objectData.shares.length;
+      c.objectData.shares.forEach(s => {
+        s.num = 1;
+        s.den = n;
       });
       cases = updateCase(cases, c);
       render();
-      toast('Доля добавлена');
+      toast(`Единица разделена поровну (по 1/${n})`);
     }
   });
 
@@ -2320,16 +2353,50 @@ function bindEvents() {
     btn.addEventListener('click', () => {
       const idx = parseInt(btn.dataset.index);
       const c = getActiveCase();
-      if (c && c.objectData.shares) {
+      if (c && c.objectData.shares && c.objectData.shares.length > 1) {
         c.objectData.shares.splice(idx, 1);
+        const shares = c.objectData.shares;
+        if (shares.length === 1) {
+          shares[0].num = 1;
+          shares[0].den = 1;
+        } else {
+          const first = shares[0];
+          const allEqual = shares.every(s => s.num === first.num && s.den === first.den);
+          if (allEqual) {
+            shares.forEach(s => {
+              s.num = 1;
+              s.den = shares.length;
+            });
+          }
+        }
         cases = updateCase(cases, c);
         render();
-        toast('Доля удалена');
+        toast('Собственник удалён');
       }
     });
   });
 
-  // Live edit shares
+  // Live edit shares with strict <= 100% cap
+  const applyShareChange = (idx, nextNum, nextDen) => {
+    const c = getActiveCase();
+    if (!c || !c.objectData.shares[idx]) return;
+    const shares = c.objectData.shares;
+    const safeDen = Math.max(1, Math.round(nextDen) || 1);
+    const safeNum = Math.max(0, Math.round(nextNum) || 0);
+    const rem = getRemainingShareFraction(shares, idx);
+
+    if (safeNum * rem.den > rem.num * safeDen) {
+      shares[idx].num = rem.num;
+      shares[idx].den = rem.den;
+      toast('Сумма долей не может превышать 100%. Установлен доступный остаток.');
+    } else {
+      shares[idx].num = safeNum;
+      shares[idx].den = safeDen;
+    }
+    cases = updateCase(cases, c);
+    render();
+  };
+
   document.querySelectorAll('[data-share-holder]').forEach(inp => {
     inp.addEventListener('change', e => {
       const idx = parseInt(e.target.dataset.shareHolder);
@@ -2345,9 +2412,7 @@ function bindEvents() {
       const idx = parseInt(e.target.dataset.shareNum);
       const c = getActiveCase();
       if (c && c.objectData.shares[idx]) {
-        c.objectData.shares[idx].num = parseInt(e.target.value) || 1;
-        cases = updateCase(cases, c);
-        render();
+        applyShareChange(idx, parseInt(e.target.value), c.objectData.shares[idx].den);
       }
     });
   });
@@ -2356,9 +2421,7 @@ function bindEvents() {
       const idx = parseInt(e.target.dataset.shareDen);
       const c = getActiveCase();
       if (c && c.objectData.shares[idx]) {
-        c.objectData.shares[idx].den = parseInt(e.target.value) || 1;
-        cases = updateCase(cases, c);
-        render();
+        applyShareChange(idx, c.objectData.shares[idx].num, parseInt(e.target.value));
       }
     });
   });

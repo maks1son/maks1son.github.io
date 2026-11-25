@@ -612,3 +612,48 @@ export function defaultObject() {
   return defaultCases()[0].objectData;
 }
 
+/**
+ * Точная арифметика простых дробей для долевой собственности (исключает > 100%)
+ */
+export function gcd(a, b) {
+  let x = Math.abs(Math.round(a));
+  let y = Math.abs(Math.round(b));
+  while (y) {
+    const t = y;
+    y = x % y;
+    x = t;
+  }
+  return x || 1;
+}
+
+export function reduceFraction(num, den) {
+  const safeDen = Math.max(1, Math.round(den) || 1);
+  const safeNum = Math.max(0, Math.round(num) || 0);
+  if (safeNum === 0) return { num: 0, den: 1 };
+  const d = gcd(safeNum, safeDen);
+  return { num: safeNum / d, den: safeDen / d };
+}
+
+export function sumSharesFraction(shares, excludeIdx = -1) {
+  let num = 0;
+  let den = 1;
+  (shares || []).forEach((s, idx) => {
+    if (idx === excludeIdx) return;
+    const sn = Math.max(0, Math.round(Number(s.num)) || 0);
+    const sd = Math.max(1, Math.round(Number(s.den)) || 1);
+    const common = (den * sd) / gcd(den, sd);
+    num = num * (common / den) + sn * (common / sd);
+    den = common;
+    const r = reduceFraction(num, den);
+    num = r.num;
+    den = r.den;
+  });
+  return { num, den, percent: (num / den) * 100 };
+}
+
+export function getRemainingShareFraction(shares, excludeIdx = -1) {
+  const sum = sumSharesFraction(shares, excludeIdx);
+  const remNum = Math.max(0, sum.den - sum.num);
+  return reduceFraction(remNum, sum.den);
+}
+
