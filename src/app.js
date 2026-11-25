@@ -4,6 +4,8 @@ import {
   calculateAnalogAudit,
   sumSharesFraction,
   getRemainingShareFraction,
+  evaluateCaseQuality,
+  TEAM_MEMBERS,
   money,
   moneyWithCents,
   moneyPerSqm,
@@ -23,6 +25,12 @@ import {
   deleteCaseById,
   resetAllCases,
   toggleCasePin,
+  getCurrentProfile,
+  setCurrentProfile,
+  getActivityStore,
+  logActivityEvent,
+  recordTimeTick,
+  toLocalDateStr,
 } from './storage.js';
 import { exportApartmentReport } from './report.js';
 import '@fontsource-variable/onest';
@@ -31,12 +39,20 @@ import './styles.css';
 // State
 let cases = getStoredCases();
 let activeCaseId = getActiveCaseId() || (cases[0] ? cases[0].id : null);
-let currentView = 'dashboard'; // 'dashboard' | 'cabinet' | 'case'
+let currentView = 'dashboard'; // 'dashboard' | 'cabinet' | 'case' | 'control'
 let activeTab = 'analogs'; // 'object' | 'analogs' | 'calculation' | 'report'
 let expandedAuditIds = new Set();
 let analogCityFilter = 'all'; // 'all' | 'Тольятти' | 'Самара' | 'Сызрань'
 let dashTableFilter = 'all'; // 'all' | 'pinned' | 'В работе' | 'Готов' | 'Черновик'
 let dashChartView = 'chart'; // 'chart' | 'table'
+
+// Temporary Profile & Control Zone State
+let currentProfile = getCurrentProfile();
+let controlPeriod = 'today'; // 'today' | 'week' | 'month' | 'custom'
+let controlDateFrom = toLocalDateStr(new Date());
+let controlDateTo = toLocalDateStr(new Date());
+let controlEmployeeFilter = 'all';
+let lastUserInteractionAt = Date.now();
 
 // URL Query routing for direct tab/view access & screenshots
 if (typeof window !== 'undefined' && window.location) {
@@ -164,13 +180,32 @@ function setupSidebarEvents(sidebar) {
 /**
  * HTML содержимое боковой панели
  */
+function getActiveMember() {
+  return TEAM_MEMBERS.find(m => m.id === currentProfile.employeeId) || TEAM_MEMBERS[0];
+}
+
+function formatDurationShort(sec) {
+  const s = Math.max(0, Math.round(sec || 0));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (h > 0) return `${h}ч ${m}м`;
+  return `${m}м`;
+}
+
 function renderSidebarContent(activeCase, inProgressCount, readyCount) {
+  const member = getActiveMember();
+  const isManager = currentProfile.role === 'manager';
+  const appraisers = TEAM_MEMBERS.filter(m => m.role === 'appraiser');
+  const todayStr = toLocalDateStr(new Date());
+  const actStore = getActivityStore();
+  const todayTime = actStore.timeByDayEmp?.[todayStr]?.[member.id] || { activeSec: 0, idleSec: 0 };
+
   return `
     <div class="sidebar-header">
       <img class="brand-emblem-img" src="/images/rosocenka-emblem.png" alt="РусОценка">
       <div class="brand-title">
         <strong>РУСОЦЕНКА</strong>
-        <span>Кабинет оценщика</span>
+        <span>${isManager ? 'Управление' : 'Кабинет оценщика'}</span>
       </div>
       <button type="button" class="btn-sidebar-pin ${isSidebarPinned ? 'pinned' : ''}" id="btn-sidebar-pin" title="${isSidebarPinned ? 'Открепить боковую панель' : 'Закрепить боковую панель'}">
         ${icon(isSidebarPinned ? 'pin-off' : 'pin')}
@@ -204,6 +239,13 @@ function renderSidebarContent(activeCase, inProgressCount, readyCount) {
         <span class="nav-badge">${readyCount}</span>
       </button>
 
+      ${isManager ? `
+        <button class="nav-item ${currentView === 'control' ? 'active' : ''}" data-nav="control" title="Контроль команды">
+          <span class="nav-icon">${icon('shield-check')}</span>
+          <span class="nav-label">Контроль команды</span>
+        </button>
+      ` : ''}
+
       ${activeCase ? `
         <div class="sidebar-divider"></div>
         <button class="nav-item ${currentView === 'case' && activeTab === 'object' ? 'active' : ''}" data-tab="object" title="1. Объект оценки">
@@ -225,11 +267,29 @@ function renderSidebarContent(activeCase, inProgressCount, readyCount) {
       ` : ''}
     </nav>
 
-    <div class="sidebar-profile" title="Орлова Анна Александровна · Ведущий оценщик">
-      <div class="profile-avatar">АО</div>
-      <div class="profile-info">
-        <span class="profile-name">Орлова Анна А.</span>
-        <span class="profile-role">Ведущий оценщик</span>
+    <!-- Временный переключатель профиля: Руководитель / Оценщик -->
+    <div class="sidebar-role-box">
+      <div class="role-toggle-pills">
+        <button type="button" class="role-pill ${isManager ? 'active' : ''}" data-role-switch="manager" title="Режим руководителя (Анна)">
+          Руководитель
+        </button>
+        <button type="button" class="role-pill ${!isManager ? 'active' : ''}" data-role-switch="appraiser" title="Режим оценщика">
+          Оценщик
+        </button>
+      </div>
+      ${!isManager ? `
+        <select id="sidebar-emp-select" class="sidebar-emp-select" title="Выбрать сотрудника">
+          ${appraisers.map(m => `<option value="${m.id}" ${m.id === member.id ? 'selected' : ''}>${m.shortName}</option>`).join('')}
+        </select>
+      ` : ''}
+      <div class="sidebar-profile" title="${member.name} · ${isManager ? 'Руководитель' : 'Оценщик'}">
+        <div class="profile-avatar">${member.initials}</div>
+        <div class="profile-info">
+          <span class="profile-name">${member.shortName}</span>
+          <span class="profile-role" id="sidebar-live-time">
+            ${isManager ? 'Руководитель' : 'Оценщик'} · ${formatDurationShort(todayTime.activeSec)}
+          </span>
+        </div>
       </div>
     </div>
   `;
@@ -459,6 +519,10 @@ function renderTopbarContent(activeCase) {
           <a href="#" id="crumb-dashboard">Главная</a>
           <span>/</span>
           <strong>Личный кабинет</strong>
+        ` : currentView === 'control' ? `
+          <a href="#" id="crumb-dashboard">Главная</a>
+          <span>/</span>
+          <strong>Зона управления и контроля</strong>
         ` : `
           <a href="#" id="crumb-dashboard">Главная</a>
           <span>/</span>
@@ -532,6 +596,10 @@ function render() {
     sidebar.classList.add('is-expanded');
   }
 
+  if (currentView === 'control' && currentProfile.role !== 'manager') {
+    currentView = 'dashboard';
+  }
+
   const activeCase = getActiveCase();
   const inProgressCount = cases.filter(c => c.status === 'В работе').length;
   const readyCount = cases.filter(c => c.status === 'Готов').length;
@@ -542,7 +610,11 @@ function render() {
     <div class="view-pane" data-view-pane="${currentView}">
       ${currentView === 'dashboard'
         ? renderDashboardView()
-        : (currentView === 'cabinet' ? renderCabinetView() : renderCaseWorkspaceView(activeCase))}
+        : currentView === 'cabinet'
+          ? renderCabinetView()
+          : currentView === 'control'
+            ? renderControlView()
+            : renderCaseWorkspaceView(activeCase)}
     </div>
   `;
 
@@ -733,7 +805,7 @@ function renderDashboardView() {
         <div class="kpi-card-label">Дела в работе / Готово</div>
         <div class="kpi-card-body">
           <div class="kpi-card-main">
-            <div class="kpi-card-val">${inProgressCases.length} <span style="font-size: 16px; color: var(--text-muted); font-weight: 500;">/ ${readyCases.length}</span></div>
+            <div class="kpi-card-val">${inProgressCases.length} <span style="font-size: 18px; color: var(--text-muted); font-weight: 500;">/ ${readyCases.length}</span></div>
             <div class="kpi-card-meta">
               <span class="kpi-delta neutral">Всего ${cases.length}</span>
               <span class="kpi-sub">в архиве</span>
@@ -1281,8 +1353,8 @@ function renderCabinetView() {
     <div class="cases-grid">
       ${filtered.length ? filtered.map(c => renderCaseDashboardCard(c)).join('') : `
         <div style="background: #ffffff; border: 1px dashed var(--border); border-radius: 10px; padding: 48px; text-align: center; color: var(--text-muted);">
-          <div style="font-size: 16px; font-weight: 600; margin-bottom: 6px;">Дел не найдено</div>
-          <p style="font-size: 13px; margin-bottom: 16px;">Попробуйте изменить параметры поиска или создайте новое дело.</p>
+          <div style="font-size: 18px; font-weight: 600; margin-bottom: 6px;">Дел не найдено</div>
+          <p style="font-size: 15px; margin-bottom: 16px;">Попробуйте изменить параметры поиска или создайте новое дело.</p>
           <button class="btn btn-primary" id="btn-empty-create">${icon('plus')} Добавить объект оценки</button>
         </div>
       `}
@@ -1297,6 +1369,7 @@ function renderCaseWorkspaceView(activeCase) {
   if (!activeCase) return '<div class="notice">Дело не выбрано</div>';
 
   const res = calculateValuation(activeCase.objectData, activeCase.analogs, activeCase.objectData.tradeAdjustment);
+  const quality = evaluateCaseQuality(activeCase, res);
 
   return `
     <!-- Case Sub-Tabs Navigation -->
@@ -1313,9 +1386,13 @@ function renderCaseWorkspaceView(activeCase) {
       <button class="case-tab-btn ${activeTab === 'report' ? 'active' : ''}" data-tab="report">
         ${icon('file-text')} 4. Готовый документ
       </button>
-      <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 12px; color: var(--text-muted);">Статус:</span>
-        <select id="case-status-select" style="padding: 4px 8px; border-radius: 6px; font-size: 12px; border: 1px solid var(--border);">
+      <div style="margin-left: auto; display: flex; align-items: center; gap: 10px;">
+        <button type="button" class="quality-pill ${quality.canMarkReady ? 'ok' : 'warn'}" id="btn-show-quality-gate" title="Показать детальный аудит готовности отчёта по ФСО">
+          ${icon(quality.canMarkReady ? 'shield-check' : 'shield-alert')}
+          <span>ФСО: ${quality.score}% (${quality.passedCount}/${quality.totalChecks})</span>
+        </button>
+        <span style="font-size: 14px; color: var(--text-muted);">Статус:</span>
+        <select id="case-status-select" style="padding: 4px 8px; border-radius: 6px; font-size: 14px; border: 1px solid var(--border);">
           <option value="В работе" ${activeCase.status === 'В работе' ? 'selected' : ''}>В работе</option>
           <option value="Готов" ${activeCase.status === 'Готов' ? 'selected' : ''}>Готов</option>
           <option value="Черновик" ${activeCase.status === 'Черновик' ? 'selected' : ''}>Черновик</option>
@@ -1637,43 +1714,29 @@ function renderTabAnalogs(activeCase, res) {
 
   return `
     <div class="panel">
-      <div class="panel-header" style="flex-wrap: wrap; gap: 14px;">
-        <div class="panel-title">
-          <h3>Подбор аналогов и матрица корректировок</h3>
-          <p>Таблица 12.2 отчёта: сравнительный подход к оценке рыночной стоимости</p>
+      <div class="panel-header" style="flex-wrap: wrap; gap: 14px; align-items: center; margin-bottom: 16px;">
+        <!-- Быстрый фильтр аналогов по городам -->
+        <div class="city-filter-bar" style="margin-bottom: 0;">
+          <span class="city-filter-label">${icon('map-pin')} Локация:</span>
+          ${cityOptions.map(city => {
+            const isActive = (city === 'Все города' && (analogCityFilter === 'all' || analogCityFilter === 'Все города')) || analogCityFilter === city;
+            const count = cityCounts[city] || 0;
+            return `
+              <button type="button" class="city-pill ${isActive ? 'active' : ''}" data-city-filter="${city === 'Все города' ? 'all' : city}">
+                ${city} <span style="opacity: 0.8; font-size: 13px;">(${count})</span>
+              </button>
+            `;
+          }).join('')}
         </div>
-        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-left: auto;">
           <div class="trade-bar" title="Поправка на торг к ценам предложений">
             <label for="case-trade-slider">Торг:</label>
             <input type="range" id="case-trade-slider" min="-15" max="0" step="0.5" value="${o.tradeAdjustment}">
             <output id="case-trade-output">${percent(o.tradeAdjustment)}</output>
           </div>
-          <button class="btn btn-primary btn-sm" id="btn-add-analog-modal">
+          <button class="btn btn-primary" id="btn-add-analog-modal" style="padding: 8px 16px;">
             ${icon('plus')} Добавить аналог
           </button>
-        </div>
-      </div>
-
-      <!-- Быстрый фильтр аналогов по городам -->
-      <div class="city-filter-bar">
-        <span class="city-filter-label">${icon('map-pin')} Локация:</span>
-        ${cityOptions.map(city => {
-          const isActive = (city === 'Все города' && (analogCityFilter === 'all' || analogCityFilter === 'Все города')) || analogCityFilter === city;
-          const count = cityCounts[city] || 0;
-          return `
-            <button type="button" class="city-pill ${isActive ? 'active' : ''}" data-city-filter="${city === 'Все города' ? 'all' : city}">
-              ${city} <span style="opacity: 0.8; font-size: 11px;">(${count})</span>
-            </button>
-          `;
-        }).join('')}
-      </div>
-
-      <div class="banner-calc-info">
-        <span class="banner-calc-icon">${icon('info')}</span>
-        <div>
-          <strong>Методология расчёта по ФСО:</strong>
-          <span><b>Программный расчёт:</b> автоматический расчёт скидки на торг (-6%), поправок Лейфера (этаж, площадь, отделка), скорректированных цен и весовых коэффициентов $w_i$.</span>
-          <span style="margin-left: 12px;"><b>Оценщик:</b> выборка проверенных объектов-аналогов из открытого рынка и подтверждение класса отделки по акту осмотра.</span>
         </div>
       </div>
 
@@ -1787,6 +1850,16 @@ function renderTabAnalogs(activeCase, res) {
           </tbody>
         </table>
       </div>
+
+      <!-- Пассивная сноска: Методология расчёта по ФСО (справочная информация внизу экрана) -->
+      <div class="analogs-methodology-footer">
+        <span class="methodology-footer-icon">${icon('info')}</span>
+        <div class="methodology-footer-text">
+          <span class="methodology-footer-title">Методология расчёта по ФСО</span>
+          <span><b>Программный расчёт:</b> автоматический расчёт скидки на торг (${percent(o.tradeAdjustment)}), поправок справочника Лейфера (этаж, площадь, отделка), скорректированных цен и весовых коэффициентов w<sub>i</sub>.</span>
+          <span><b>Оценщик:</b> выборка и верификация объектов из открытого рынка, подтверждение класса отделки по результатам осмотра.</span>
+        </div>
+      </div>
     </div>
   `;
 }
@@ -1800,11 +1873,11 @@ function renderTabCalculation(activeCase, res) {
       <div style="display: flex; flex-direction: column; gap: 24px;">
         <!-- Valuation Card -->
         <div style="background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); color: #ffffff; border-radius: 12px; padding: 28px; box-shadow: 0 4px 14px rgba(30, 64, 175, 0.2);">
-          <span style="font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: #bfdbfe; font-weight: 600;">Итоговая рыночная стоимость объекта (100% доля)</span>
-          <div style="font-size: 42px; font-weight: 750; letter-spacing: -1.2px; margin: 8px 0 4px; font-variant-numeric: tabular-nums;">
+          <span style="font-size: 15px; text-transform: uppercase; letter-spacing: 1px; color: #bfdbfe; font-weight: 600;">Итоговая рыночная стоимость объекта (100% доля)</span>
+          <div style="font-size: 44px; font-weight: 750; letter-spacing: -1.2px; margin: 8px 0 4px; font-variant-numeric: tabular-nums;">
             ${res.total ? money(res.total) : '—'}
           </div>
-          <div style="font-size: 15px; color: #e0e7ff; display: flex; gap: 14px;">
+          <div style="font-size: 17px; color: #e0e7ff; display: flex; gap: 14px;">
             <span>Удельная цена: <b>${res.pricePerSqm ? moneyPerSqm(res.pricePerSqm) : '—'}</b></span>
             <span>·</span>
             <span>Выборка: <b>${res.selectedCount} аналогов</b></span>
@@ -1824,16 +1897,16 @@ function renderTabCalculation(activeCase, res) {
             ${res.shares.map(s => `
               <div style="display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border); padding: 12px 16px; border-radius: 8px;">
                 <div>
-                  <strong style="font-size: 14px; color: var(--text-dark);">${s.holder}</strong>
-                  <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+                  <strong style="font-size: 16px; color: var(--text-dark);">${s.holder}</strong>
+                  <div style="font-size: 14px; color: var(--text-muted); margin-top: 2px;">
                     Доля: <b>${s.shareFraction}</b> (${s.percentOfTotal}%)
                   </div>
                 </div>
                 <div style="text-align: right;">
-                  <div style="font-size: 17px; font-weight: 700; color: var(--primary); font-variant-numeric: tabular-nums;">
+                  <div style="font-size: 19px; font-weight: 700; color: var(--primary); font-variant-numeric: tabular-nums;">
                     ${money(s.rounded)}
                   </div>
-                  <small style="font-size: 11px; color: var(--text-muted);">номинал: ${money(s.nominal)}</small>
+                  <small style="font-size: 13px; color: var(--text-muted);">номинал: ${money(s.nominal)}</small>
                 </div>
               </div>
             `).join('')}
@@ -1851,7 +1924,7 @@ function renderTabCalculation(activeCase, res) {
             </div>
           </div>
 
-          <div style="display: flex; flex-direction: column; gap: 12px; font-size: 13px;">
+          <div style="display: flex; flex-direction: column; gap: 12px; font-size: 15px;">
             <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-light); padding-bottom: 8px;">
               <span style="color: var(--text-muted);">Средняя цена (Pср)</span>
               <b>${res.meanPrice ? moneyPerSqm(res.meanPrice) : '—'}</b>
@@ -1862,17 +1935,17 @@ function renderTabCalculation(activeCase, res) {
             </div>
             <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-light); padding-bottom: 8px;">
               <span style="color: var(--text-muted);">Коэффициент вариации (V)</span>
-              <b style="font-size: 15px; color: ${res.variationPass ? 'var(--green)' : 'var(--amber)'};">
+              <b style="font-size: 17px; color: ${res.variationPass ? 'var(--green)' : 'var(--amber)'};">
                 ${res.variationCoeff != null ? res.variationCoeff.toFixed(2) + '%' : '—'}
               </b>
             </div>
             <div style="margin-top: 8px;">
               ${res.variationPass ? `
-                <div style="background: var(--green-light); color: #065f46; border: 1px solid var(--green-border); padding: 8px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                <div style="background: var(--green-light); color: #065f46; border: 1px solid var(--green-border); padding: 8px 12px; border-radius: 6px; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 6px;">
                   ${icon('check-circle')} Допуск соблюдён: V ≤ 33% (выборка однородна)
                 </div>
               ` : `
-                <div style="background: var(--amber-light); color: #92400e; border: 1px solid var(--amber-border); padding: 8px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                <div style="background: var(--amber-light); color: #92400e; border: 1px solid var(--amber-border); padding: 8px 12px; border-radius: 6px; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 6px;">
                   ${icon('alert-triangle')} Внимание: V > 33%
                 </div>
               `}
@@ -1881,11 +1954,11 @@ function renderTabCalculation(activeCase, res) {
         </div>
 
         <div class="panel">
-          <h4 style="font-size: 13px; font-weight: 700; margin-bottom: 8px;">Формула весов аналогов:</h4>
-          <p style="font-size: 12px; color: var(--text-muted); line-height: 1.5; margin-bottom: 8px;">
+          <h4 style="font-size: 15px; font-weight: 700; margin-bottom: 8px;">Формула весов аналогов:</h4>
+          <p style="font-size: 14px; color: var(--text-muted); line-height: 1.5; margin-bottom: 8px;">
             Взвешивание выполняется по правилу минимального вмешательства:
           </p>
-          <code style="display: block; background: #f8fafc; border: 1px solid var(--border); padding: 8px; border-radius: 4px; font-size: 11px; color: var(--primary);">
+          <code style="display: block; background: #f8fafc; border: 1px solid var(--border); padding: 8px; border-radius: 4px; font-size: 13px; color: var(--primary);">
             Вес = (ΣK - Ki) / (ΣK × (N - 1))
           </code>
         </div>
@@ -1921,23 +1994,23 @@ function renderTabReport(activeCase, res) {
           </button>
         </div>
 
-        <div style="background: #ffffff; border: 1px solid var(--border); border-radius: 8px; padding: 24px; font-size: 13px; line-height: 1.6; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+        <div style="background: #ffffff; border: 1px solid var(--border); border-radius: 8px; padding: 24px; font-size: 15px; line-height: 1.6; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
           <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 1px solid var(--border-light); padding-bottom: 16px;">
             <div style="display: flex; align-items: center; gap: 10px;">
               <img src="/images/rosocenka-emblem.png" style="width: 32px; height: 32px; object-fit: contain;">
               <div>
-                <strong style="color: var(--primary); font-size: 14px;">ООО «РусОценка»</strong><br>
-                <span style="font-size: 11px; color: var(--text-muted);">г. Тольятти, ул. Гидростроевская, д. 12 · ro63.ru</span>
+                <strong style="color: var(--primary); font-size: 16px;">ООО «РусОценка»</strong><br>
+                <span style="font-size: 13px; color: var(--text-muted);">г. Тольятти, ул. Гидростроевская, д. 12 · ro63.ru</span>
               </div>
             </div>
-            <div style="text-align: right; font-size: 12px; color: var(--text-muted);">
+            <div style="text-align: right; font-size: 14px; color: var(--text-muted);">
               <strong>УТВЕРЖДАЮ</strong><br>
               Директор ООО «РусОценка»<br>
               ___________ А.А. Орлова
             </div>
           </div>
 
-          <h3 style="font-size: 16px; font-weight: 700; color: var(--text-dark); margin-bottom: 6px;">
+          <h3 style="font-size: 18px; font-weight: 700; color: var(--text-dark); margin-bottom: 6px;">
             ОТЧЕТ ОБ ОЦЕНКЕ № ${o.reportNumber}
           </h3>
           <p style="margin-bottom: 12px; color: var(--text-body);">
@@ -1946,20 +2019,20 @@ function renderTabReport(activeCase, res) {
 
           <div style="background: var(--primary-light); border: 1px solid var(--primary-border); border-radius: 8px; padding: 14px 18px; margin: 16px 0; display: flex; justify-content: space-between; align-items: center;">
             <div>
-              <div style="font-size: 12px; color: var(--text-muted);">Итоговая рыночная стоимость полного права:</div>
-              <div style="font-size: 20px; font-weight: 750; color: var(--primary);">${money(res.total)}</div>
+              <div style="font-size: 14px; color: var(--text-muted);">Итоговая рыночная стоимость полного права:</div>
+              <div style="font-size: 22px; font-weight: 750; color: var(--primary);">${money(res.total)}</div>
             </div>
             <div style="text-align: right;">
-              <div style="font-size: 12px; color: var(--text-muted);">Цена за 1 кв.м:</div>
-              <div style="font-size: 16px; font-weight: 650; color: var(--text-dark);">${moneyPerSqm(res.pricePerSqm)}</div>
+              <div style="font-size: 14px; color: var(--text-muted);">Цена за 1 кв.м:</div>
+              <div style="font-size: 18px; font-weight: 650; color: var(--text-dark);">${moneyPerSqm(res.pricePerSqm)}</div>
             </div>
           </div>
 
           <div style="margin-top: 18px; border-top: 1px solid var(--border); padding-top: 14px;">
-            <div style="font-size: 12px; font-weight: 650; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
+            <div style="font-size: 14px; font-weight: 650; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
               Состав сформированного официального Word-документа (.docx):
             </div>
-            <ul style="margin-left: 18px; color: var(--text-body); font-size: 12.5px; display: grid; gap: 4px;">
+            <ul style="margin-left: 18px; color: var(--text-body); font-size: 14.5px; display: grid; gap: 4px;">
               <li>Титульный лист с реквизитами ООО «РусОценка», печатью и грифом утверждения директора</li>
               <li>Раздел 1: Основные факты и выводы (Сводная таблица 1.1 и расчет долей Таблица 1.2)</li>
               <li>Раздел 2: Задание на оценку в строгом соответствии с требованиями ФСО IV (Таблица 2.1)</li>
@@ -2036,7 +2109,7 @@ function renderTabReport(activeCase, res) {
         </div>
 
         <!-- Large Action Button -->
-        <button class="btn btn-primary" id="btn-export-word-sidebar" style="width: 100%; justify-content: center; padding: 13px; font-size: 14px; font-weight: 700; gap: 10px; box-shadow: 0 2px 8px rgba(30, 64, 175, 0.25);">
+        <button class="btn btn-primary" id="btn-export-word-sidebar" style="width: 100%; justify-content: center; padding: 13px; font-size: 16px; font-weight: 700; gap: 10px; box-shadow: 0 2px 8px rgba(30, 64, 175, 0.25);">
           ${icon('download')} Скачать официальный Word (.docx)
         </button>
       </div>
@@ -2743,7 +2816,7 @@ function openCreateCaseModal() {
         <input type="text" name="client" placeholder="Петров Сергей Александрович" value="Петров Сергей Александрович" required>
       </div>
 
-      <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 10px;">
+      <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 15px; color: var(--text-muted); display: flex; align-items: center; gap: 10px;">
         <input type="checkbox" id="check-include-sample-analogs" checked style="width: 16px; height: 16px; flex-shrink: 0;">
         <label for="check-include-sample-analogs" style="cursor: pointer;">
           Загрузить типовую выборку рыночных аналогов
@@ -2837,7 +2910,7 @@ function openAddAnalogModal() {
       <div class="form-group highlighted">
         <label>Ссылка на объявление (Авито / Циан / ДомКлик) <span class="badge-source">Обязательно для ФСО</span></label>
         <input type="url" name="url" placeholder="https://www.avito.ru/..." required>
-        <small style="color: var(--primary); font-size: 11px; margin-top: 4px; display: block;">Прямая ссылка для верификации цены и параметров оценщиком («Где взял?»)</small>
+        <small style="color: var(--primary); font-size: 13px; margin-top: 4px; display: block;">Прямая ссылка для верификации цены и параметров оценщиком («Где взял?»)</small>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn btn-secondary" id="modal-cancel">Отмена</button>

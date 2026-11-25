@@ -44,7 +44,7 @@ body {
   background-color: var(--bg-page);
   color: var(--text-dark);
   line-height: 1.6;
-  font-size: 15.5px; /* Увеличенный основной размер шрифта */
+  font-size: 17.5px; /* Увеличенный основной размер шрифта */
   -webkit-font-smoothing: antialiased;
   display: flex;
   min-height: 100vh;
@@ -193,14 +193,14 @@ a {
 }
 
 .brand-title strong {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 750;
   letter-spacing: -0.2px;
   color: var(--primary);
 }
 
 .brand-title span {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-muted);
 }
 
@@ -216,7 +216,7 @@ a {
   background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
   color: #ffffff;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -268,7 +268,7 @@ a {
   padding: 0 12px;
   gap: 10px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 15px;
   color: #475569;
   transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
   position: relative;
@@ -340,7 +340,7 @@ a {
   margin-left: auto;
   background: #f1f5f9;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 13px;
   padding: 1px 7px;
   border-radius: 10px;
   font-weight: 600;
@@ -372,7 +372,7 @@ a {
   display: grid;
   place-items: center;
   font-weight: 700;
-  font-size: 12px;
+  font-size: 14px;
   flex-shrink: 0;
   box-shadow: 0 2px 5px rgba(30, 64, 175, 0.2);
 }
@@ -396,14 +396,14 @@ a {
 }
 
 .profile-name {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-dark);
   white-space: nowrap;
 }
 
 .profile-role {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-muted);
   white-space: nowrap;
 }
@@ -438,7 +438,7 @@ a {
   display: flex;
   align-items: center;
   gap: 14px;
-  font-size: 14.5px;
+  font-size: 16.5px;
 }
 
 .breadcrumb {
@@ -446,7 +446,7 @@ a {
   align-items: center;
   gap: 10px;
   color: var(--text-muted);
-  font-size: 14.5px;
+  font-size: 16.5px;
 }
 
 .breadcrumb a {
@@ -475,7 +475,7 @@ a {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: 15px;
   color: #059669;
   font-weight: 600;
   background: var(--green-light);
@@ -492,7 +492,7 @@ a {
   gap: 8px;
   padding: 10px 18px;
   border-radius: 8px;
-  font-size: 14.5px;
+  font-size: 16.5px;
   font-weight: 600;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   white-space: nowrap;
@@ -544,7 +544,7 @@ a {
 
 .btn-sm {
   padding: 7px 13px;
-  font-size: 13px;
+  font-size: 15px;
   border-radius: 7px;
 }
 
@@ -565,7 +565,7 @@ a {
 }
 
 .dashboard-heading h2 {
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 800;
   letter-spacing: -0.6px;
   color: var(--text-dark);
@@ -573,7 +573,7 @@ a {
 
 .dashboard-heading p {
   color: var(--text-muted);
-  font-size: 15px;
+  font-size: 17px;
   margin-top: 4px;
 }
 
@@ -603,7 +603,7 @@ a {
 }
 
 .stat-card-title {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 650;
   color: var(--text-muted);
   text-transform: uppercase;
@@ -611,7 +611,7 @@ a {
 }
 
 .stat-card-value {
-  font-size: 29px;
+  font-size: 31px;
   font-weight: 800;
   letter-spacing: -0.8px;
   color: var(--text-dark);
@@ -619,7 +619,7 @@ a {
 }
 
 .stat-card-sub {
-  font-size: 13px;
+  font-size: 15px;
   color: var(--text-dim);
 }
 
@@ -653,7 +653,7 @@ a {
   background: transparent;
   outline: none;
   width: 100%;
-  font-size: 14.5px;
+  font-size: 16.5px;
 }
 
 .filter-pills {
@@ -664,7 +664,7 @@ a {
 .filter-pill {
   padding: 8px 16px;
   border-radius: 8px;
-  font-size: 13.5px;
+  font-size: 15.5px;
   font-weight: 600;
   color: var(--text-muted);
   background: #f8fafc;
@@ -734,14 +734,14 @@ a {
 }
 
 .case-num {
-  font-size: 16.5px;
+  font-size: 18.5px;
   font-weight: 750;
   color: var(--primary);
   letter-spacing: -0.2px;
 }
 
 .badge-status {
-  font-size: 13px;
+  font-size: 15px;
   padding: 3px 10px;
   border-radius: 20px;
   font-weight: 650;
@@ -766,7 +766,7 @@ a {
 }
 
 .case-addr {
-  font-size: 18.5px;
+  font-size: 20.5px;
   font-weight: 700;
   color: #0f172a;
   letter-spacing: -0.3px;
@@ -782,7 +782,7 @@ a {
 }
 
 .case-tag {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 550;
   color: #475569;
   background: #f1f5f9;
@@ -806,7 +806,7 @@ a {
 }
 
 .case-val-amount {
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 850;
   color: #0f172a;
   font-variant-numeric: tabular-nums;
@@ -815,7 +815,7 @@ a {
 }
 
 .case-val-sub {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   color: #64748b;
   margin-top: 3px;
@@ -857,7 +857,7 @@ a {
 
 .case-tab-btn {
   padding: 10px 18px;
-  font-size: 13.5px;
+  font-size: 15.5px;
   font-weight: 550;
   color: var(--text-muted);
   display: flex;
@@ -964,13 +964,13 @@ a {
 }
 
 .panel-title h3 {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 650;
   color: var(--text-dark);
 }
 
 .panel-title p {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-muted);
   margin-top: 2px;
 }
@@ -980,7 +980,7 @@ a {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: 14px;
   background: #f8fafc;
   border: 1px solid var(--border);
   padding: 5px 10px;
@@ -1020,7 +1020,7 @@ a {
 }
 
 .form-field label {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text-muted);
 }
@@ -1031,7 +1031,7 @@ a {
   border-radius: 6px;
   background: #ffffff;
   outline: none;
-  font-size: 13px;
+  font-size: 15px;
   transition: border-color 0.15s;
 }
 
@@ -1051,7 +1051,7 @@ a {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .calc-table th {
@@ -1060,7 +1060,7 @@ a {
   font-weight: 600;
   padding: 12px 14px;
   border-bottom: 1px solid var(--border);
-  font-size: 12px;
+  font-size: 14px;
   white-space: nowrap;
 }
 
@@ -1100,7 +1100,7 @@ a {
 }
 
 .analog-meta {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-muted);
 }
 
@@ -1122,7 +1122,7 @@ a {
 }
 
 .price-sub {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-muted);
   font-weight: normal;
   display: block;
@@ -1130,7 +1130,7 @@ a {
 
 .adj-chip {
   display: inline-block;
-  font-size: 11px;
+  font-size: 13px;
   padding: 2px 6px;
   border-radius: 4px;
   font-weight: 550;
@@ -1173,7 +1173,7 @@ a {
 }
 
 .weight-label {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--primary);
   font-variant-numeric: tabular-nums;
@@ -1213,7 +1213,7 @@ dialog::backdrop {
 }
 
 .modal-header h3 {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 750;
   color: var(--text-dark);
 }
@@ -1253,7 +1253,7 @@ dialog::backdrop {
 }
 
 .form-group label {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-muted);
 }
@@ -1263,7 +1263,7 @@ dialog::backdrop {
   min-width: 0;
   box-sizing: border-box;
   padding: 9px 12px;
-  font-size: 14.5px;
+  font-size: 16.5px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: #ffffff;
@@ -1278,7 +1278,7 @@ dialog::backdrop {
   color: #ffffff;
   padding: 12px 18px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
   opacity: 0;
@@ -1350,7 +1350,7 @@ dialog::backdrop {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 13px;
+  font-size: 15px;
   color: var(--text-muted);
 }
 
@@ -1469,7 +1469,7 @@ dialog::backdrop {
 }
 
 .welcome-title {
-  font-size: 34px;
+  font-size: 36px;
   font-weight: 850;
   color: #0f172a;
   letter-spacing: -0.9px;
@@ -1593,7 +1593,7 @@ dialog::backdrop {
 }
 
 .kpi-pill {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 650;
   padding: 3px 10px;
   border-radius: 12px;
@@ -1605,7 +1605,7 @@ dialog::backdrop {
 .kpi-pill-amber { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
 
 .kpi-value {
-  font-size: 31px;
+  font-size: 33px;
   font-weight: 850;
   letter-spacing: -0.8px;
   color: var(--text-dark);
@@ -1615,13 +1615,13 @@ dialog::backdrop {
 }
 
 .kpi-label {
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 700;
   color: var(--text-dark);
 }
 
 .kpi-sub {
-  font-size: 13px;
+  font-size: 15px;
   color: var(--text-dim);
 }
 
@@ -1717,7 +1717,7 @@ dialog::backdrop {
 }
 
 .dstat-val {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 850;
   color: var(--text-dark);
   font-variant-numeric: tabular-nums;
@@ -1728,7 +1728,7 @@ dialog::backdrop {
 .dstat-chip-emerald .dstat-val { color: #047857; }
 
 .dstat-lbl {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-muted);
 }
@@ -1745,7 +1745,7 @@ dialog::backdrop {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 10px;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text-dark);
 }
@@ -1810,13 +1810,13 @@ dialog::backdrop {
 
 .gauge-info strong {
   display: block;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 850;
   color: var(--text-dark);
 }
 
 .gauge-info span {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-muted);
 }
@@ -1855,7 +1855,7 @@ dialog::backdrop {
 }
 
 .panel-head-title {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 820;
   color: var(--text-dark);
   display: flex;
@@ -1872,7 +1872,7 @@ dialog::backdrop {
 }
 
 .panel-head-sub {
-  font-size: 14px;
+  font-size: 16px;
   color: var(--text-muted);
   margin-top: 4px;
 }
@@ -1894,7 +1894,7 @@ dialog::backdrop {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 16px;
+  font-size: 18px;
   gap: 12px;
 }
 
@@ -1903,7 +1903,7 @@ dialog::backdrop {
 }
 
 .district-price {
-  font-size: 17.5px;
+  font-size: 19.5px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   display: flex;
@@ -1913,7 +1913,7 @@ dialog::backdrop {
 }
 
 .district-price small {
-  font-size: 12.5px;
+  font-size: 14.5px;
   font-weight: 650;
   padding: 2px 9px;
   border-radius: 6px;
@@ -1947,7 +1947,7 @@ dialog::backdrop {
   border-radius: 12px;
   background: linear-gradient(90deg, #f8fafc, #eff6ff);
   border: 1px dashed #93c5fd;
-  font-size: 13.5px;
+  font-size: 15.5px;
   color: var(--text-body);
   margin-top: 4px;
 }
@@ -1988,7 +1988,7 @@ dialog::backdrop {
   border-radius: 50%;
   background: linear-gradient(135deg, #dbeafe, #bfdbfe);
   color: #1e40af;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 800;
   display: grid;
   place-items: center;
@@ -1996,7 +1996,7 @@ dialog::backdrop {
 }
 
 .step-title {
-  font-size: 14.5px;
+  font-size: 16.5px;
   font-weight: 600;
   color: var(--text-dark);
   flex: 1;
@@ -2021,7 +2021,7 @@ dialog::backdrop {
 }
 
 .step-count {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 650;
   color: var(--text-muted);
   width: 118px;
@@ -2039,7 +2039,7 @@ dialog::backdrop {
   border-radius: 12px;
   background: linear-gradient(90deg, #ecfdf5, #eff6ff);
   border: 1px solid #a7f3d0;
-  font-size: 13.5px;
+  font-size: 15.5px;
   color: #065f46;
   margin-top: auto;
 }
@@ -2106,7 +2106,7 @@ dialog::backdrop {
 }
 
 .leifer-tag {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.4px;
@@ -2114,7 +2114,7 @@ dialog::backdrop {
 }
 
 .leifer-badge {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 850;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.5px;
@@ -2126,13 +2126,13 @@ dialog::backdrop {
 .leifer-card-amber .leifer-badge { color: #b45309; }
 
 .leifer-title {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 750;
   color: var(--text-dark);
 }
 
 .leifer-desc {
-  font-size: 13.5px;
+  font-size: 15.5px;
   line-height: 1.5;
   color: var(--text-body);
 }
@@ -2180,7 +2180,7 @@ dialog::backdrop {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 21px;
+  font-size: 23px;
   font-weight: 800;
   color: var(--text-dark);
   letter-spacing: -0.4px;
@@ -2222,7 +2222,7 @@ dialog::backdrop {
 }
 
 .dash-counter {
-  font-size: 13.5px;
+  font-size: 15.5px;
   font-weight: 700;
   background: #e2e8f0;
   color: var(--text-dark);
@@ -2231,7 +2231,7 @@ dialog::backdrop {
 }
 
 .dash-section-sub {
-  font-size: 14px;
+  font-size: 16px;
   color: var(--text-muted);
 }
 
@@ -2242,7 +2242,7 @@ dialog::backdrop {
   padding: 32px;
   text-align: center;
   color: var(--text-muted);
-  font-size: 14.5px;
+  font-size: 16.5px;
 }
 
 /* Right Column: Spotlight Image Card, Activity Card & Standards */
@@ -2293,7 +2293,7 @@ dialog::backdrop {
   left: 12px;
   background: rgba(15, 23, 42, 0.86);
   color: #ffffff;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   padding: 5px 12px;
   border-radius: 20px;
@@ -2310,14 +2310,14 @@ dialog::backdrop {
 }
 
 .spotlight-title {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 800;
   color: var(--text-dark);
   letter-spacing: -0.3px;
 }
 
 .spotlight-desc {
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.5;
   color: var(--text-body);
 }
@@ -2377,7 +2377,7 @@ dialog::backdrop {
 }
 
 .activity-head h3, .standards-head h3 {
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 780;
   color: var(--text-dark);
 }
@@ -2417,12 +2417,12 @@ dialog::backdrop {
   display: flex;
   flex-direction: column;
   gap: 3px;
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.5;
 }
 
 .timeline-time {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 650;
   color: var(--text-dim);
 }
@@ -2436,7 +2436,7 @@ dialog::backdrop {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.5;
   color: var(--text-body);
 }
@@ -2452,7 +2452,7 @@ dialog::backdrop {
   left: 0;
   color: #2563eb;
   font-weight: bold;
-  font-size: 16px;
+  font-size: 18px;
 }
 
 /* Responsive */
@@ -2512,7 +2512,7 @@ dialog::backdrop {
     padding: 20px;
   }
   .welcome-title {
-    font-size: 26px;
+    font-size: 28px;
   }
   .showcase-panel {
     padding: 22px 18px;
@@ -2543,7 +2543,7 @@ dialog::backdrop {
 .badge-source {
   display: inline-flex;
   align-items: center;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -2559,7 +2559,7 @@ dialog::backdrop {
 .badge-auto {
   display: inline-flex;
   align-items: center;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -2575,7 +2575,7 @@ dialog::backdrop {
 .badge-manual {
   display: inline-flex;
   align-items: center;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -2652,14 +2652,14 @@ dialog::backdrop {
 }
 
 .inspection-title {
-  font-size: 14.5px;
+  font-size: 16.5px;
   font-weight: 700;
   color: #0f172a;
   margin: 0 0 2px 0;
 }
 
 .inspection-desc {
-  font-size: 12px;
+  font-size: 14px;
   color: #64748b;
   margin: 0;
 }
@@ -2668,7 +2668,7 @@ dialog::backdrop {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 11.5px;
+  font-size: 13.5px;
   font-weight: 600;
   color: #1e40af;
   background: #eff6ff;
@@ -2725,14 +2725,14 @@ dialog::backdrop {
 }
 
 .inspection-label {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   color: #1e293b;
   margin: 0;
 }
 
 .inspection-tag {
-  font-size: 10.5px;
+  font-size: 12.5px;
   font-weight: 600;
   color: #475569;
   background: #f1f5f9;
@@ -2745,7 +2745,7 @@ dialog::backdrop {
 .inspection-select {
   width: 100%;
   padding: 8px 12px;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
   color: #0f172a;
   background: #ffffff;
@@ -2765,7 +2765,7 @@ dialog::backdrop {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 11.5px;
+  font-size: 13.5px;
   color: #64748b;
   line-height: 1.35;
   margin-top: 2px;
@@ -2784,7 +2784,7 @@ dialog::backdrop {
   border: 1px solid #bbf7d0;
   border-radius: 8px;
   padding: 10px 14px;
-  font-size: 12.5px;
+  font-size: 14.5px;
   color: #166534;
   display: flex;
   align-items: center;
@@ -2800,7 +2800,7 @@ dialog::backdrop {
 .audit-card {
   border-radius: 8px;
   padding: 14px 16px;
-  font-size: 12.5px;
+  font-size: 14.5px;
   line-height: 1.5;
 }
 
@@ -2819,7 +2819,7 @@ dialog::backdrop {
   align-items: center;
   gap: 6px;
   font-weight: 700;
-  font-size: 13px;
+  font-size: 15px;
   margin-bottom: 8px;
 }
 
@@ -2980,13 +2980,13 @@ dialog::backdrop {
 }
 
 .gw-panel-caption {
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 600;
   color: #475569;
 }
 
 .gw-balance-value {
-  font-size: clamp(38px, 4vw, 50px);
+  font-size: clamp(40px, 4vw, 52px);
   font-weight: 850;
   letter-spacing: -0.04em;
   color: #0f172a;
@@ -2995,7 +2995,7 @@ dialog::backdrop {
 }
 
 .gw-balance-meta {
-  font-size: 14px;
+  font-size: 16px;
   color: #64748b;
   display: flex;
   align-items: center;
@@ -3008,7 +3008,7 @@ dialog::backdrop {
   background: #d1fae5;
   border-radius: 8px;
   padding: 4px 10px;
-  font-size: 13.5px;
+  font-size: 15.5px;
   font-weight: 700;
 }
 
@@ -3044,7 +3044,7 @@ dialog::backdrop {
 }
 
 .gw-account-info strong {
-  font-size: 14.5px;
+  font-size: 16.5px;
   font-weight: 700;
   color: #0f172a;
   white-space: nowrap;
@@ -3053,7 +3053,7 @@ dialog::backdrop {
 }
 
 .gw-account-info span {
-  font-size: 13px;
+  font-size: 15px;
   color: #64748b;
   margin-top: 2px;
 }
@@ -3085,7 +3085,7 @@ dialog::backdrop {
 }
 
 .gw-cashflow-title {
-  font-size: 17.5px;
+  font-size: 19.5px;
   font-weight: 800;
   color: #0f172a;
   margin: 0;
@@ -3105,7 +3105,7 @@ dialog::backdrop {
   border-radius: 7px;
   border: 0;
   background: none;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 650;
   color: #64748b;
   cursor: pointer;
@@ -3133,7 +3133,7 @@ dialog::backdrop {
 }
 
 .gw-summary-lbl {
-  font-size: 13.5px;
+  font-size: 15.5px;
   font-weight: 600;
   color: #64748b;
   display: flex;
@@ -3154,7 +3154,7 @@ dialog::backdrop {
 }
 
 .gw-summary-val {
-  font-size: clamp(24px, 2.4vw, 30px);
+  font-size: clamp(26px, 2.4vw, 32px);
   font-weight: 850;
   color: #0f172a;
   letter-spacing: -0.4px;
@@ -3185,7 +3185,7 @@ dialog::backdrop {
   transform: translate(-50%, -135%);
   background: #0f172a;
   color: #ffffff;
-  font-size: 13.5px;
+  font-size: 15.5px;
   font-weight: 800;
   padding: 6px 14px;
   border-radius: 8px;
@@ -3216,7 +3216,7 @@ dialog::backdrop {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  font-size: 12.5px;
+  font-size: 14.5px;
   font-weight: 700;
   color: #64748b;
   pointer-events: none;
@@ -3230,7 +3230,7 @@ dialog::backdrop {
 .gw-chart-months {
   display: flex;
   justify-content: space-between;
-  font-size: 12.5px;
+  font-size: 14.5px;
   font-weight: 650;
   color: #475569;
   margin-top: 10px;
@@ -3273,7 +3273,7 @@ dialog::backdrop {
   align-items: center;
   justify-content: space-between;
   color: #64748b;
-  font-size: 13.5px;
+  font-size: 15.5px;
   font-weight: 650;
 }
 
@@ -3286,7 +3286,7 @@ dialog::backdrop {
 }
 
 .reg-stat-val {
-  font-size: clamp(28px, 2.6vw, 36px);
+  font-size: clamp(30px, 2.6vw, 38px);
   font-weight: 850;
   color: #0f172a;
   letter-spacing: -0.03em;
@@ -3302,7 +3302,7 @@ dialog::backdrop {
 }
 
 .gw-month-badge {
-  font-size: 12.5px;
+  font-size: 14.5px;
   font-weight: 700;
   color: #059669;
   background: #ecfdf5;
@@ -3312,7 +3312,7 @@ dialog::backdrop {
 }
 
 .case-date-tag {
-  font-size: 13.5px;
+  font-size: 15.5px;
   font-weight: 500;
   color: var(--text-muted);
 }
@@ -3342,14 +3342,14 @@ dialog::backdrop {
 }
 
 .gw-material h2 {
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 700;
   color: #0f172a;
   margin: 0;
 }
 
 .gw-material > p {
-  font-size: 11.5px;
+  font-size: 13.5px;
   color: #64748b;
   margin: 6px 0 16px;
 }
@@ -3367,7 +3367,7 @@ dialog::backdrop {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.9),
     0 8px 20px -10px rgba(0, 0, 0, 0.1);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   color: #0f172a;
   border: 1px solid rgba(255, 255, 255, 0.6);
@@ -3385,7 +3385,7 @@ dialog::backdrop {
   background: #ffffff;
   border-radius: 6px;
   padding: 6px 0;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   color: #334155;
   cursor: pointer;
@@ -3404,13 +3404,13 @@ dialog::backdrop {
 .gw-range > span {
   display: flex;
   justify-content: space-between;
-  font-size: 11.5px;
+  font-size: 13.5px;
   font-weight: 600;
   color: #334155;
 }
 
 .gw-range output {
-  font-size: 11px;
+  font-size: 13px;
   color: #2563eb;
 }
 
@@ -3425,7 +3425,7 @@ dialog::backdrop {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 11.5px;
+  font-size: 13.5px;
   font-weight: 600;
   color: #334155;
   margin-top: 14px;
@@ -3447,7 +3447,7 @@ dialog::backdrop {
   border-radius: 8px;
   padding: 8px;
   margin-top: 16px;
-  font-size: 11.5px;
+  font-size: 13.5px;
   font-weight: 600;
   color: #475569;
   cursor: pointer;
@@ -3471,7 +3471,7 @@ dialog::backdrop {
 }
 
 .city-filter-label {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text-muted);
   margin-right: 4px;
@@ -3481,7 +3481,7 @@ dialog::backdrop {
   background: #ffffff;
   border: 1px solid var(--border);
   color: var(--text-body);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   padding: 4px 12px;
   border-radius: 9999px;
@@ -3591,7 +3591,7 @@ dialog::backdrop {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 11.5px;
+  font-size: 13.5px;
   font-weight: 650;
   color: var(--primary);
   background: var(--primary-light);
@@ -3627,7 +3627,7 @@ dialog::backdrop {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 11.5px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--primary);
   background: #ffffff;
@@ -3679,7 +3679,7 @@ dialog::backdrop {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -3687,7 +3687,7 @@ dialog::backdrop {
 }
 
 .audit-card-title h4 {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text-dark);
   margin-top: 2px;
@@ -3697,7 +3697,7 @@ dialog::backdrop {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 11.5px;
+  font-size: 13.5px;
   font-weight: 600;
   color: #065f46;
   background: var(--green-light);
@@ -3743,7 +3743,7 @@ dialog::backdrop {
 
 .step-badge {
   align-self: flex-start;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   background: var(--border-light);
@@ -3758,13 +3758,13 @@ dialog::backdrop {
 }
 
 .step-title {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text-dark);
 }
 
 .step-math {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-muted);
   word-break: break-all;
 }
@@ -3773,7 +3773,7 @@ dialog::backdrop {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   color: var(--text-body);
   font-weight: 600;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .step-value {
@@ -3785,18 +3785,18 @@ dialog::backdrop {
 }
 
 .exact-val {
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 750;
   color: var(--text-dark);
 }
 
 .round-val {
-  font-size: 11.5px;
+  font-size: 13.5px;
   color: var(--text-muted);
 }
 
 .step-note {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-muted);
   line-height: 1.35;
   margin-top: auto;
@@ -3808,7 +3808,7 @@ dialog::backdrop {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 11.5px;
+  font-size: 13.5px;
   color: #1e3a8a;
   background: #eff6ff;
   border: 1px solid #dbeafe;
@@ -3840,7 +3840,7 @@ dialog::backdrop {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -3849,13 +3849,13 @@ dialog::backdrop {
 }
 
 .checklist-panel-title h4 {
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 750;
   color: var(--text-dark);
 }
 
 .checklist-panel-title p {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-muted);
   margin-top: 2px;
 }
@@ -3864,7 +3864,7 @@ dialog::backdrop {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   padding: 6px 12px;
   border-radius: 8px;
@@ -3919,7 +3919,7 @@ dialog::backdrop {
 }
 
 .checklist-text {
-  font-size: 13px;
+  font-size: 15px;
   color: var(--text-dark);
   line-height: 1.45;
 }
@@ -3932,7 +3932,7 @@ dialog::backdrop {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  font-size: 11.5px;
+  font-size: 13.5px;
   color: var(--text-muted);
   background: var(--border-light);
   border: 1px solid var(--border);
@@ -3975,14 +3975,14 @@ dialog::backdrop {
 }
 
 .object-flow-top h3 {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 750;
   color: var(--text-dark);
   letter-spacing: -0.3px;
 }
 
 .object-flow-top p {
-  font-size: 13px;
+  font-size: 15px;
   color: var(--text-muted);
   margin-top: 2px;
 }
@@ -4016,7 +4016,7 @@ dialog::backdrop {
   border-radius: 8px;
   background: var(--primary-light);
   color: var(--primary);
-  font-size: 12.5px;
+  font-size: 14.5px;
   font-weight: 750;
   display: inline-flex;
   align-items: center;
@@ -4025,13 +4025,13 @@ dialog::backdrop {
 }
 
 .obj-step-head h4 {
-  font-size: 14.5px;
+  font-size: 16.5px;
   font-weight: 700;
   color: var(--text-dark);
 }
 
 .obj-step-head p {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-muted);
   margin-top: 1px;
 }
@@ -4040,7 +4040,7 @@ dialog::backdrop {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 650;
   padding: 5px 10px;
   border-radius: 7px;
@@ -4082,7 +4082,7 @@ dialog::backdrop {
   border-radius: 6px;
   background: #ffffff;
   border: 1px solid var(--border);
-  font-size: 11.5px;
+  font-size: 13.5px;
   font-weight: 700;
   color: var(--text-muted);
   display: inline-flex;
@@ -4097,7 +4097,7 @@ dialog::backdrop {
   padding: 7px 10px;
   border: 1px solid var(--border);
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 15px;
   background: #ffffff;
   font-family: inherit;
 }
@@ -4115,7 +4115,7 @@ dialog::backdrop {
   padding: 6px 8px;
   border: 1px solid var(--border);
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 15px;
   text-align: center;
   background: #ffffff;
   font-variant-numeric: tabular-nums;
@@ -4125,7 +4125,7 @@ dialog::backdrop {
 .share-pct {
   min-width: 54px;
   text-align: right;
-  font-size: 12.5px;
+  font-size: 14.5px;
   font-weight: 700;
   color: var(--primary);
   font-variant-numeric: tabular-nums;
@@ -4150,7 +4150,7 @@ dialog::backdrop {
 
 .dash-subtitle {
   margin-top: 4px;
-  font-size: 13.5px;
+  font-size: 15.5px;
   color: var(--text-muted);
   font-weight: 500;
 }
@@ -4189,7 +4189,7 @@ dialog::backdrop {
 }
 
 .kpi-card-label {
-  font-size: 12.5px;
+  font-size: 14.5px;
   font-weight: 600;
   color: var(--text-muted);
 }
@@ -4207,7 +4207,7 @@ dialog::backdrop {
 }
 
 .kpi-card-val {
-  font-size: 23px;
+  font-size: 25px;
   font-weight: 800;
   color: var(--text-dark);
   letter-spacing: -0.6px;
@@ -4221,7 +4221,7 @@ dialog::backdrop {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .kpi-delta {
@@ -4229,7 +4229,7 @@ dialog::backdrop {
   align-items: center;
   padding: 2px 7px;
   border-radius: 6px;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -4246,7 +4246,7 @@ dialog::backdrop {
 
 .kpi-sub {
   color: var(--text-muted);
-  font-size: 11.5px;
+  font-size: 13.5px;
   white-space: nowrap;
 }
 
@@ -4292,14 +4292,14 @@ dialog::backdrop {
 }
 
 .dash-chart-kpi-line strong {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 800;
   color: var(--text-dark);
   font-variant-numeric: tabular-nums;
 }
 
 .dash-chart-kpi-line span {
-  font-size: 12.5px;
+  font-size: 14.5px;
   color: var(--text-muted);
 }
 
@@ -4314,7 +4314,7 @@ dialog::backdrop {
   align-items: center;
   gap: 12px;
   list-style: none;
-  font-size: 11.5px;
+  font-size: 13.5px;
   color: var(--text-muted);
 }
 
@@ -4394,14 +4394,14 @@ dialog::backdrop {
 .dash-mini-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12.5px;
+  font-size: 14.5px;
 }
 
 .dash-mini-table th {
   background: #f8fafc;
   color: var(--text-muted);
   font-weight: 600;
-  font-size: 11px;
+  font-size: 13px;
   text-transform: uppercase;
   padding: 8px 12px;
   border-bottom: 1px solid var(--border);
@@ -4416,7 +4416,7 @@ dialog::backdrop {
 
 /* Breakdown Panel */
 .breakdown-total {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
@@ -4435,7 +4435,7 @@ dialog::backdrop {
   justify-content: space-between;
   align-items: baseline;
   gap: 8px;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .breakdown-name {
@@ -4444,7 +4444,7 @@ dialog::backdrop {
 }
 
 .breakdown-vals {
-  font-size: 12.5px;
+  font-size: 14.5px;
   font-weight: 650;
   color: var(--text-dark);
   font-variant-numeric: tabular-nums;
@@ -4480,7 +4480,7 @@ dialog::backdrop {
 .breakdown-goal-row {
   display: flex;
   justify-content: space-between;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-muted);
 }
 
@@ -4491,7 +4491,7 @@ dialog::backdrop {
 
 .breakdown-banks {
   margin-top: 10px;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-muted);
 }
 
@@ -4526,7 +4526,7 @@ dialog::backdrop {
 .dash-count-pill {
   background: #eff6ff;
   color: #0066cc;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 750;
   padding: 2px 9px;
   border-radius: 999px;
@@ -4550,7 +4550,7 @@ dialog::backdrop {
   border: 1px solid transparent;
   background: transparent;
   color: var(--text-muted);
-  font-size: 12.5px;
+  font-size: 14.5px;
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
@@ -4575,7 +4575,7 @@ dialog::backdrop {
 }
 
 .filter-count {
-  font-size: 11px;
+  font-size: 13px;
   opacity: 0.7;
   font-variant-numeric: tabular-nums;
 }
@@ -4583,13 +4583,13 @@ dialog::backdrop {
 .dash-registry-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .dash-registry-table th {
   background: #f8fafc;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 650;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -4620,12 +4620,12 @@ dialog::backdrop {
   display: block;
   font-weight: 700;
   color: var(--text-dark);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .reg-num-cell span {
   display: block;
-  font-size: 11.5px;
+  font-size: 13.5px;
   color: var(--text-muted);
   margin-top: 2px;
 }
@@ -4638,7 +4638,7 @@ dialog::backdrop {
 
 .reg-addr-cell span {
   display: block;
-  font-size: 11.5px;
+  font-size: 13.5px;
   color: var(--text-muted);
   margin-top: 2px;
 }
@@ -4666,7 +4666,7 @@ dialog::backdrop {
 
 .btn-xs {
   padding: 5px 10px;
-  font-size: 12px;
+  font-size: 14px;
   border-radius: 7px;
 }
 
@@ -4683,4 +4683,48 @@ dialog::backdrop {
   .kpi-strip-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* Пассивная сноска: Методология расчёта по ФСО внизу экрана */
+.analogs-methodology-footer {
+  margin-top: 18px;
+  padding: 14px 18px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  color: #64748b;
+  font-size: 14.5px;
+  line-height: 1.55;
+}
+
+.methodology-footer-icon {
+  display: inline-flex;
+  color: #94a3b8;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.methodology-footer-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.methodology-footer-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.methodology-footer-title {
+  font-weight: 700;
+  color: #334155;
+  font-size: 15px;
+}
+
+.methodology-footer-text b {
+  color: #1e293b;
+  font-weight: 600;
 }

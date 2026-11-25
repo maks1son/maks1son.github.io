@@ -4,6 +4,14 @@
  * (Отчет об оценке № 19/0826-2, ФСО I-VI №200, ФСО №7).
  */
 
+export const TEAM_MEMBERS = [
+  { id: 'emp_anna', name: 'Орлова Анна Александровна', shortName: 'Орлова Анна А.', initials: 'АО', role: 'manager', roleLabel: 'Руководитель' },
+  { id: 'emp_lyuda', name: 'Смирнова Людмила Игоревна', shortName: 'Смирнова Люда', initials: 'СЛ', role: 'appraiser', roleLabel: 'Оценщик' },
+  { id: 'emp_masha', name: 'Петрова Мария Сергеевна', shortName: 'Петрова Маша', initials: 'ПМ', role: 'appraiser', roleLabel: 'Оценщик' },
+  { id: 'emp_sveta', name: 'Соколова Светлана Николаевна', shortName: 'Соколова Света', initials: 'СС', role: 'appraiser', roleLabel: 'Оценщик' },
+  { id: 'emp_petya', name: 'Волков Пётр Алексеевич', shortName: 'Волков Петя', initials: 'ВП', role: 'appraiser', roleLabel: 'Оценщик' },
+];
+
 export const money = value => {
   if (value == null || !Number.isFinite(value)) return '—';
   return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(Math.round(value)) + ' ₽';
@@ -162,6 +170,7 @@ export function createNewCase(opts = {}) {
     number: num,
     status: opts.status || 'В работе', // 'В работе' | 'Готов' | 'Черновик' | 'В архиве'
     isPinned: Boolean(opts.isPinned),
+    assignedTo: opts.assignedTo || 'emp_anna',
     progress: opts.progress != null ? opts.progress : defaultProgress,
     progressStep: opts.progressStep || defaultStep,
     createdAt: opts.createdAt || new Date().toISOString(),
@@ -209,6 +218,7 @@ export function defaultCases() {
     number: '19/0826-2',
     status: 'Готов',
     isPinned: true,
+    assignedTo: 'emp_anna',
     progress: 100,
     progressStep: 'Отчёт согласован, доступен для скачивания Word (.docx)',
     createdAt: '2026-08-19T10:00:00Z',
@@ -258,7 +268,9 @@ export function defaultCases() {
     number: '21/0926-1',
     status: 'В работе',
     isPinned: false,
+    assignedTo: 'emp_lyuda',
     progress: 75,
+    checklist: { egrn: true, inspection: true, market: true, leifer: false, shares: false },
     progressStep: 'Подобрано 3 аналога, требуется согласование поправок Лейфера',
     createdAt: '2026-11-09T09:15:00Z',
     updatedAt: '2026-11-10T11:40:00Z',
@@ -344,7 +356,9 @@ export function defaultCases() {
     number: '24/1105-3',
     status: 'Черновик',
     isPinned: false,
+    assignedTo: 'emp_petya',
     progress: 25,
+    checklist: { egrn: true, inspection: false, market: false, leifer: false, shares: false },
     progressStep: 'Внесены реквизиты из ЕГРН, ожидает подбора 3–5 аналогов',
     createdAt: '2026-11-10T08:00:00Z',
     updatedAt: '2026-11-10T08:30:00Z',
@@ -656,4 +670,110 @@ export function getRemainingShareFraction(shares, excludeIdx = -1) {
   const remNum = Math.max(0, sum.den - sum.num);
   return reduceFraction(remNum, sum.den);
 }
+
+/**
+ * Объективная проверка качества дела по стандарту ФСО №7 (защита от фиктивного статуса «Готов»)
+ */
+export function evaluateCaseQuality(caseItem, valuationResult) {
+  const o = caseItem?.objectData || {};
+  const analogs = caseItem?.analogs || [];
+  const selected = analogs.filter(a => a.selected);
+  const res = valuationResult || calculateValuation(o, analogs, o.tradeAdjustment != null ? o.tradeAdjustment : -6.0);
+  const shares = o.shares || [];
+  const sharesSum = sumSharesFraction(shares);
+  const cl = caseItem?.checklist || {};
+
+  // 1. Реквизиты объекта и ЕГРН
+  const hasAddress = (o.address || '').trim().length >= 8;
+  const hasClient = (o.client || '').trim().length >= 3;
+  const hasCad = /^\d+:\d+:\d+:\d+$/.test((o.cadastralNumber || '').trim());
+  const validGeo = Number(o.area) >= 10 && Number(o.floor) >= 1 && Number(o.floor) <= Number(o.totalFloors);
+  const objectComplete = hasAddress && hasClient && hasCad && validGeo;
+
+  // 2. Долевая собственность = 100% (1/1)
+  const validHolders = shares.length >= 1 && shares.every(s => (s.holder || '').trim().length >= 2);
+  const sharesValid = validHolders && sharesSum.num === sharesSum.den && sharesSum.den > 0;
+
+  // 3. Достаточность выборки (>= 3 аналога)
+  const analogsCount = selected.length >= 3;
+
+  // 4. Доказательная база: ссылки-первоисточники и реальные цены/площади
+  const missingSourceCount = selected.filter(a => {
+    const urlOk = /^https?:\/\/.+\..+/i.test((a.url || '').trim());
+    const priceOk = Number(a.price) >= 100_000;
+    const areaOk = Number(a.area) >= 10;
+    return !urlOk || !priceOk || !areaOk;
+  }).length;
+  const analogsSources = selected.length > 0 && missingSourceCount === 0;
+
+  // 5. Однородность выборки (Коэффициент вариации V <= 33%)
+  const variationPass = analogsCount && Boolean(res.variationPass);
+
+  // 6. Самоконтроль оценщика (все 5 пунктов)
+  const checklistCount = ['egrn', 'inspection', 'market', 'leifer', 'shares'].filter(k => Boolean(cl[k])).length;
+  const checklistComplete = checklistCount === 5;
+
+  const checks = [
+    {
+      key: 'objectComplete',
+      label: 'ЕГРН и реквизиты объекта',
+      passed: objectComplete,
+      reason: objectComplete ? 'Заполнены полностью' : 'Не заполнен адрес, заказчик, кадастровый номер или некорректны площадь/этаж',
+    },
+    {
+      key: 'sharesValid',
+      label: 'Долевая собственность (100%)',
+      passed: sharesValid,
+      reason: sharesValid ? 'Сумма долей 100% (1/1)' : `Распределено ${sharesSum.percent.toFixed(1)}% или не указаны ФИО собственников`,
+    },
+    {
+      key: 'analogsCount',
+      label: 'Минимум 3 аналога в выборке',
+      passed: analogsCount,
+      reason: analogsCount ? `Отобрано ${selected.length} аналогов` : `Отобрано ${selected.length} из 3 обязательных`,
+    },
+    {
+      key: 'analogsSources',
+      label: 'Ссылки-источники и цены аналогов',
+      passed: analogsSources,
+      reason: analogsSources
+        ? 'Все аналоги подтверждены ссылками и рыночными ценами'
+        : (selected.length === 0 ? 'Нет выбранных аналогов' : `У ${missingSourceCount} аналог(ов) нет ссылки на объявление или некорректная цена`),
+    },
+    {
+      key: 'variationPass',
+      label: 'Однородность выборки (V ≤ 33%)',
+      passed: variationPass,
+      reason: !analogsCount
+        ? 'Требуется минимум 3 аналога для расчёта вариации'
+        : (variationPass
+            ? `V = ${res.variationCoeff.toFixed(2).replace('.', ',')}% ≤ 33%`
+            : `Нарушение ФСО: разброс цен V = ${res.variationCoeff != null ? res.variationCoeff.toFixed(2).replace('.', ',') + '%' : '—'} > 33%`),
+    },
+    {
+      key: 'checklistComplete',
+      label: 'Чеклист самоконтроля оценщика',
+      passed: checklistComplete,
+      reason: checklistComplete ? 'Подтверждены все 5 пунктов' : `Пройдено ${checklistCount} из 5 пунктов на вкладке «Готовый документ»`,
+    },
+  ];
+
+  const passedCount = checks.filter(ch => ch.passed).length;
+  const score = Math.round((passedCount / checks.length) * 100);
+  const blockers = checks.filter(ch => !ch.passed).map(ch => `${ch.label}: ${ch.reason}`);
+  const canMarkReady = passedCount === checks.length;
+
+  return {
+    score,
+    passedCount,
+    totalChecks: checks.length,
+    canMarkReady,
+    blockers,
+    checks,
+    variationCoeff: res.variationCoeff,
+    selectedCount: selected.length,
+    sourceCoveragePct: selected.length ? Math.round(((selected.length - missingSourceCount) / selected.length) * 100) : 0,
+  };
+}
+
 
