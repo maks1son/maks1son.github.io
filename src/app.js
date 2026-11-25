@@ -45,6 +45,8 @@ let expandedAuditIds = new Set();
 let analogCityFilter = 'all'; // 'all' | 'Тольятти' | 'Самара' | 'Сызрань'
 let dashTableFilter = 'all'; // 'all' | 'pinned' | 'В работе' | 'Готов' | 'Черновик'
 let dashChartView = 'chart'; // 'chart' | 'table'
+let dashDateFrom = '2026-11-01';
+let dashDateTo = '2026-11-30';
 let lastRenderedView = null;
 let lastRenderedTab = null;
 
@@ -54,6 +56,7 @@ let controlPeriod = 'today'; // 'today' | 'week' | 'month' | 'custom'
 let controlDateFrom = toLocalDateStr(new Date());
 let controlDateTo = toLocalDateStr(new Date());
 let controlEmployeeFilter = 'all';
+let prodScope = 'mine'; // 'mine' | 'all'
 let lastUserInteractionAt = Date.now();
 
 // URL Query routing for direct tab/view access & screenshots
@@ -112,6 +115,15 @@ function renderRosocenkaCheckbox({ attrs = '', checked = false, title = '', asSp
         </svg>
       </span>
     </${tag}>
+  `;
+}
+
+function renderInfoBadge(text) {
+  return `
+    <span class="info-tip-wrap">
+      <button type="button" class="info-tip-btn" aria-label="Пояснение показателя">i</button>
+      <span class="info-tip-popover" role="tooltip">${text}</span>
+    </span>
   `;
 }
 
@@ -246,25 +258,30 @@ function renderSidebarContent(activeCase, inProgressCount, readyCount) {
           <span class="nav-icon">${icon('shield-check')}</span>
           <span class="nav-label">Контроль команды</span>
         </button>
-      ` : ''}
+      ` : `
+        <button class="nav-item ${currentView === 'productivity' ? 'active' : ''}" data-nav="productivity" title="Продуктивность">
+          <span class="nav-icon">${icon('trending-up')}</span>
+          <span class="nav-label">Продуктивность</span>
+        </button>
+      `}
 
       ${activeCase ? `
         <div class="sidebar-divider"></div>
-        <button class="nav-item ${currentView === 'case' && activeTab === 'object' ? 'active' : ''}" data-tab="object" title="1. Объект оценки">
+        <button class="nav-item ${currentView === 'case' && activeTab === 'object' ? 'active' : ''}" data-tab="object" title="Объект оценки">
           <span class="nav-icon">${icon('home')}</span>
-          <span class="nav-label">1. Объект оценки</span>
+          <span class="nav-label">Объект оценки</span>
         </button>
-        <button class="nav-item ${currentView === 'case' && activeTab === 'analogs' ? 'active' : ''}" data-tab="analogs" title="2. Аналоги и поправки">
+        <button class="nav-item ${currentView === 'case' && activeTab === 'analogs' ? 'active' : ''}" data-tab="analogs" title="Аналоги и поправки">
           <span class="nav-icon">${icon('layers')}</span>
-          <span class="nav-label">2. Аналоги и поправки</span>
+          <span class="nav-label">Аналоги и поправки</span>
         </button>
-        <button class="nav-item ${currentView === 'case' && activeTab === 'calculation' ? 'active' : ''}" data-tab="calculation" title="3. Расчёт и доли">
+        <button class="nav-item ${currentView === 'case' && activeTab === 'calculation' ? 'active' : ''}" data-tab="calculation" title="Расчёт и доли">
           <span class="nav-icon">${icon('calculator')}</span>
-          <span class="nav-label">3. Расчёт и доли</span>
+          <span class="nav-label">Расчёт и доли</span>
         </button>
-        <button class="nav-item ${currentView === 'case' && activeTab === 'report' ? 'active' : ''}" data-tab="report" title="4. Готовый документ">
+        <button class="nav-item ${currentView === 'case' && activeTab === 'report' ? 'active' : ''}" data-tab="report" title="Готовый документ">
           <span class="nav-icon">${icon('file-text')}</span>
-          <span class="nav-label">4. Готовый документ</span>
+          <span class="nav-label">Готовый документ</span>
         </button>
       ` : ''}
     </nav>
@@ -356,17 +373,6 @@ function renderSparklineSvg(values, strokeColor = '#0066cc', uid = 'sp') {
 }
 
 function getDashboardChartPoints(period) {
-  if (period === 'week') {
-    return [
-      { label: 'Пн', price: 53800, prev: 53100 },
-      { label: 'Вт', price: 54000, prev: 53250 },
-      { label: 'Ср', price: 54150, prev: 53400 },
-      { label: 'Чт', price: 54300, prev: 53550 },
-      { label: 'Пт', price: 54380, prev: 53620 },
-      { label: 'Сб', price: 54450, prev: 53700 },
-      { label: 'Вс', price: 54500, prev: 53800 },
-    ];
-  }
   if (period === 'year') {
     return [
       { label: 'Янв', price: 48500, prev: 46200 },
@@ -376,6 +382,21 @@ function getDashboardChartPoints(period) {
       { label: 'Сен', price: 53600, prev: 50900 },
       { label: 'Ноя', price: 54380, prev: 52100 },
     ];
+  }
+  if (period === 'custom') {
+    const start = dashDateFrom ? new Date(dashDateFrom) : new Date('2026-11-01');
+    const end = dashDateTo ? new Date(dashDateTo) : new Date('2026-11-30');
+    const steps = 6;
+    const span = Math.max(86400000, end.getTime() - start.getTime());
+    const pts = [];
+    for (let i = 0; i < steps; i++) {
+      const d = new Date(start.getTime() + (span * i) / (steps - 1));
+      const lbl = d.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short' }).replace('.', '');
+      const price = Math.round(52400 + i * 440 + ((i % 2) * 120));
+      const prev = Math.round(price - 1350 + (i * 40));
+      pts.push({ label: lbl, price, prev });
+    }
+    return pts;
   }
   return [
     { label: '01 ноя', price: 52900, prev: 51600 },
@@ -528,6 +549,10 @@ function renderTopbarContent(activeCase) {
           <a href="#" id="crumb-dashboard">Главная</a>
           <span>/</span>
           <strong>Зона управления и контроля</strong>
+        ` : currentView === 'productivity' ? `
+          <a href="#" id="crumb-dashboard">Главная</a>
+          <span>/</span>
+          <strong>Продуктивность оценщика</strong>
         ` : `
           <a href="#" id="crumb-dashboard">Главная</a>
           <span>/</span>
@@ -602,7 +627,10 @@ function render(opts = {}) {
   }
 
   if (currentView === 'control' && currentProfile.role !== 'manager') {
-    currentView = 'dashboard';
+    currentView = 'productivity';
+  }
+  if (currentView === 'productivity' && currentProfile.role === 'manager') {
+    currentView = 'control';
   }
 
   const isNavigationChange =
@@ -628,9 +656,11 @@ function render(opts = {}) {
         ? renderDashboardView()
         : currentView === 'cabinet'
           ? renderCabinetView()
-          : currentView === 'control'
+        : currentView === 'control'
             ? renderControlView()
-            : renderCaseWorkspaceView(activeCase)}
+            : currentView === 'productivity'
+              ? renderProductivityView()
+              : renderCaseWorkspaceView(activeCase)}
     </div>
   `;
 
@@ -791,7 +821,10 @@ function renderDashboardView() {
       </article>
 
       <article class="kpi-card">
-        <div class="kpi-card-label">Однородность ФСО</div>
+        <div class="kpi-card-top-row">
+          <div class="kpi-card-label">Однородность ФСО</div>
+          ${renderInfoBadge('Коэффициент вариации V по выбранным аналогам. По нормам ФСО должен быть ≤ 33% для достоверности расчёта.')}
+        </div>
         <div class="kpi-card-body">
           <div class="kpi-card-main">
             <div class="kpi-card-val">V = ${variationCoeff.toFixed(1).replace('.', ',')}%</div>
@@ -817,9 +850,9 @@ function renderDashboardView() {
           </div>
           <div class="dash-chart-tools">
             <div class="gw-segment gw-segment-subtle" role="group" aria-label="Период">
-              <button type="button" class="${chartPeriod === 'week' ? 'active' : ''}" data-period="week">Нед</button>
-              <button type="button" class="${chartPeriod === 'month' ? 'active' : ''}" data-period="month">Мес</button>
+              <button type="button" class="${chartPeriod === 'month' ? 'active' : ''}" data-period="month">Месяц</button>
               <button type="button" class="${chartPeriod === 'year' ? 'active' : ''}" data-period="year">Год</button>
+              <button type="button" class="${chartPeriod === 'custom' ? 'active' : ''}" data-period="custom">Свой период</button>
             </div>
             <div class="view-toggle-group" role="group" aria-label="Вид">
               <button type="button" class="view-toggle-btn ${dashChartView === 'chart' ? 'active' : ''}" data-chart-view="chart" title="График">
@@ -829,7 +862,15 @@ function renderDashboardView() {
                 ${icon('table-2')}
               </button>
             </div>
+            ${renderInfoBadge('Средняя удельная цена предложения 1 м² по рынку в сравнении с прошлым периодом.')}
           </div>
+        </div>
+
+        <div class="dash-custom-dates ${chartPeriod === 'custom' ? 'open' : ''}" id="dash-custom-dates">
+          <span>Период:</span>
+          <input type="date" id="dash-date-from" value="${dashDateFrom}">
+          <span>—</span>
+          <input type="date" id="dash-date-to" value="${dashDateTo}">
         </div>
 
         <div id="dash-chart-slot" class="dash-chart-slot">
@@ -841,7 +882,10 @@ function renderDashboardView() {
       <section class="gw-panel dash-breakdown-panel">
         <div class="panel-head-flex" style="margin-bottom: 16px;">
           <h2 class="gw-cashflow-title">1 м² по районам</h2>
-          <span class="breakdown-total">₽/м²</span>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="breakdown-total">₽/м²</span>
+            ${renderInfoBadge('Средняя ориентировочная стоимость квадратного метра по районам на основе активных аналогов.')}
+          </div>
         </div>
 
         <ul class="breakdown-list">
@@ -1178,9 +1222,7 @@ function renderControlView() {
       <!-- Шапка и гибкий фильтр периодов -->
       <div class="control-header">
         <div>
-          <div class="control-kicker">${icon('shield-check')} Кабинет руководителя · ООО «РусОценка»</div>
-          <h2>Контроль команды и объективное качество работы</h2>
-          <p>Учёт чистого активного времени (без простоя вкладки), проверка достоверности ФСО и защита от фиктивного статуса «Готов»</p>
+          <h2>Контроль команды и качество работы</h2>
         </div>
 
         <div class="control-filters-box">
@@ -1201,7 +1243,7 @@ function renderControlView() {
       </div>
 
       <!-- Фильтр по сотрудникам -->
-      <div class="city-filter-bar" style="margin-bottom: 18px;">
+      <div class="city-filter-bar" style="margin-bottom: 4px;">
         <span class="city-filter-label">${icon('users')} Сотрудник:</span>
         <button type="button" class="city-pill ${controlEmployeeFilter === 'all' ? 'active' : ''}" data-ctrl-emp="all">Вся команда (${TEAM_MEMBERS.length})</button>
         ${TEAM_MEMBERS.map(m => `
@@ -1211,52 +1253,71 @@ function renderControlView() {
         `).join('')}
       </div>
 
+      <div id="control-body-slot" class="control-body-slot">
       <!-- 6 объективных KPI-метрик -->
       <div class="control-kpi-grid">
         <div class="control-kpi-card">
-          <div class="kpi-label">${icon('check-circle-2')} Верифицировано ФСО</div>
+          <div class="kpi-card-top-row">
+            <div class="kpi-label">${icon('check-circle-2')} Верифицировано ФСО</div>
+            ${renderInfoBadge('Количество дел, прошедших все проверки (ЕГРН, аналоги, вариация ≤ 33%, чеклист) и готовых к сдаче.')}
+          </div>
           <div class="kpi-val">${verifiedCasesTotal} <span class="kpi-sub">дел 100%</span></div>
-          <div class="kpi-foot">${issueCasesTotal > 0 ? `<span class="kpi-warn">Ещё ${issueCasesTotal} в работе / с замечаниями</span>` : '<span class="kpi-ok">Нарушений по делам нет</span>'}</div>
+          <div class="kpi-foot">${issueCasesTotal > 0 ? `<span class="kpi-warn">Ещё ${issueCasesTotal} в работе</span>` : '<span class="kpi-ok">Нарушений нет</span>'}</div>
         </div>
 
         <div class="control-kpi-card">
-          <div class="kpi-label">${icon('file-text')} Выгрузок Word (.docx)</div>
+          <div class="kpi-card-top-row">
+            <div class="kpi-label">${icon('file-text')} Выгрузок Word (.docx)</div>
+            ${renderInfoBadge('Число реально сформированных и скачанных документов отчёта за выбранный период.')}
+          </div>
           <div class="kpi-val">${sumWordExports} <span class="kpi-sub">за период</span></div>
-          <div class="kpi-foot"><span>Реально сформированных отчётов</span></div>
+          <div class="kpi-foot"><span>Готовые отчёты</span></div>
         </div>
 
         <div class="control-kpi-card">
-          <div class="kpi-label">${icon('award')} Индекс качества ФСО</div>
+          <div class="kpi-card-top-row">
+            <div class="kpi-label">${icon('award')} Индекс качества ФСО</div>
+            ${renderInfoBadge('Средняя полнота заполнения дел по команде: реквизиты, ссылки на аналоги, доли 100% и самоконтроль.')}
+          </div>
           <div class="kpi-val" style="color: ${avgTeamQuality >= 85 ? 'var(--green)' : (avgTeamQuality >= 65 ? 'var(--amber)' : 'var(--red)')};">${avgTeamQuality}%</div>
-          <div class="kpi-foot"><span>Полнота ЕГРН, ссылок, долей и чеклиста</span></div>
+          <div class="kpi-foot"><span>Полнота данных и чеклиста</span></div>
         </div>
 
         <div class="control-kpi-card">
-          <div class="kpi-label">${icon('activity')} Средняя вариация (Vср)</div>
+          <div class="kpi-card-top-row">
+            <div class="kpi-label">${icon('activity')} Средняя вариация (Vср)</div>
+            ${renderInfoBadge('Средний коэффициент вариации стоимости аналогов. По ФСО №7 выборка однородна при V ≤ 33%.')}
+          </div>
           <div class="kpi-val">${avgTeamVar != null ? `${avgTeamVar.toFixed(2).replace('.', ',')}%` : '—'}</div>
-          <div class="kpi-foot"><span class="${avgTeamVar != null && avgTeamVar <= 33 ? 'kpi-ok' : ''}">Порог однородности ФСО: ≤ 33,0%</span></div>
+          <div class="kpi-foot"><span class="${avgTeamVar != null && avgTeamVar <= 33 ? 'kpi-ok' : ''}">Порог ФСО: ≤ 33,0%</span></div>
         </div>
 
         <div class="control-kpi-card">
-          <div class="kpi-label">${icon('clock')} Чистое активное время</div>
+          <div class="kpi-card-top-row">
+            <div class="kpi-label">${icon('clock')} Чистое активное время</div>
+            ${renderInfoBadge('Учёт чистого времени работы за экраном: таймер ставится на паузу после 45 секунд бездействия.')}
+          </div>
           <div class="kpi-val">${fmtTimeHM(sumActiveSec)} <span class="kpi-sub">КПД ${teamEfficiency}%</span></div>
-          <div class="kpi-foot"><span>Простой (вкладка открыта без действий): <b>${fmtTimeHM(sumIdleSec)}</b></span></div>
+          <div class="kpi-foot"><span>Простой: <b>${fmtTimeHM(sumIdleSec)}</b></span></div>
         </div>
 
         <div class="control-kpi-card">
-          <div class="kpi-label">${icon('shield-alert')} Операций / Блокировок</div>
-          <div class="kpi-val">${sumActions} <span class="kpi-sub">/ <b style="color: ${sumBlocked > 0 ? 'var(--red)' : 'var(--text-muted)'};">${sumBlocked} блок.</b></span></div>
-          <div class="kpi-foot"><span>${sumBlocked > 0 ? 'Были попытки закрыть сырой отчёт' : 'Попыток фиктивной сдачи не было'}</span></div>
+          <div class="kpi-card-top-row">
+            <div class="kpi-label">${icon('briefcase')} Нагрузка команды</div>
+            ${renderInfoBadge('Текущее количество незакрытых дел в работе и выполненных действий по всей команде за период.')}
+          </div>
+          <div class="kpi-val">${visibleCases.filter(i => i.caseItem.status !== 'Готов').length} <span class="kpi-sub">в работе</span></div>
+          <div class="kpi-foot"><span>Действий за период: <b>${sumActions}</b></span></div>
         </div>
       </div>
 
       <!-- Таблица эффективности оценщиков -->
-      <div class="panel" style="margin-bottom: 20px;">
+      <div class="panel" style="margin-bottom: 20px; margin-top: 16px;">
         <div class="panel-header">
           <div class="panel-title">
             <h3>Объективные показатели по сотрудникам</h3>
-            <p>Оценивается реальная активность за экраном (пауза после 45 сек простоя) и прохождение критериев ФСО</p>
           </div>
+          ${renderInfoBadge('Оценивается реальная активность за экраном (пауза после 45 сек простоя), выгрузки Word и прохождение критериев ФСО.')}
         </div>
         <div class="table-wrap">
           <table class="calc-table control-table">
@@ -1417,6 +1478,7 @@ function renderControlView() {
           </div>
         </div>
       </div>
+      </div>
     </div>
   `;
 }
@@ -1474,7 +1536,7 @@ function renderCaseWorkspaceView(activeCase) {
         ${icon('home')} 1. Объект оценки
       </button>
       <button class="case-tab-btn ${activeTab === 'analogs' ? 'active' : ''}" data-tab="analogs">
-        ${icon('layers')} 2. Аналоги и поправки (${activeCase.analogs.length})
+        ${icon('layers')} 2. Аналоги и поправки
       </button>
       <button class="case-tab-btn ${activeTab === 'calculation' ? 'active' : ''}" data-tab="calculation">
         ${icon('calculator')} 3. Расчёт и доли
@@ -2304,36 +2366,69 @@ function bindEvents() {
   }
   bindChartPointEvents();
 
+  let chartFadeTimer = null;
   function refreshChartSlotSmoothly() {
     const slot = document.getElementById('dash-chart-slot');
     if (!slot) {
       render({ animate: false });
       return;
     }
-    slot.style.opacity = '0.35';
-    requestAnimationFrame(() => {
+    if (chartFadeTimer) clearTimeout(chartFadeTimer);
+    slot.style.opacity = '0';
+    slot.style.transform = 'translateY(3px)';
+    chartFadeTimer = setTimeout(() => {
       slot.innerHTML = renderGlassChart(chartPeriod);
-      slot.style.opacity = '1';
       bindChartPointEvents();
-    });
+      requestAnimationFrame(() => {
+        slot.style.opacity = '1';
+        slot.style.transform = 'translateY(0)';
+      });
+    }, 150);
   }
 
-  // Chart Period Switcher (in-place, zero page jump)
+  // Chart Period Switcher (in-place, smooth crossfade)
   document.querySelectorAll('[data-period]').forEach(btn => {
     btn.addEventListener('click', () => {
       chartPeriod = btn.dataset.period;
       document.querySelectorAll('[data-period]').forEach(b => b.classList.toggle('active', b === btn));
+      const customDates = document.getElementById('dash-custom-dates');
+      if (customDates) customDates.classList.toggle('open', chartPeriod === 'custom');
       refreshChartSlotSmoothly();
     });
   });
 
-  // Chart / Table View Toggle (in-place, zero page jump)
+  document.getElementById('dash-date-from')?.addEventListener('change', e => {
+    dashDateFrom = e.target.value;
+    refreshChartSlotSmoothly();
+  });
+
+  document.getElementById('dash-date-to')?.addEventListener('change', e => {
+    dashDateTo = e.target.value;
+    refreshChartSlotSmoothly();
+  });
+
+  // Chart / Table View Toggle (in-place, smooth crossfade)
   document.querySelectorAll('[data-chart-view]').forEach(btn => {
     btn.addEventListener('click', () => {
       dashChartView = btn.dataset.chartView;
       document.querySelectorAll('[data-chart-view]').forEach(b => b.classList.toggle('active', b === btn));
       refreshChartSlotSmoothly();
     });
+  });
+
+  // Minimalist (i) tooltip click toggle
+  document.querySelectorAll('.info-tip-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const wrap = btn.closest('.info-tip-wrap');
+      if (!wrap) return;
+      const wasOpen = wrap.classList.contains('open');
+      document.querySelectorAll('.info-tip-wrap.open').forEach(w => w.classList.remove('open'));
+      if (!wasOpen) wrap.classList.add('open');
+    });
+  });
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.info-tip-wrap.open').forEach(w => w.classList.remove('open'));
   });
 
   // Dashboard Registry Table Filter Pills (in-place, zero page jump)
@@ -2406,6 +2501,16 @@ function bindEvents() {
   });
 
   // Control Zone period & employee filters
+  function refreshControlSmoothly() {
+    render({ animate: false });
+    const slot = document.getElementById('control-body-slot');
+    if (slot) {
+      slot.classList.remove('is-fading');
+      void slot.offsetWidth;
+      slot.classList.add('is-fading');
+    }
+  }
+
   document.querySelectorAll('[data-ctrl-period]').forEach(btn => {
     btn.addEventListener('click', () => {
       controlPeriod = btn.dataset.ctrlPeriod;
@@ -2414,26 +2519,26 @@ function bindEvents() {
         controlDateFrom = bounds.from;
         controlDateTo = bounds.to;
       }
-      render();
+      refreshControlSmoothly();
     });
   });
 
   document.getElementById('control-date-from')?.addEventListener('change', e => {
     controlPeriod = 'custom';
     controlDateFrom = e.target.value;
-    render();
+    refreshControlSmoothly();
   });
 
   document.getElementById('control-date-to')?.addEventListener('change', e => {
     controlPeriod = 'custom';
     controlDateTo = e.target.value;
-    render();
+    refreshControlSmoothly();
   });
 
   document.querySelectorAll('[data-ctrl-emp]').forEach(btn => {
     btn.addEventListener('click', () => {
       controlEmployeeFilter = btn.dataset.ctrlEmp;
-      render();
+      refreshControlSmoothly();
     });
   });
 

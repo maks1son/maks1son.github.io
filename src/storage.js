@@ -190,6 +190,9 @@ function buildSeedActivityStore() {
       emp_masha: { activeSec: 6480, idleSec: 540 },   // 1ч 48м актив., 9м простоя
       emp_sveta: { activeSec: 5100, idleSec: 1920 },  // 1ч 25м актив., 32м простоя
       emp_petya: { activeSec: 2340, idleSec: 4680 },  // 39м актив., 1ч 18м простоя (пылилась вкладка!)
+      emp_dima: { activeSec: 6900, idleSec: 720 },
+      emp_olga: { activeSec: 5820, idleSec: 660 },
+      emp_ivan: { activeSec: 4500, idleSec: 1140 },
       emp_anna: { activeSec: 3900, idleSec: 300 },
     },
     [d1]: {
@@ -197,6 +200,9 @@ function buildSeedActivityStore() {
       emp_masha: { activeSec: 12600, idleSec: 780 },
       emp_sveta: { activeSec: 9840, idleSec: 1320 },
       emp_petya: { activeSec: 5400, idleSec: 3120 },
+      emp_dima: { activeSec: 10800, idleSec: 960 },
+      emp_olga: { activeSec: 11700, idleSec: 840 },
+      emp_ivan: { activeSec: 8400, idleSec: 1500 },
       emp_anna: { activeSec: 6900, idleSec: 420 },
     },
     [d3]: {

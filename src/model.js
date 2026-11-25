@@ -10,6 +10,9 @@ export const TEAM_MEMBERS = [
   { id: 'emp_masha', name: 'Петрова Мария Сергеевна', shortName: 'Петрова Маша', initials: 'ПМ', role: 'appraiser', roleLabel: 'Оценщик' },
   { id: 'emp_sveta', name: 'Соколова Светлана Николаевна', shortName: 'Соколова Света', initials: 'СС', role: 'appraiser', roleLabel: 'Оценщик' },
   { id: 'emp_petya', name: 'Волков Пётр Алексеевич', shortName: 'Волков Петя', initials: 'ВП', role: 'appraiser', roleLabel: 'Оценщик' },
+  { id: 'emp_dima', name: 'Кузнецов Дмитрий Олегович', shortName: 'Кузнецов Дима', initials: 'КД', role: 'appraiser', roleLabel: 'Оценщик' },
+  { id: 'emp_olga', name: 'Морозова Ольга Викторовна', shortName: 'Морозова Ольга', initials: 'МО', role: 'appraiser', roleLabel: 'Оценщик' },
+  { id: 'emp_ivan', name: 'Новиков Иван Андреевич', shortName: 'Новиков Иван', initials: 'НИ', role: 'appraiser', roleLabel: 'Оценщик' },
 ];
 
 export const money = value => {
