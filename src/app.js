@@ -35,6 +35,8 @@ let currentView = 'dashboard'; // 'dashboard' | 'cabinet' | 'case'
 let activeTab = 'analogs'; // 'object' | 'analogs' | 'calculation' | 'report'
 let expandedAuditIds = new Set();
 let analogCityFilter = 'all'; // 'all' | 'Тольятти' | 'Самара' | 'Сызрань'
+let dashTableFilter = 'all'; // 'all' | 'pinned' | 'В работе' | 'Готов' | 'Черновик'
+let dashChartView = 'chart'; // 'chart' | 'table'
 
 // URL Query routing for direct tab/view access & screenshots
 if (typeof window !== 'undefined' && window.location) {
@@ -236,145 +238,190 @@ function renderSidebarContent(activeCase, inProgressCount, readyCount) {
 /**
  * Живая диаграмма динамики цен за 1 м² и портфеля оценки
  */
-function renderGlassChart(period) {
-  let points = [];
+function buildSmoothMonotonePath(pts) {
+  if (pts.length < 2) return '';
+  const n = pts.length;
+  const dx = [];
+  const slope = [];
+  for (let i = 0; i < n - 1; i++) {
+    dx.push(pts[i + 1][0] - pts[i][0]);
+    slope.push((pts[i + 1][1] - pts[i][1]) / (dx[i] || 1));
+  }
+  const m = [slope[0]];
+  for (let i = 1; i < n - 1; i++) {
+    m.push(
+      slope[i - 1] * slope[i] <= 0
+        ? 0
+        : (3 * (dx[i - 1] + dx[i])) /
+            ((2 * dx[i] + dx[i - 1]) / slope[i - 1] + (dx[i] + 2 * dx[i - 1]) / slope[i])
+    );
+  }
+  m.push(slope[n - 2]);
+  let d = `M ${pts[0][0].toFixed(2)} ${pts[0][1].toFixed(2)}`;
+  for (let i = 0; i < n - 1; i++) {
+    const [x0, y0] = pts[i];
+    const [x1, y1] = pts[i + 1];
+    const h = dx[i] / 3;
+    d += ` C ${(x0 + h).toFixed(2)} ${(y0 + m[i] * h).toFixed(2)}, ${(x1 - h).toFixed(2)} ${(y1 - m[i + 1] * h).toFixed(2)}, ${x1.toFixed(2)} ${y1.toFixed(2)}`;
+  }
+  return d;
+}
+
+function renderSparklineSvg(values, strokeColor = '#0066cc', uid = 'sp') {
+  const w = 78;
+  const h = 32;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const pts = values.map((v, i) => [
+    (i / Math.max(1, values.length - 1)) * (w - 6) + 3,
+    h - 4 - ((v - min) / (max - min || 1)) * (h - 8),
+  ]);
+  const d = buildSmoothMonotonePath(pts);
+  const last = pts[pts.length - 1];
+  return `
+    <svg class="kpi-sparkline" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true">
+      <defs>
+        <linearGradient id="spark-grad-${uid}" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stop-color="${strokeColor}" stop-opacity="0.16" />
+          <stop offset="100%" stop-color="${strokeColor}" stop-opacity="0" />
+        </linearGradient>
+      </defs>
+      <path d="${d} L ${last[0].toFixed(2)} ${h} L ${pts[0][0].toFixed(2)} ${h} Z" fill="url(#spark-grad-${uid})" />
+      <path d="${d}" fill="none" stroke="${strokeColor}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" opacity="0.7" />
+      <circle cx="${last[0].toFixed(2)}" cy="${last[1].toFixed(2)}" r="2.8" fill="${strokeColor}" stroke="#ffffff" stroke-width="1.5" />
+    </svg>
+  `;
+}
+
+function getDashboardChartPoints(period) {
   if (period === 'week') {
-    points = [
-      { label: 'Пн', price: 53800, total: 38.5 },
-      { label: 'Вт', price: 54000, total: 40.2 },
-      { label: 'Ср', price: 54150, total: 42.0 },
-      { label: 'Чт', price: 54300, total: 44.8 },
-      { label: 'Пт', price: 54380, total: 47.1 },
-      { label: 'Сб', price: 54450, total: 47.8 },
-      { label: 'Вс', price: 54500, total: 48.2 },
-    ];
-  } else if (period === 'year') {
-    points = [
-      { label: 'Янв', price: 48500, total: 18.2 },
-      { label: 'Мар', price: 49800, total: 24.5 },
-      { label: 'Май', price: 51200, total: 31.0 },
-      { label: 'Июл', price: 52500, total: 37.4 },
-      { label: 'Сен', price: 53600, total: 43.1 },
-      { label: 'Ноя', price: 54380, total: 48.2 },
-    ];
-  } else {
-    // month
-    points = [
-      { label: '01 ноя', price: 52900, total: 28.4 },
-      { label: '06 ноя', price: 53300, total: 32.8 },
-      { label: '11 ноя', price: 53700, total: 38.1 },
-      { label: '16 ноя', price: 54100, total: 42.5 },
-      { label: '21 ноя', price: 54380, total: 45.9 },
-      { label: '26 ноя', price: 54650, total: 47.4 },
-      { label: '30 ноя', price: 54900, total: 48.2 },
+    return [
+      { label: 'Пн', price: 53800, prev: 53100 },
+      { label: 'Вт', price: 54000, prev: 53250 },
+      { label: 'Ср', price: 54150, prev: 53400 },
+      { label: 'Чт', price: 54300, prev: 53550 },
+      { label: 'Пт', price: 54380, prev: 53620 },
+      { label: 'Сб', price: 54450, prev: 53700 },
+      { label: 'Вс', price: 54500, prev: 53800 },
     ];
   }
+  if (period === 'year') {
+    return [
+      { label: 'Янв', price: 48500, prev: 46200 },
+      { label: 'Мар', price: 49800, prev: 47100 },
+      { label: 'Май', price: 51200, prev: 48400 },
+      { label: 'Июл', price: 52500, prev: 49600 },
+      { label: 'Сен', price: 53600, prev: 50900 },
+      { label: 'Ноя', price: 54380, prev: 52100 },
+    ];
+  }
+  return [
+    { label: '01 ноя', price: 52900, prev: 51600 },
+    { label: '06 ноя', price: 53300, prev: 51900 },
+    { label: '11 ноя', price: 53700, prev: 52250 },
+    { label: '16 ноя', price: 54100, prev: 52600 },
+    { label: '21 ноя', price: 54380, prev: 52950 },
+    { label: '26 ноя', price: 54650, prev: 53200 },
+    { label: '30 ноя', price: 54900, prev: 53500 },
+  ];
+}
 
-  const minPrice = 48000;
+function renderGlassChart(period) {
+  const points = getDashboardChartPoints(period);
+
+  if (dashChartView === 'table') {
+    return `
+      <div class="dash-chart-table-wrap">
+        <table class="dash-mini-table">
+          <thead>
+            <tr>
+              <th>Период</th>
+              <th style="text-align: right;">Текущий</th>
+              <th style="text-align: right;">Прошлый</th>
+              <th style="text-align: right;">Динамика</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${points.map(p => {
+              const delta = ((p.price - p.prev) / p.prev) * 100;
+              return `
+                <tr>
+                  <td>${p.label}</td>
+                  <td style="text-align: right; font-weight: 650;">${moneyPerSqm(p.price)}</td>
+                  <td style="text-align: right; color: var(--text-muted);">${moneyPerSqm(p.prev)}</td>
+                  <td style="text-align: right; color: #059669; font-weight: 600;">+${delta.toFixed(1).replace('.', ',')}%</td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  const minPrice = period === 'year' ? 45000 : 49000;
   const maxPrice = 56000;
-  const width = 600;
-  const height = 140;
-  const padX = 16;
-  const padTop = 14;
-  const padBottom = 20;
-  const usableW = width - padX * 2;
+  const width = 680;
+  const height = 196;
+  const padLeft = 10;
+  const padRight = 10;
+  const padTop = 18;
+  const padBottom = 14;
+  const usableW = width - padLeft - padRight;
   const usableH = height - padTop - padBottom;
 
-  const getX = i => padX + (i * usableW) / (points.length - 1);
+  const getX = i => padLeft + (i * usableW) / Math.max(1, points.length - 1);
   const getY = val => padTop + usableH - ((val - minPrice) / (maxPrice - minPrice)) * usableH;
 
-  const coords = points.map((p, i) => ({
-    x: getX(i),
-    y: getY(p.price),
-    p,
-    i
-  }));
+  const curPts = points.map((p, i) => [getX(i), getY(p.price)]);
+  const prevPts = points.map((p, i) => [getX(i), getY(p.prev)]);
+  const lineD = buildSmoothMonotonePath(curPts);
+  const prevD = buildSmoothMonotonePath(prevPts);
 
-  // Build Catmull-Rom cubic bezier smooth curve
-  let lineD = `M ${coords[0].x.toFixed(1)} ${coords[0].y.toFixed(1)}`;
-  for (let i = 0; i < coords.length - 1; i++) {
-    const p0 = coords[Math.max(0, i - 1)];
-    const p1 = coords[i];
-    const p2 = coords[i + 1];
-    const p3 = coords[Math.min(coords.length - 1, i + 2)];
-
-    const cp1x = p1.x + (p2.x - p0.x) / 6;
-    const cp1y = p1.y + (p2.y - p0.y) / 6;
-    const cp2x = p2.x - (p3.x - p1.x) / 6;
-    const cp2y = p2.y - (p3.y - p1.y) / 6;
-
-    lineD += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
-  }
-
-  const first = coords[0];
-  const last = coords[coords.length - 1];
   const baselineY = height - padBottom;
-  const areaD = `${lineD} L ${last.x.toFixed(1)} ${baselineY} L ${first.x.toFixed(1)} ${baselineY} Z`;
+  const areaD = `${lineD} L ${curPts[curPts.length - 1][0].toFixed(2)} ${baselineY} L ${curPts[0][0].toFixed(2)} ${baselineY} Z`;
 
   const activeIndex = points.findIndex(p => p.price === 54380) !== -1
     ? points.findIndex(p => p.price === 54380)
     : points.length - 1;
-  const activeCoord = coords[activeIndex];
+  const activeCoord = curPts[activeIndex];
   const activePoint = points[activeIndex];
+  const activePctX = ((activeCoord[0] / width) * 100).toFixed(2);
 
-  const badgeW = 68;
-  const badgeH = 20;
-  let badgeX = activeCoord.x - badgeW / 2;
-  if (badgeX < 6) badgeX = 6;
-  if (badgeX + badgeW > width - 6) badgeX = width - badgeW - 6;
-  const badgeY = Math.max(2, activeCoord.y - badgeH - 7);
-
-  const y56 = getY(56000).toFixed(1);
-  const y52 = getY(52000).toFixed(1);
-  const y48 = getY(48000).toFixed(1);
-  const activePctX = ((activeCoord.x / width) * 100).toFixed(2);
+  const ticks = period === 'year' ? [56000, 52000, 48000, 45000] : [56000, 52500, 49000];
 
   return `
-    <div class="gw-chart-wrap">
+    <div class="gw-chart-wrap" data-chart-interactive="true">
       <div class="gw-chart-labels">
-        <span>56 000 ₽</span>
-        <span>52 000 ₽</span>
-        <span>48 000 ₽</span>
+        ${ticks.map(t => `<span>${(t / 1000).toFixed(1).replace('.0', '')} тыс. ₽</span>`).join('')}
       </div>
       <div class="gw-chart-canvas-wrap">
         <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
           <defs>
             <linearGradient id="gw-chart-grad-${period}" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.22" />
-              <stop offset="60%" stop-color="#60a5fa" stop-opacity="0.06" />
-              <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.0" />
+              <stop offset="0%" stop-color="#0066cc" stop-opacity="0.20" />
+              <stop offset="75%" stop-color="#0066cc" stop-opacity="0.03" />
+              <stop offset="100%" stop-color="#0066cc" stop-opacity="0.0" />
             </linearGradient>
-            <filter id="gw-chart-glow-${period}" x="-10%" y="-20%" width="120%" height="150%">
-              <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="#2563eb" flood-opacity="0.25" />
-            </filter>
           </defs>
 
-          <!-- Subtle horizontal grid lines matching price labels -->
-          <line x1="0" y1="${y56}" x2="${width}" y2="${y56}" stroke="#cbd5e1" stroke-dasharray="3 4" stroke-width="0.8" opacity="0.65" />
-          <line x1="0" y1="${y52}" x2="${width}" y2="${y52}" stroke="#cbd5e1" stroke-dasharray="3 4" stroke-width="0.8" opacity="0.65" />
-          <line x1="0" y1="${y48}" x2="${width}" y2="${y48}" stroke="#cbd5e1" stroke-dasharray="3 4" stroke-width="0.8" opacity="0.65" />
+          ${ticks.map(t => {
+            const ty = getY(t).toFixed(1);
+            return `<line x1="0" y1="${ty}" x2="${width}" y2="${ty}" stroke="#e2e8f0" stroke-dasharray="3 4" stroke-width="1" />`;
+          }).join('')}
 
-          <!-- Vertical guide marker for the active valuation point -->
-          <line x1="${activeCoord.x.toFixed(1)}" y1="${padTop}" x2="${activeCoord.x.toFixed(1)}" y2="${baselineY}" stroke="#93c5fd" stroke-width="1.2" stroke-dasharray="2 3" opacity="0.75" />
+          <line x1="${activeCoord[0].toFixed(1)}" y1="${padTop}" x2="${activeCoord[0].toFixed(1)}" y2="${baselineY}" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="3 3" id="chart-crosshair-line" />
 
-          <!-- Soft translucent gradient fill under the curve -->
-          <path d="${areaD}" fill="url(#gw-chart-grad-${period})" fill-opacity="1" />
+          <path d="${prevD}" fill="none" stroke="#94a3b8" stroke-width="1.6" stroke-dasharray="4 4" stroke-linecap="round" opacity="0.75" />
+          <path d="${areaD}" fill="url(#gw-chart-grad-${period})" />
+          <path d="${lineD}" fill="none" stroke="#0066cc" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
 
-          <!-- Smooth cubic bezier market curve -->
-          <path d="${lineD}" fill="none" stroke="#2563eb" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" filter="url(#gw-chart-glow-${period})" />
-
-          <!-- Regular point markers -->
-          ${coords.map(c => `
-            <circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="3" fill="#ffffff" stroke="#3b82f6" stroke-width="1.8" />
+          ${curPts.map((c, idx) => `
+            <circle cx="${c[0].toFixed(1)}" cy="${c[1].toFixed(1)}" r="${idx === activeIndex ? '4.5' : '3'}" fill="${idx === activeIndex ? '#0066cc' : '#ffffff'}" stroke="#0066cc" stroke-width="${idx === activeIndex ? '2' : '1.6'}" class="chart-dot" data-point-idx="${idx}" />
           `).join('')}
-
-          <!-- Active point marker with soft pulsing aura -->
-          <circle cx="${activeCoord.x.toFixed(1)}" cy="${activeCoord.y.toFixed(1)}" r="8" fill="#3b82f6" fill-opacity="0.18" />
-          <circle cx="${activeCoord.x.toFixed(1)}" cy="${activeCoord.y.toFixed(1)}" r="4.2" fill="#2563eb" stroke="#ffffff" stroke-width="2" />
         </svg>
 
-        <!-- HTML Pin Badge: immune to SVG horizontal distortion -->
-        <div class="gw-chart-pin-badge" style="left: ${activePctX}%; top: ${activeCoord.y.toFixed(1)}px;">
+        <div class="gw-chart-pin-badge" id="chart-pin-badge" style="left: ${activePctX}%; top: ${activeCoord[1].toFixed(1)}px;">
           ${activePoint.price.toLocaleString('ru-RU')} ₽
         </div>
       </div>
@@ -608,205 +655,263 @@ function renderDashboardView() {
   const spotlightAmount = spotlightRes && spotlightRes.total ? money(spotlightRes.total) : '3 539 000 ₽';
   const spotlightSharesCount = (spotlightCase && spotlightCase.objectData.shares && spotlightCase.objectData.shares.length) || 5;
 
+  // Разбивка портфеля по городам/локациям
+  const locationMap = new Map();
+  cases.forEach(c => {
+    const res = calculateValuation(c.objectData, c.analogs, c.objectData.tradeAdjustment);
+    const val = res.total || Math.round((c.objectData.area * 47000) / 1000) * 1000;
+    const addr = (c.objectData.address || '').toLowerCase();
+    let city = 'Другие локации';
+    if (addr.includes('тольятти')) city = 'г. Тольятти';
+    else if (addr.includes('самара')) city = 'г. Самара';
+    else if (addr.includes('сызрань')) city = 'г. Сызрань';
+    locationMap.set(city, (locationMap.get(city) || 0) + val);
+  });
+  const locations = Array.from(locationMap.entries())
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => b.value - a.value);
+  const maxLocVal = Math.max(1, ...locations.map(l => l.value));
+
+  const tableCases = cases.filter(c => {
+    if (dashTableFilter === 'pinned') return c.isPinned;
+    if (dashTableFilter === 'В работе' || dashTableFilter === 'Готов' || dashTableFilter === 'Черновик') {
+      return c.status === dashTableFilter;
+    }
+    return true;
+  });
+
   return `
-    <!-- Clean Unboxed Greeting Header -->
-    <section class="dashboard-welcome anim-fade-up">
-      <h1 class="welcome-title">Здравствуйте, Анна Александровна!</h1>
-      <div class="welcome-actions">
+    <!-- Top Executive Header Row (21st.dev composition in Onest + Rosocenka Blue) -->
+    <section class="dash-top-row anim-fade-up">
+      <div>
+        <h1 class="welcome-title">Здравствуйте, Анна Александровна!</h1>
+        <p class="dash-subtitle">Портфель оценки жилой недвижимости · Ноябрь 2026</p>
+      </div>
+      <div class="dash-top-controls">
+        <div class="gw-segment" role="group" aria-label="Период графика">
+          <button type="button" class="${chartPeriod === 'week' ? 'active' : ''}" data-period="week">Неделя</button>
+          <button type="button" class="${chartPeriod === 'month' ? 'active' : ''}" data-period="month">Месяц</button>
+          <button type="button" class="${chartPeriod === 'year' ? 'active' : ''}" data-period="year">Год</button>
+        </div>
         <button class="btn btn-primary" id="btn-hero-new">
-          ${icon('plus')} Добавить объект оценки
-        </button>
-        <button class="btn btn-secondary" id="btn-hero-cabinet" data-nav="all-cases">
-          ${icon('folder')} Все дела (${cases.length})
+          ${icon('plus')} Добавить объект
         </button>
       </div>
     </section>
 
-    <!-- Upper Frosted Glass Grid: Portfolio Balance + Market Valuation Chart -->
-    <div class="gw-overview-grid anim-fade-up anim-delay-1">
-      <!-- Left Glass Panel: Portfolio Balance & Spotlight Case -->
-      <section class="gw-panel gw-balance">
-        <div class="panel-head-row">
-          <span class="gw-panel-caption">Портфель объектов в оценке</span>
-          <span style="color: #2563eb;">${icon('wallet')}</span>
-        </div>
-        <div class="gw-balance-value">${money(totalValuation)}</div>
-        <div class="gw-balance-meta">
-          <span class="gw-positive">+12% ноябрь</span>
-        </div>
-
-        ${spotlightCase ? `
-          <div class="gw-account" style="margin-top: auto;">
-            <div class="gw-account-icon">${icon('home')}</div>
-            <div class="gw-account-info">
-              <strong>Дело № ${spotlightCase.number}</strong>
-              <span>${cleanDisplayAddress(spotlightCase.objectData.address).split(',').slice(-2).join(',')} · ${spotlightAmount}</span>
+    <!-- Tier 1: 4-Column KPI Strip with Smooth Sparklines -->
+    <section class="kpi-strip-grid anim-fade-up anim-delay-1" aria-label="Ключевые показатели">
+      <article class="kpi-card">
+        <div class="kpi-card-label">Портфель в оценке</div>
+        <div class="kpi-card-body">
+          <div class="kpi-card-main">
+            <div class="kpi-card-val">${money(totalValuation)}</div>
+            <div class="kpi-card-meta">
+              <span class="kpi-delta pos">↗ +12,0%</span>
+              <span class="kpi-sub">к прошлому мес.</span>
             </div>
-            <button type="button" class="gw-account-btn" data-action="open-case" data-id="${spotlightCase.id}" title="Открыть дело в расчётах">
-              ${icon('arrow-right')}
-            </button>
           </div>
-        ` : ''}
-      </section>
-
-      <!-- Right Glass Panel: Interactive Dynamics Chart -->
-      <section class="gw-panel gw-cashflow">
-        <div class="gw-cashflow-header">
-          <h2 class="gw-cashflow-title">Динамика рынка недвижимости и портфеля</h2>
-          <div class="gw-segment" role="group" aria-label="Период графика">
-            <button type="button" class="${chartPeriod === 'week' ? 'active' : ''}" data-period="week">Неделя</button>
-            <button type="button" class="${chartPeriod === 'month' ? 'active' : ''}" data-period="month">Месяц</button>
-            <button type="button" class="${chartPeriod === 'year' ? 'active' : ''}" data-period="year">Год</button>
-          </div>
+          ${renderSparklineSvg([11.2, 11.8, 12.1, 12.9, 13.4, 14.0, 14.48], '#0066cc', 'portfolio')}
         </div>
+      </article>
 
-        <div class="gw-chart-summary">
-          <div>
-            <span class="gw-summary-lbl"><i class="dot-indicator"></i> Средняя цена 1 м²</span>
-            <strong class="gw-summary-val">${moneyPerSqm(avgPricePerSqm)}</strong>
+      <article class="kpi-card">
+        <div class="kpi-card-label">Средняя цена 1 м²</div>
+        <div class="kpi-card-body">
+          <div class="kpi-card-main">
+            <div class="kpi-card-val">${moneyPerSqm(avgPricePerSqm)}</div>
+            <div class="kpi-card-meta">
+              <span class="kpi-delta pos">↗ +2,4%</span>
+              <span class="kpi-sub">по рынку</span>
+            </div>
           </div>
+          ${renderSparklineSvg([52900, 53300, 53700, 54100, 54380, 54650, 54900], '#059669', 'sqm')}
+        </div>
+      </article>
+
+      <article class="kpi-card" style="cursor: pointer;" data-nav="all-cases" title="Открыть все дела">
+        <div class="kpi-card-label">Дела в работе / Готово</div>
+        <div class="kpi-card-body">
+          <div class="kpi-card-main">
+            <div class="kpi-card-val">${inProgressCases.length} <span style="font-size: 16px; color: var(--text-muted); font-weight: 500;">/ ${readyCases.length}</span></div>
+            <div class="kpi-card-meta">
+              <span class="kpi-delta neutral">Всего ${cases.length}</span>
+              <span class="kpi-sub">в архиве</span>
+            </div>
+          </div>
+          ${renderSparklineSvg([2, 3, 2, 4, 3, 5, cases.length], '#2563eb', 'cases')}
+        </div>
+      </article>
+
+      <article class="kpi-card">
+        <div class="kpi-card-label">Однородность ФСО (V)</div>
+        <div class="kpi-card-body">
+          <div class="kpi-card-main">
+            <div class="kpi-card-val">V = ${variationCoeff.toFixed(1).replace('.', ',')}%</div>
+            <div class="kpi-card-meta">
+              <span class="kpi-delta pos">≤ 33% норма</span>
+              <span class="kpi-sub">Лейфер</span>
+            </div>
+          </div>
+          ${renderSparklineSvg([5.2, 4.9, 4.7, 4.4, 4.3, 4.1, 4.1], '#059669', 'fso')}
+        </div>
+      </article>
+    </section>
+
+    <!-- Tier 2: Asymmetric Main Analytics (Chart + Breakdown/Standards) -->
+    <div class="dash-analytics-grid anim-fade-up anim-delay-2">
+      <!-- Left: Dual-line Market Chart + Table Toggle -->
+      <section class="gw-panel dash-chart-panel">
+        <div class="dash-chart-head">
           <div>
-            <span class="gw-summary-lbl"><i class="dot-indicator dot-green"></i> Контроль выборки ФСО</span>
-            <strong class="gw-summary-val">V = ${variationCoeff.toFixed(1).replace('.', ',')}% ≤ 33%</strong>
+            <h2 class="gw-cashflow-title">Динамика рынка и портфеля</h2>
+            <div class="dash-chart-kpi-line">
+              <strong>${moneyPerSqm(avgPricePerSqm)}</strong>
+              <span>+2,4% к прошлому периоду · контроль V = ${variationCoeff.toFixed(1).replace('.', ',')}%</span>
+            </div>
+          </div>
+          <div class="dash-chart-tools">
+            <ul class="chart-legend" aria-label="Легенда">
+              <li><span class="legend-line cur"></span> Текущий</li>
+              <li><span class="legend-line prev"></span> Прошлый</li>
+            </ul>
+            <div class="view-toggle-group" role="group" aria-label="Вид данных">
+              <button type="button" class="view-toggle-btn ${dashChartView === 'chart' ? 'active' : ''}" data-chart-view="chart" title="График">
+                ${icon('trending-up')}
+              </button>
+              <button type="button" class="view-toggle-btn ${dashChartView === 'table' ? 'active' : ''}" data-chart-view="table" title="Таблица">
+                ${icon('table-2')}
+              </button>
+            </div>
           </div>
         </div>
 
         ${renderGlassChart(chartPeriod)}
       </section>
-    </div>
 
-    <!-- Lower Frosted Glass Grid: Registry Stats + Appraiser's Goals -->
-    <div class="gw-lower-grid anim-fade-up anim-delay-2">
-      <!-- Left Glass Panel: Spacious Registry Metric Tiles -->
-      <section class="gw-panel">
+      <!-- Right: Portfolio Breakdown by Location + Monthly Plan -->
+      <section class="gw-panel dash-breakdown-panel">
         <div class="panel-head-flex" style="margin-bottom: 16px;">
-          <h2 class="gw-cashflow-title">Реестр дел в работе</h2>
-          <button class="btn btn-secondary btn-sm" data-nav="all-cases">
-            Все дела ${icon('arrow-right')}
-          </button>
+          <h2 class="gw-cashflow-title">Портфель по локациям</h2>
+          <span class="breakdown-total">${money(totalValuation)}</span>
         </div>
 
-        <div class="registry-stats-grid">
-          <div class="reg-stat-card" data-nav="all-cases" title="Открыть весь реестр дел">
-            <div class="reg-stat-head">
-              <span>Всего в архиве</span>
-              <div class="reg-stat-icon" style="background: #eff6ff; color: #2563eb;">${icon('folder')}</div>
-            </div>
-            <div class="reg-stat-val">${cases.length}</div>
-          </div>
+        <ul class="breakdown-list">
+          ${locations.map((loc, idx) => {
+            const sharePct = Math.round((loc.value / Math.max(1, totalValuation)) * 100);
+            const barWidth = Math.round((loc.value / maxLocVal) * 100);
+            const opacity = Math.max(0.45, 1 - idx * 0.2);
+            return `
+              <li class="breakdown-item">
+                <div class="breakdown-row">
+                  <span class="breakdown-name">${loc.label}</span>
+                  <span class="breakdown-vals">${money(loc.value)} <span class="breakdown-pct">${sharePct}%</span></span>
+                </div>
+                <div class="breakdown-track">
+                  <div class="breakdown-fill" style="width: ${barWidth}%; opacity: ${opacity};"></div>
+                </div>
+              </li>
+            `;
+          }).join('')}
+        </ul>
 
-          <div class="reg-stat-card" data-nav="in-progress" title="Показать дела в работе">
-            <div class="reg-stat-head">
-              <span>В работе</span>
-              <div class="reg-stat-icon" style="background: #fef3c7; color: #d97706;">${icon('clock')}</div>
-            </div>
-            <div class="reg-stat-val" style="color: #d97706;">${inProgressCases.length}</div>
+        <div class="breakdown-footer">
+          <div class="breakdown-goal-row">
+            <span>План выпуска отчётов (ноябрь)</span>
+            <strong>8 из 10 · 80%</strong>
           </div>
-
-          <div class="reg-stat-card" data-nav="ready" title="Показать готовые отчёты">
-            <div class="reg-stat-head">
-              <span>Готовые отчёты</span>
-              <div class="reg-stat-icon" style="background: #ecfdf5; color: #059669;">${icon('check-circle')}</div>
-            </div>
-            <div class="reg-stat-val" style="color: #059669;">${readyCases.length}</div>
+          <div class="breakdown-track" style="margin-top: 6px;">
+            <div class="breakdown-fill" style="width: 80%; background: #059669;"></div>
           </div>
-
-          <div class="reg-stat-card" data-nav="dashboard" title="Закреплённые дела">
-            <div class="reg-stat-head">
-              <span>Закреплено</span>
-              <div class="reg-stat-icon" style="background: #fdf4ff; color: #9333ea;">${icon('star')}</div>
-            </div>
-            <div class="reg-stat-val" style="color: #9333ea;">${pinnedCases.length}</div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Right Glass Panel: Appraiser's Standards & Monthly Goals (Clean, No Microtext) -->
-      <section class="gw-panel">
-        <div class="panel-head-flex" style="margin-bottom: 20px;">
-          <h2 class="gw-cashflow-title">Нормативы и цели оценщика</h2>
-          <span class="gw-month-badge">Ноябрь 2026</span>
-        </div>
-
-        <div style="display: flex; flex-direction: column; gap: 20px; justify-content: space-around; height: calc(100% - 48px);">
-          <!-- Goal 1 -->
-          <div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <strong style="font-size: 15px; font-weight: 700; color: #0f172a;">Выпуск отчётов (план месяца)</strong>
-              <span style="font-size: 15px; font-weight: 800; color: #2563eb;">8 из 10 (80%)</span>
-            </div>
-            <div class="goal-progress-bar">
-              <div style="height: 100%; width: 80%; background: linear-gradient(90deg, #2563eb, #60a5fa); border-radius: 6px;"></div>
-            </div>
-          </div>
-
-          <!-- Goal 2 -->
-          <div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <strong style="font-size: 15px; font-weight: 700; color: #0f172a;">Контроль выборки ФСО (V ≤ 33%)</strong>
-              <span style="font-size: 15px; font-weight: 800; color: #059669;">100% соблюдение</span>
-            </div>
-            <div class="goal-progress-bar">
-              <div style="height: 100%; width: 100%; background: #10b981; border-radius: 6px;"></div>
-            </div>
-          </div>
-
-          <!-- Goal 3 -->
-          <div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <strong style="font-size: 15px; font-weight: 700; color: #0f172a;">Аккредитация в банках</strong>
-              <span style="font-size: 15px; font-weight: 800; color: #7c3aed;">Сбер, ВТБ, ДОМ.РФ</span>
-            </div>
-            <div class="goal-progress-bar">
-              <div style="height: 100%; width: 100%; background: linear-gradient(90deg, #7c3aed, #a78bfa); border-radius: 6px;"></div>
-            </div>
-          </div>
+          <div class="breakdown-banks">Аккредитация: <b>Сбер, ВТБ, ДОМ.РФ</b></div>
         </div>
       </section>
     </div>
 
-    <!-- Cases & Activity Workspace Grid -->
-    <div class="dash-main-grid anim-fade-up anim-delay-3" style="margin-top: 14px;">
-      <div class="dash-left-col">
-        <!-- Pinned Cases Section -->
-        <section class="dash-section">
-          <div class="dash-section-head">
-            <div class="dash-section-title">
-              <span class="icon-star-badge">${icon('star')}</span>
-              <strong>Закреплённые дела на главной</strong>
-              <span class="dash-counter">${pinnedCases.length}</span>
-            </div>
-          </div>
+    <!-- Tier 3: Full-Width Filterable Cases Table -->
+    <section class="gw-panel dash-table-panel anim-fade-up anim-delay-3" style="padding: 0; overflow: hidden;">
+      <div class="dash-table-header">
+        <div class="dash-table-title-wrap">
+          <h2 class="gw-cashflow-title">Реестр дел и объектов оценки</h2>
+          <span class="dash-count-pill" id="dash-table-count">${tableCases.length}</span>
+        </div>
 
-          ${pinnedCases.length ? `
-            <div class="cases-grid">
-              ${pinnedCases.map(c => renderCaseDashboardCard(c)).join('')}
-            </div>
-          ` : `
-            <div class="empty-pinned-box">
-              <p>Нет закреплённых дел. Нажмите звёздочку рядом с делом, чтобы закрепить его здесь.</p>
-            </div>
-          `}
-        </section>
-
-        <!-- Block 2: В работе и незаконченные -->
-        <section class="dash-section">
-          <div class="dash-section-head">
-            <div class="dash-section-title">
-              <span class="icon-clock-badge">${icon('clock')}</span>
-              <strong>В работе и незаконченные</strong>
-              <span class="dash-counter">${unfinishedCases.length}</span>
-            </div>
-          </div>
-
-          <div class="cases-grid">
-            ${unfinishedCases.map(c => renderCaseDashboardCard(c)).join('')}
-          </div>
-        </section>
+        <div class="dash-filter-pills" role="group" aria-label="Фильтр дел">
+          ${[
+            { id: 'all', label: 'Все', count: cases.length, dot: null },
+            { id: 'pinned', label: 'Закреплённые', count: pinnedCases.length, dot: '#eab308' },
+            { id: 'В работе', label: 'В работе', count: inProgressCases.length, dot: '#d97706' },
+            { id: 'Готов', label: 'Готов', count: readyCases.length, dot: '#059669' },
+            { id: 'Черновик', label: 'Черновик', count: draftCases.length, dot: '#94a3b8' },
+          ].map(f => `
+            <button type="button" class="dash-filter-pill ${dashTableFilter === f.id ? 'active' : ''}" data-dash-filter="${f.id}">
+              ${f.dot ? `<span class="filter-dot" style="background: ${f.dot};"></span>` : ''}
+              <span>${f.label}</span>
+              <span class="filter-count">${f.count}</span>
+            </button>
+          `).join('')}
+        </div>
       </div>
 
-      <!-- Right Column: Activity Feed & Report Card -->
-      <aside class="dash-right-col">
+      <div class="table-wrap" style="border: none; border-radius: 0;">
+        <table class="dash-registry-table">
+          <thead>
+            <tr>
+              <th style="width: 44px; text-align: center;"></th>
+              <th>Дело</th>
+              <th>Объект и адрес</th>
+              <th>Статус</th>
+              <th>Дата</th>
+              <th style="text-align: right;">Стоимость</th>
+              <th style="text-align: right; width: 156px;">Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableCases.map(c => {
+              const res = calculateValuation(c.objectData, c.analogs, c.objectData.tradeAdjustment);
+              const valText = res.total ? money(res.total) : 'Расчёт...';
+              const statusClass = c.status === 'Готов' ? 'ready' : (c.status === 'В работе' ? 'in-progress' : 'draft');
+              return `
+                <tr class="dash-registry-row" data-case-row="${c.id}">
+                  <td style="text-align: center;">
+                    <button type="button" class="btn-pin-star ${c.isPinned ? 'pinned' : ''}" data-action="toggle-pin" data-id="${c.id}" title="${c.isPinned ? 'Открепить' : 'Закрепить'}">
+                      ${icon('star')}
+                    </button>
+                  </td>
+                  <td class="reg-num-cell">
+                    <strong>№ ${c.number}</strong>
+                    <span>${c.objectData.client.split(' ').slice(0, 2).join(' ')}</span>
+                  </td>
+                  <td class="reg-addr-cell">
+                    <strong>${cleanDisplayAddress(c.objectData.address)}</strong>
+                    <span>${c.objectData.area} м² · ${c.objectData.floor}/${c.objectData.totalFloors} эт. · ${c.objectData.wallMaterial}</span>
+                  </td>
+                  <td>
+                    <span class="badge-status ${statusClass}">${c.status}</span>
+                  </td>
+                  <td class="reg-date-cell">${c.objectData.valuationDate}</td>
+                  <td class="reg-price-cell">${valText}</td>
+                  <td style="text-align: right;">
+                    <div class="reg-actions-wrap">
+                      <button type="button" class="btn btn-primary btn-xs" data-action="open-case" data-id="${c.id}">
+                        Открыть
+                      </button>
+                      <button type="button" class="btn btn-secondary btn-xs" data-action="export-word" data-id="${c.id}" title="Скачать Word (.docx)">
+                        ${icon('file-text')}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Bottom Compact Row: Recent Activity + Spotlight Case -->
+    <div class="dash-main-grid anim-fade-up anim-delay-3" style="margin-top: 16px;">
+      <div class="dash-left-col">
         <div class="activity-card reveal-on-scroll">
           <div class="activity-head">
             ${icon('activity')}
@@ -847,7 +952,9 @@ function renderDashboardView() {
             </div>
           </div>
         </div>
+      </div>
 
+      <aside class="dash-right-col">
         ${spotlightCase ? `
           <div class="spotlight-card reveal-on-scroll">
             <div class="spotlight-image-wrap">
@@ -2004,6 +2111,46 @@ function bindEvents() {
   document.querySelectorAll('[data-period]').forEach(btn => {
     btn.addEventListener('click', () => {
       chartPeriod = btn.dataset.period;
+      render();
+    });
+  });
+
+  // Chart / Table View Toggle
+  document.querySelectorAll('[data-chart-view]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      dashChartView = btn.dataset.chartView;
+      render();
+    });
+  });
+
+  // Interactive Chart Point Hover
+  document.querySelectorAll('[data-point-idx]').forEach(dot => {
+    dot.addEventListener('mouseenter', () => {
+      const idx = Number(dot.dataset.pointIdx);
+      const pts = getDashboardChartPoints(chartPeriod);
+      const p = pts[idx];
+      if (!p) return;
+      const badge = document.getElementById('chart-pin-badge');
+      const line = document.getElementById('chart-crosshair-line');
+      const cx = dot.getAttribute('cx');
+      const cy = dot.getAttribute('cy');
+      if (badge && cx && cy) {
+        const pctX = ((Number(cx) / 680) * 100).toFixed(2);
+        badge.style.left = `${pctX}%`;
+        badge.style.top = `${cy}px`;
+        badge.textContent = `${p.price.toLocaleString('ru-RU')} ₽`;
+      }
+      if (line && cx) {
+        line.setAttribute('x1', cx);
+        line.setAttribute('x2', cx);
+      }
+    });
+  });
+
+  // Dashboard Registry Table Filter Pills
+  document.querySelectorAll('[data-dash-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      dashTableFilter = btn.dataset.dashFilter;
       render();
     });
   });
