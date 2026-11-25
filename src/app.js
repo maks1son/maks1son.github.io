@@ -45,6 +45,8 @@ let expandedAuditIds = new Set();
 let analogCityFilter = 'all'; // 'all' | 'Тольятти' | 'Самара' | 'Сызрань'
 let dashTableFilter = 'all'; // 'all' | 'pinned' | 'В работе' | 'Готов' | 'Черновик'
 let dashChartView = 'chart'; // 'chart' | 'table'
+let lastRenderedView = null;
+let lastRenderedTab = null;
 
 // Temporary Profile & Control Zone State
 let currentProfile = getCurrentProfile();
@@ -422,10 +424,10 @@ function renderGlassChart(period) {
   const minPrice = period === 'year' ? 45000 : 49000;
   const maxPrice = 56000;
   const width = 680;
-  const height = 196;
-  const padLeft = 10;
-  const padRight = 10;
-  const padTop = 18;
+  const height = 184;
+  const padLeft = 14;
+  const padRight = 14;
+  const padTop = 26;
   const padBottom = 14;
   const usableW = width - padLeft - padRight;
   const usableH = height - padTop - padBottom;
@@ -447,41 +449,44 @@ function renderGlassChart(period) {
   const activeCoord = curPts[activeIndex];
   const activePoint = points[activeIndex];
   const activePctX = ((activeCoord[0] / width) * 100).toFixed(2);
+  const activePctY = ((activeCoord[1] / height) * 100).toFixed(2);
 
   const ticks = period === 'year' ? [56000, 52000, 48000, 45000] : [56000, 52500, 49000];
 
   return `
     <div class="gw-chart-wrap" data-chart-interactive="true">
       <div class="gw-chart-labels">
-        ${ticks.map(t => `<span>${(t / 1000).toFixed(1).replace('.0', '')} тыс. ₽</span>`).join('')}
+        ${ticks.map(t => `<span>${(t / 1000).toFixed(1).replace('.0', '')} тыс.</span>`).join('')}
       </div>
       <div class="gw-chart-canvas-wrap">
         <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
           <defs>
             <linearGradient id="gw-chart-grad-${period}" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#0066cc" stop-opacity="0.20" />
-              <stop offset="75%" stop-color="#0066cc" stop-opacity="0.03" />
-              <stop offset="100%" stop-color="#0066cc" stop-opacity="0.0" />
+              <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.16" />
+              <stop offset="80%" stop-color="#3b82f6" stop-opacity="0.02" />
+              <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.0" />
             </linearGradient>
           </defs>
 
           ${ticks.map(t => {
             const ty = getY(t).toFixed(1);
-            return `<line x1="0" y1="${ty}" x2="${width}" y2="${ty}" stroke="#e2e8f0" stroke-dasharray="3 4" stroke-width="1" />`;
+            return `<line vector-effect="non-scaling-stroke" x1="0" y1="${ty}" x2="${width}" y2="${ty}" stroke="#e2e8f0" stroke-dasharray="3 4" stroke-width="1" />`;
           }).join('')}
 
-          <line x1="${activeCoord[0].toFixed(1)}" y1="${padTop}" x2="${activeCoord[0].toFixed(1)}" y2="${baselineY}" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="3 3" id="chart-crosshair-line" />
+          <line vector-effect="non-scaling-stroke" x1="${activeCoord[0].toFixed(1)}" y1="${padTop}" x2="${activeCoord[0].toFixed(1)}" y2="${baselineY}" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="3 3" id="chart-crosshair-line" />
 
-          <path d="${prevD}" fill="none" stroke="#94a3b8" stroke-width="1.6" stroke-dasharray="4 4" stroke-linecap="round" opacity="0.75" />
+          <path vector-effect="non-scaling-stroke" d="${prevD}" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="4 4" stroke-linecap="round" />
           <path d="${areaD}" fill="url(#gw-chart-grad-${period})" />
-          <path d="${lineD}" fill="none" stroke="#0066cc" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
-
-          ${curPts.map((c, idx) => `
-            <circle cx="${c[0].toFixed(1)}" cy="${c[1].toFixed(1)}" r="${idx === activeIndex ? '4.5' : '3'}" fill="${idx === activeIndex ? '#0066cc' : '#ffffff'}" stroke="#0066cc" stroke-width="${idx === activeIndex ? '2' : '1.6'}" class="chart-dot" data-point-idx="${idx}" />
-          `).join('')}
+          <path vector-effect="non-scaling-stroke" d="${lineD}" fill="none" stroke="#3b82f6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
 
-        <div class="gw-chart-pin-badge" id="chart-pin-badge" style="left: ${activePctX}%; top: ${activeCoord[1].toFixed(1)}px;">
+        ${curPts.map((c, idx) => {
+          const px = ((c[0] / width) * 100).toFixed(2);
+          const py = ((c[1] / height) * 100).toFixed(2);
+          return `<span class="chart-html-dot ${idx === activeIndex ? 'active' : ''}" data-point-idx="${idx}" data-cx="${c[0].toFixed(1)}" data-px="${px}" data-py="${py}" style="left: ${px}%; top: ${py}%;"></span>`;
+        }).join('')}
+
+        <div class="gw-chart-pin-badge" id="chart-pin-badge" style="left: ${activePctX}%; top: ${activePctY}%;">
           ${activePoint.price.toLocaleString('ru-RU')} ₽
         </div>
       </div>
@@ -557,7 +562,7 @@ function renderTopbarContent(activeCase) {
   `;
 }
 
-function render() {
+function render(opts = {}) {
   const app = document.getElementById('app');
   let sidebar = document.getElementById('app-sidebar');
   let topbar = document.getElementById('app-topbar');
@@ -600,6 +605,17 @@ function render() {
     currentView = 'dashboard';
   }
 
+  const isNavigationChange =
+    lastRenderedView !== null &&
+    (lastRenderedView !== currentView || (currentView === 'case' && lastRenderedTab !== activeTab));
+  const shouldAnimate = opts.animate !== undefined ? opts.animate : (lastRenderedView === null || isNavigationChange);
+  const prevScrollY = typeof window !== 'undefined' ? window.scrollY : 0;
+
+  lastRenderedView = currentView;
+  lastRenderedTab = activeTab;
+
+  pageContainer.classList.toggle('no-enter-anim', !shouldAnimate);
+
   const activeCase = getActiveCase();
   const inProgressCount = cases.filter(c => c.status === 'В работе').length;
   const readyCount = cases.filter(c => c.status === 'Готов').length;
@@ -617,6 +633,10 @@ function render() {
             : renderCaseWorkspaceView(activeCase)}
     </div>
   `;
+
+  if (!shouldAnimate && typeof window !== 'undefined') {
+    window.scrollTo(0, prevScrollY);
+  }
 
   createIcons({ icons });
   bindEvents();
@@ -695,54 +715,15 @@ function renderDashboardView() {
   const readyCases = cases.filter(c => c.status === 'Готов');
   const draftCases = cases.filter(c => c.status === 'Черновик');
   const pinnedCases = cases.filter(c => c.isPinned);
-  const unfinishedCases = cases.filter(c => c.status === 'В работе' || c.status === 'Черновик');
 
-  // Суммарная стоимость портфеля
   let totalValuation = 0;
   cases.forEach(c => {
     const res = calculateValuation(c.objectData, c.analogs, c.objectData.tradeAdjustment);
-    if (res.total) {
-      totalValuation += res.total;
-    } else {
-      totalValuation += Math.round((c.objectData.area * 47000) / 1000) * 1000;
-    }
+    totalValuation += res.total ? res.total : Math.round((c.objectData.area * 47000) / 1000) * 1000;
   });
 
   const avgPricePerSqm = 54380;
   const variationCoeff = 4.1;
-  const totalCount = cases.length || 1;
-  const readyPct = Math.round((readyCases.length / totalCount) * 100);
-  const withAnalogsCount = cases.filter(c => c.analogs && c.analogs.length >= 3).length;
-  const withAnalogsPct = Math.round((withAnalogsCount / totalCount) * 100);
-  const leiferReadyCount = cases.filter(c => c.analogs && c.analogs.filter(a => a.selected).length >= 3).length;
-  const leiferReadyPct = Math.round((leiferReadyCount / totalCount) * 100);
-  const pipelineOverallPct = Math.round((100 + withAnalogsPct + leiferReadyPct + readyPct + readyPct) / 5);
-  const gaugeCirc = 150.8;
-  const gaugeOffset = (gaugeCirc * (1 - pipelineOverallPct / 100)).toFixed(1);
-
-  const spotlightCase = findCaseById(cases, 'case_anna_19_0826') || readyCases[0] || cases[0];
-  const spotlightRes = spotlightCase
-    ? calculateValuation(spotlightCase.objectData, spotlightCase.analogs, spotlightCase.objectData.tradeAdjustment)
-    : null;
-  const spotlightAmount = spotlightRes && spotlightRes.total ? money(spotlightRes.total) : '3 539 000 ₽';
-  const spotlightSharesCount = (spotlightCase && spotlightCase.objectData.shares && spotlightCase.objectData.shares.length) || 5;
-
-  // Разбивка портфеля по городам/локациям
-  const locationMap = new Map();
-  cases.forEach(c => {
-    const res = calculateValuation(c.objectData, c.analogs, c.objectData.tradeAdjustment);
-    const val = res.total || Math.round((c.objectData.area * 47000) / 1000) * 1000;
-    const addr = (c.objectData.address || '').toLowerCase();
-    let city = 'Другие локации';
-    if (addr.includes('тольятти')) city = 'г. Тольятти';
-    else if (addr.includes('самара')) city = 'г. Самара';
-    else if (addr.includes('сызрань')) city = 'г. Сызрань';
-    locationMap.set(city, (locationMap.get(city) || 0) + val);
-  });
-  const locations = Array.from(locationMap.entries())
-    .map(([label, value]) => ({ label, value }))
-    .sort((a, b) => b.value - a.value);
-  const maxLocVal = Math.max(1, ...locations.map(l => l.value));
 
   const tableCases = cases.filter(c => {
     if (dashTableFilter === 'pinned') return c.isPinned;
@@ -752,26 +733,23 @@ function renderDashboardView() {
     return true;
   });
 
+  const districts = [
+    { name: 'Центральный', price: 65566, pct: 94, opacity: 0.9 },
+    { name: 'Октябрьский', price: 58900, pct: 82, opacity: 0.72 },
+    { name: 'Прибрежный', price: 52973, pct: 72, opacity: 0.56 },
+    { name: 'Перспективный', price: 50630, pct: 66, opacity: 0.42 },
+  ];
+
   return `
-    <!-- Top Executive Header Row (21st.dev composition in Onest + Rosocenka Blue) -->
+    <!-- Clean Minimalist Header (No clutter, no top period toggle) -->
     <section class="dash-top-row anim-fade-up">
-      <div>
-        <h1 class="welcome-title">Здравствуйте, Анна Александровна!</h1>
-        <p class="dash-subtitle">Портфель оценки жилой недвижимости · Ноябрь 2026</p>
-      </div>
-      <div class="dash-top-controls">
-        <div class="gw-segment" role="group" aria-label="Период графика">
-          <button type="button" class="${chartPeriod === 'week' ? 'active' : ''}" data-period="week">Неделя</button>
-          <button type="button" class="${chartPeriod === 'month' ? 'active' : ''}" data-period="month">Месяц</button>
-          <button type="button" class="${chartPeriod === 'year' ? 'active' : ''}" data-period="year">Год</button>
-        </div>
-        <button class="btn btn-primary" id="btn-hero-new">
-          ${icon('plus')} Добавить объект
-        </button>
-      </div>
+      <h1 class="welcome-title">Здравствуйте, Анна Александровна!</h1>
+      <button class="btn btn-primary" id="btn-hero-new">
+        ${icon('plus')} Добавить объект
+      </button>
     </section>
 
-    <!-- Tier 1: 4-Column KPI Strip with Smooth Sparklines -->
+    <!-- Tier 1: 4 Lightweight KPI Cards -->
     <section class="kpi-strip-grid anim-fade-up anim-delay-1" aria-label="Ключевые показатели">
       <article class="kpi-card">
         <div class="kpi-card-label">Портфель в оценке</div>
@@ -779,11 +757,10 @@ function renderDashboardView() {
           <div class="kpi-card-main">
             <div class="kpi-card-val">${money(totalValuation)}</div>
             <div class="kpi-card-meta">
-              <span class="kpi-delta pos">↗ +12,0%</span>
-              <span class="kpi-sub">к прошлому мес.</span>
+              <span class="kpi-delta pos">+12%</span>
             </div>
           </div>
-          ${renderSparklineSvg([11.2, 11.8, 12.1, 12.9, 13.4, 14.0, 14.48], '#0066cc', 'portfolio')}
+          ${renderSparklineSvg([11.2, 11.8, 12.1, 12.9, 13.4, 14.0, 14.48], '#3b82f6', 'portfolio')}
         </div>
       </article>
 
@@ -793,61 +770,58 @@ function renderDashboardView() {
           <div class="kpi-card-main">
             <div class="kpi-card-val">${moneyPerSqm(avgPricePerSqm)}</div>
             <div class="kpi-card-meta">
-              <span class="kpi-delta pos">↗ +2,4%</span>
-              <span class="kpi-sub">по рынку</span>
+              <span class="kpi-delta pos">+2,4%</span>
             </div>
           </div>
-          ${renderSparklineSvg([52900, 53300, 53700, 54100, 54380, 54650, 54900], '#059669', 'sqm')}
+          ${renderSparklineSvg([52900, 53300, 53700, 54100, 54380, 54650, 54900], '#10b981', 'sqm')}
         </div>
       </article>
 
       <article class="kpi-card" style="cursor: pointer;" data-nav="all-cases" title="Открыть все дела">
-        <div class="kpi-card-label">Дела в работе / Готово</div>
+        <div class="kpi-card-label">В работе / Готово</div>
         <div class="kpi-card-body">
           <div class="kpi-card-main">
-            <div class="kpi-card-val">${inProgressCases.length} <span style="font-size: 18px; color: var(--text-muted); font-weight: 500;">/ ${readyCases.length}</span></div>
+            <div class="kpi-card-val">${inProgressCases.length} <span style="font-size: 16px; color: var(--text-muted); font-weight: 500;">/ ${readyCases.length}</span></div>
             <div class="kpi-card-meta">
-              <span class="kpi-delta neutral">Всего ${cases.length}</span>
-              <span class="kpi-sub">в архиве</span>
+              <span class="kpi-delta neutral">${cases.length} дел</span>
             </div>
           </div>
-          ${renderSparklineSvg([2, 3, 2, 4, 3, 5, cases.length], '#2563eb', 'cases')}
+          ${renderSparklineSvg([2, 3, 2, 4, 3, 5, cases.length], '#3b82f6', 'cases')}
         </div>
       </article>
 
       <article class="kpi-card">
-        <div class="kpi-card-label">Однородность ФСО (V)</div>
+        <div class="kpi-card-label">Однородность ФСО</div>
         <div class="kpi-card-body">
           <div class="kpi-card-main">
             <div class="kpi-card-val">V = ${variationCoeff.toFixed(1).replace('.', ',')}%</div>
             <div class="kpi-card-meta">
-              <span class="kpi-delta pos">≤ 33% норма</span>
-              <span class="kpi-sub">Лейфер</span>
+              <span class="kpi-delta pos">≤ 33%</span>
             </div>
           </div>
-          ${renderSparklineSvg([5.2, 4.9, 4.7, 4.4, 4.3, 4.1, 4.1], '#059669', 'fso')}
+          ${renderSparklineSvg([5.2, 4.9, 4.7, 4.4, 4.3, 4.1, 4.1], '#10b981', 'fso')}
         </div>
       </article>
     </section>
 
-    <!-- Tier 2: Asymmetric Main Analytics (Chart + Breakdown/Standards) -->
+    <!-- Tier 2: Smooth Chart + Minimalist District Bars -->
     <div class="dash-analytics-grid anim-fade-up anim-delay-2">
-      <!-- Left: Dual-line Market Chart + Table Toggle -->
       <section class="gw-panel dash-chart-panel">
         <div class="dash-chart-head">
           <div>
-            <h2 class="gw-cashflow-title">Динамика рынка и портфеля</h2>
+            <h2 class="gw-cashflow-title">Динамика рынка</h2>
             <div class="dash-chart-kpi-line">
               <strong>${moneyPerSqm(avgPricePerSqm)}</strong>
-              <span>+2,4% к прошлому периоду · контроль V = ${variationCoeff.toFixed(1).replace('.', ',')}%</span>
+              <span class="kpi-delta pos">+2,4%</span>
             </div>
           </div>
           <div class="dash-chart-tools">
-            <ul class="chart-legend" aria-label="Легенда">
-              <li><span class="legend-line cur"></span> Текущий</li>
-              <li><span class="legend-line prev"></span> Прошлый</li>
-            </ul>
-            <div class="view-toggle-group" role="group" aria-label="Вид данных">
+            <div class="gw-segment gw-segment-subtle" role="group" aria-label="Период">
+              <button type="button" class="${chartPeriod === 'week' ? 'active' : ''}" data-period="week">Нед</button>
+              <button type="button" class="${chartPeriod === 'month' ? 'active' : ''}" data-period="month">Мес</button>
+              <button type="button" class="${chartPeriod === 'year' ? 'active' : ''}" data-period="year">Год</button>
+            </div>
+            <div class="view-toggle-group" role="group" aria-label="Вид">
               <button type="button" class="view-toggle-btn ${dashChartView === 'chart' ? 'active' : ''}" data-chart-view="chart" title="График">
                 ${icon('trending-up')}
               </button>
@@ -858,53 +832,49 @@ function renderDashboardView() {
           </div>
         </div>
 
-        ${renderGlassChart(chartPeriod)}
+        <div id="dash-chart-slot" class="dash-chart-slot">
+          ${renderGlassChart(chartPeriod)}
+        </div>
       </section>
 
-      <!-- Right: Portfolio Breakdown by Location + Monthly Plan -->
+      <!-- Minimalist District Price Bars (Light, Monochrome Blue, Zero Clutter) -->
       <section class="gw-panel dash-breakdown-panel">
         <div class="panel-head-flex" style="margin-bottom: 16px;">
-          <h2 class="gw-cashflow-title">Портфель по локациям</h2>
-          <span class="breakdown-total">${money(totalValuation)}</span>
+          <h2 class="gw-cashflow-title">1 м² по районам</h2>
+          <span class="breakdown-total">₽/м²</span>
         </div>
 
         <ul class="breakdown-list">
-          ${locations.map((loc, idx) => {
-            const sharePct = Math.round((loc.value / Math.max(1, totalValuation)) * 100);
-            const barWidth = Math.round((loc.value / maxLocVal) * 100);
-            const opacity = Math.max(0.45, 1 - idx * 0.2);
-            return `
-              <li class="breakdown-item">
-                <div class="breakdown-row">
-                  <span class="breakdown-name">${loc.label}</span>
-                  <span class="breakdown-vals">${money(loc.value)} <span class="breakdown-pct">${sharePct}%</span></span>
-                </div>
-                <div class="breakdown-track">
-                  <div class="breakdown-fill" style="width: ${barWidth}%; opacity: ${opacity};"></div>
-                </div>
-              </li>
-            `;
-          }).join('')}
+          ${districts.map(d => `
+            <li class="breakdown-item">
+              <div class="breakdown-row">
+                <span class="breakdown-name">${d.name}</span>
+                <span class="breakdown-vals">${d.price.toLocaleString('ru-RU')} ₽</span>
+              </div>
+              <div class="breakdown-track">
+                <div class="breakdown-fill" style="width: ${d.pct}%; opacity: ${d.opacity};"></div>
+              </div>
+            </li>
+          `).join('')}
         </ul>
 
         <div class="breakdown-footer">
           <div class="breakdown-goal-row">
-            <span>План выпуска отчётов (ноябрь)</span>
+            <span>План ноября</span>
             <strong>8 из 10 · 80%</strong>
           </div>
           <div class="breakdown-track" style="margin-top: 6px;">
-            <div class="breakdown-fill" style="width: 80%; background: #059669;"></div>
+            <div class="breakdown-fill" style="width: 80%; opacity: 0.75;"></div>
           </div>
-          <div class="breakdown-banks">Аккредитация: <b>Сбер, ВТБ, ДОМ.РФ</b></div>
         </div>
       </section>
     </div>
 
-    <!-- Tier 3: Full-Width Filterable Cases Table -->
+    <!-- Tier 3: Clean Filterable Registry Table -->
     <section class="gw-panel dash-table-panel anim-fade-up anim-delay-3" style="padding: 0; overflow: hidden;">
       <div class="dash-table-header">
         <div class="dash-table-title-wrap">
-          <h2 class="gw-cashflow-title">Реестр дел и объектов оценки</h2>
+          <h2 class="gw-cashflow-title">Реестр дел</h2>
           <span class="dash-count-pill" id="dash-table-count">${tableCases.length}</span>
         </div>
 
@@ -912,8 +882,8 @@ function renderDashboardView() {
           ${[
             { id: 'all', label: 'Все', count: cases.length, dot: null },
             { id: 'pinned', label: 'Закреплённые', count: pinnedCases.length, dot: '#eab308' },
-            { id: 'В работе', label: 'В работе', count: inProgressCases.length, dot: '#d97706' },
-            { id: 'Готов', label: 'Готов', count: readyCases.length, dot: '#059669' },
+            { id: 'В работе', label: 'В работе', count: inProgressCases.length, dot: '#f59e0b' },
+            { id: 'Готов', label: 'Готов', count: readyCases.length, dot: '#10b981' },
             { id: 'Черновик', label: 'Черновик', count: draftCases.length, dot: '#94a3b8' },
           ].map(f => `
             <button type="button" class="dash-filter-pill ${dashTableFilter === f.id ? 'active' : ''}" data-dash-filter="${f.id}">
@@ -925,360 +895,67 @@ function renderDashboardView() {
         </div>
       </div>
 
-      <div class="table-wrap" style="border: none; border-radius: 0;">
-        <table class="dash-registry-table">
-          <thead>
-            <tr>
-              <th style="width: 44px; text-align: center;"></th>
-              <th>Дело</th>
-              <th>Объект и адрес</th>
-              <th>Статус</th>
-              <th>Дата</th>
-              <th style="text-align: right;">Стоимость</th>
-              <th style="text-align: right; width: 156px;">Действия</th>
+      <div class="table-wrap" style="border: none; border-radius: 0;" id="dash-table-slot">
+        ${renderDashRegistryTableBody(tableCases)}
+      </div>
+    </section>
+  `;
+}
+
+function renderDashRegistryTableBody(tableCases) {
+  return `
+    <table class="dash-registry-table">
+      <thead>
+        <tr>
+          <th style="width: 44px; text-align: center;"></th>
+          <th>Дело</th>
+          <th>Объект</th>
+          <th>Статус</th>
+          <th>Дата</th>
+          <th style="text-align: right;">Стоимость</th>
+          <th style="text-align: right; width: 146px;"></th>
+        </tr>
+      </thead>
+      <tbody>
+        ${tableCases.map(c => {
+          const res = calculateValuation(c.objectData, c.analogs, c.objectData.tradeAdjustment);
+          const valText = res.total ? money(res.total) : '—';
+          const statusClass = c.status === 'Готов' ? 'ready' : (c.status === 'В работе' ? 'in-progress' : 'draft');
+          return `
+            <tr class="dash-registry-row" data-case-row="${c.id}">
+              <td style="text-align: center;">
+                <button type="button" class="btn-pin-star ${c.isPinned ? 'pinned' : ''}" data-action="toggle-pin" data-id="${c.id}" title="${c.isPinned ? 'Открепить' : 'Закрепить'}">
+                  ${icon('star')}
+                </button>
+              </td>
+              <td class="reg-num-cell">
+                <strong>№ ${c.number}</strong>
+                <span>${c.objectData.client.split(' ').slice(0, 2).join(' ')}</span>
+              </td>
+              <td class="reg-addr-cell">
+                <strong>${cleanDisplayAddress(c.objectData.address)}</strong>
+                <span>${c.objectData.area} м² · ${c.objectData.floor}/${c.objectData.totalFloors} эт.</span>
+              </td>
+              <td>
+                <span class="badge-status ${statusClass}">${c.status}</span>
+              </td>
+              <td class="reg-date-cell">${c.objectData.valuationDate}</td>
+              <td class="reg-price-cell">${valText}</td>
+              <td style="text-align: right;">
+                <div class="reg-actions-wrap">
+                  <button type="button" class="btn btn-primary btn-xs" data-action="open-case" data-id="${c.id}">
+                    Открыть
+                  </button>
+                  <button type="button" class="btn btn-secondary btn-xs" data-action="export-word" data-id="${c.id}" title="Скачать Word (.docx)">
+                    ${icon('file-text')}
+                  </button>
+                </div>
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            ${tableCases.map(c => {
-              const res = calculateValuation(c.objectData, c.analogs, c.objectData.tradeAdjustment);
-              const valText = res.total ? money(res.total) : 'Расчёт...';
-              const statusClass = c.status === 'Готов' ? 'ready' : (c.status === 'В работе' ? 'in-progress' : 'draft');
-              return `
-                <tr class="dash-registry-row" data-case-row="${c.id}">
-                  <td style="text-align: center;">
-                    <button type="button" class="btn-pin-star ${c.isPinned ? 'pinned' : ''}" data-action="toggle-pin" data-id="${c.id}" title="${c.isPinned ? 'Открепить' : 'Закрепить'}">
-                      ${icon('star')}
-                    </button>
-                  </td>
-                  <td class="reg-num-cell">
-                    <strong>№ ${c.number}</strong>
-                    <span>${c.objectData.client.split(' ').slice(0, 2).join(' ')}</span>
-                  </td>
-                  <td class="reg-addr-cell">
-                    <strong>${cleanDisplayAddress(c.objectData.address)}</strong>
-                    <span>${c.objectData.area} м² · ${c.objectData.floor}/${c.objectData.totalFloors} эт. · ${c.objectData.wallMaterial}</span>
-                  </td>
-                  <td>
-                    <span class="badge-status ${statusClass}">${c.status}</span>
-                  </td>
-                  <td class="reg-date-cell">${c.objectData.valuationDate}</td>
-                  <td class="reg-price-cell">${valText}</td>
-                  <td style="text-align: right;">
-                    <div class="reg-actions-wrap">
-                      <button type="button" class="btn btn-primary btn-xs" data-action="open-case" data-id="${c.id}">
-                        Открыть
-                      </button>
-                      <button type="button" class="btn btn-secondary btn-xs" data-action="export-word" data-id="${c.id}" title="Скачать Word (.docx)">
-                        ${icon('file-text')}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              `;
-            }).join('')}
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- Bottom Compact Row: Recent Activity + Spotlight Case -->
-    <div class="dash-main-grid anim-fade-up anim-delay-3" style="margin-top: 16px;">
-      <div class="dash-left-col">
-        <div class="activity-card reveal-on-scroll">
-          <div class="activity-head">
-            ${icon('activity')}
-            <h3>Журнал недавних действий</h3>
-          </div>
-
-          <div class="activity-timeline">
-            <div class="timeline-entry">
-              <div class="timeline-dot dot-blue dot-pulse"></div>
-              <div class="timeline-body">
-                <div class="timeline-time">Сегодня, 10:45</div>
-                <div class="timeline-text">Сформирован Word-отчёт <strong>№ 19/0826-2</strong> (${spotlightAmount}, ${spotlightSharesCount} сособств.).</div>
-              </div>
-            </div>
-
-            <div class="timeline-entry">
-              <div class="timeline-dot dot-indigo"></div>
-              <div class="timeline-body">
-                <div class="timeline-time">Сегодня, 09:20</div>
-                <div class="timeline-text">Рассчитана матрица Лейфера для <strong>№ 21/0926-1</strong>: 3 аналога, торг −6%.</div>
-              </div>
-            </div>
-
-            <div class="timeline-entry">
-              <div class="timeline-dot dot-green"></div>
-              <div class="timeline-body">
-                <div class="timeline-time">Вчера, 17:30</div>
-                <div class="timeline-text">Создан черновик <strong>№ 24/1105-3</strong> (ул. Мира, 42, 52.4 м²).</div>
-              </div>
-            </div>
-
-            <div class="timeline-entry">
-              <div class="timeline-dot dot-emerald"></div>
-              <div class="timeline-body">
-                <div class="timeline-time">Вчера, 14:10</div>
-                <div class="timeline-text">Контроль однородности выборки: <strong>V = 4,1%</strong> (норма ФСО ≤ 33%).</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <aside class="dash-right-col">
-        ${spotlightCase ? `
-          <div class="spotlight-card reveal-on-scroll">
-            <div class="spotlight-image-wrap">
-              <img src="/images/report-showcase.jpg" alt="Эталонный отчёт ООО РусОценка">
-              <span class="spotlight-float-badge">${icon('shield-check')} Готовый отчёт ФСО</span>
-            </div>
-            <div class="spotlight-body">
-              <div class="spotlight-title">Дело № ${spotlightCase.number}</div>
-              <div class="spotlight-desc">
-                ${cleanDisplayAddress(spotlightCase.objectData.address)}<br>
-                Стоимость: <strong>${spotlightAmount}</strong> · ${spotlightSharesCount} сособственников
-              </div>
-              <div class="spotlight-actions">
-                <button class="btn btn-primary btn-sm" data-action="open-case" data-id="${spotlightCase.id}">
-                  ${icon('arrow-right')} Открыть
-                </button>
-                <button class="btn btn-secondary btn-sm" data-action="export-word" data-id="${spotlightCase.id}">
-                  ${icon('file-text')} Word (.docx)
-                </button>
-              </div>
-            </div>
-          </div>
-        ` : ''}
-      </aside>
-    </div>
-
-    <!-- ENLARGED VISUAL SHOWCASE DASHBOARDS (Scroll Down!) -->
-    <div class="showcase-stack">
-      <!-- Showcase 1: Аналитика цен 1 м² по районам и регионам -->
-      <section class="showcase-panel reveal-on-scroll">
-        <div class="panel-head-flex">
-          <h3 class="panel-head-title">${icon('building')} Аналитика стоимости 1 м² по районам и регионам</h3>
-          <span class="badge-status ready">Ноябрь 2026</span>
-        </div>
-
-        <div class="analytics-showcase-body">
-          <div class="analytics-data-col">
-            <div class="district-stat-pills">
-              <div class="dstat-chip dstat-chip-blue">
-                <span class="dstat-val">54 380 ₽/м²</span>
-                <span class="dstat-lbl">Средняя по выборке</span>
-              </div>
-              <div class="dstat-chip">
-                <span class="dstat-val">65 566 ₽/м²</span>
-                <span class="dstat-lbl">Максимум (Центральный)</span>
-              </div>
-              <div class="dstat-chip dstat-chip-emerald">
-                <span class="dstat-val">−6,0%</span>
-                <span class="dstat-lbl">Поправка на торг</span>
-              </div>
-            </div>
-
-            <div class="district-list">
-              <div class="district-item">
-                <div class="district-head">
-                  <span class="district-name"><strong>Центральный район</strong> · Мегаполис</span>
-                  <span class="district-price">65 566 ₽/м² <small class="text-green">+4.2%</small></span>
-                </div>
-                <div class="district-bar-bg">
-                  <div class="district-bar-fill" style="width: 94%; background: linear-gradient(90deg, #1d4ed8, #3b82f6, #60a5fa);"></div>
-                </div>
-              </div>
-
-              <div class="district-item">
-                <div class="district-head">
-                  <span class="district-name"><strong>Октябрьский район</strong> · Престиж</span>
-                  <span class="district-price">58 900 ₽/м² <small class="text-blue">+1.9%</small></span>
-                </div>
-                <div class="district-bar-bg">
-                  <div class="district-bar-fill" style="width: 84%; background: linear-gradient(90deg, #4f46e5, #6366f1, #818cf8);"></div>
-                </div>
-              </div>
-
-              <div class="district-item">
-                <div class="district-head">
-                  <span class="district-name"><strong>Прибрежный район</strong> · Комфорт</span>
-                  <span class="district-price">52 973 ₽/м² <small class="text-amber">эталон</small></span>
-                </div>
-                <div class="district-bar-bg">
-                  <div class="district-bar-fill" style="width: 75%; background: linear-gradient(90deg, #059669, #10b981, #34d399);"></div>
-                </div>
-              </div>
-
-              <div class="district-item">
-                <div class="district-head">
-                  <span class="district-name"><strong>Перспективный микрорайон</strong></span>
-                  <span class="district-price">50 630 ₽/м² <small class="text-muted">база</small></span>
-                </div>
-                <div class="district-bar-bg">
-                  <div class="district-bar-fill" style="width: 70%; background: linear-gradient(90deg, #3b82f6, #93c5fd);"></div>
-                </div>
-              </div>
-            </div>
-
-            <div class="trend-chart-card">
-              <div class="trend-chart-head">
-                <span>Индекс средней стоимости 1 м² (Июн — Ноя 2026)</span>
-                <span class="kpi-pill kpi-pill-green">+4,8% за 6 мес.</span>
-              </div>
-              <svg class="trend-svg" viewBox="0 0 560 90" preserveAspectRatio="none">
-                <defs>
-                  <linearGradient id="togliattiTrendGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="#2563eb" stop-opacity="0.22"/>
-                    <stop offset="100%" stop-color="#2563eb" stop-opacity="0.0"/>
-                  </linearGradient>
-                </defs>
-                <path d="M 10 72 C 95 66, 175 56, 265 44 C 355 34, 455 24, 550 14 L 550 86 L 10 86 Z" fill="url(#togliattiTrendGrad)"/>
-                <path d="M 10 72 C 95 66, 175 56, 265 44 C 355 34, 455 24, 550 14" fill="none" stroke="#2563eb" stroke-width="3.2" stroke-linecap="round"/>
-                <circle cx="10" cy="72" r="4.5" fill="#ffffff" stroke="#2563eb" stroke-width="2.5"/>
-                <circle cx="118" cy="61" r="4.5" fill="#ffffff" stroke="#2563eb" stroke-width="2.5"/>
-                <circle cx="226" cy="49" r="4.5" fill="#ffffff" stroke="#2563eb" stroke-width="2.5"/>
-                <circle cx="334" cy="36" r="4.5" fill="#ffffff" stroke="#2563eb" stroke-width="2.5"/>
-                <circle cx="442" cy="24" r="4.5" fill="#ffffff" stroke="#2563eb" stroke-width="2.5"/>
-                <circle cx="550" cy="14" r="5.5" fill="#2563eb" stroke="#ffffff" stroke-width="2.5"/>
-              </svg>
-            </div>
-          </div>
-
-          <div class="visual-stage-box">
-            <img src="/images/togliatti-skyline-widget.jpg" alt="Аналитика рынка недвижимости" class="visual-stage-img">
-            <div class="district-avg-footer" style="width: 100%; margin-top: 0;">
-              <span>Рынок жилой недвижимости РФ</span>
-              <strong>54 380 ₽/м²</strong>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Showcase 2: Конвейер подготовки отчётов по ФСО -->
-      <section class="showcase-panel reveal-on-scroll">
-        <div class="panel-head-flex">
-          <h3 class="panel-head-title">${icon('layers')} Конвейер подготовки отчётов по ФСО</h3>
-          <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-            <span class="kpi-pill kpi-pill-green">−4,5 ч на отчёт</span>
-            <span class="badge-status in-progress">100% авто</span>
-          </div>
-        </div>
-
-        <div class="pipeline-showcase-body">
-          <div class="visual-stage-box">
-            <img src="/images/fso-pipeline-widget.jpg" alt="Конвейер подготовки отчётов ФСО" class="visual-stage-img">
-            <div class="pipeline-gauge-row">
-              <div class="gauge-ring-wrap">
-                <svg class="gauge-svg" viewBox="0 0 60 60">
-                  <circle cx="30" cy="30" r="24" fill="none" stroke="#e2e8f0" stroke-width="6"/>
-                  <circle cx="30" cy="30" r="24" fill="none" stroke="#10b981" stroke-width="6"
-                    stroke-linecap="round"
-                    stroke-dasharray="${gaugeCirc}"
-                    stroke-dashoffset="${gaugeOffset}"/>
-                </svg>
-                <div class="gauge-info">
-                  <strong>${pipelineOverallPct}%</strong>
-                  <span>Прогресс по реестру</span>
-                </div>
-              </div>
-              <span class="kpi-pill kpi-pill-blue">${cases.length} дела</span>
-            </div>
-          </div>
-
-          <div class="funnel-steps">
-            <div class="funnel-step">
-              <span class="step-num">1</span>
-              <span class="step-title">Реквизиты объекта и выписка ЕГРН</span>
-              <div class="step-bar"><div class="step-bar-fill" style="width: 100%; background: linear-gradient(90deg, #2563eb, #60a5fa);"></div></div>
-              <span class="step-count">${cases.length} из ${cases.length} (100%)</span>
-            </div>
-
-            <div class="funnel-step">
-              <span class="step-num">2</span>
-              <span class="step-title">Подбор 3–5 аналогов (Авито, Циан)</span>
-              <div class="step-bar"><div class="step-bar-fill" style="width: ${withAnalogsPct}%; background: linear-gradient(90deg, #4f46e5, #818cf8);"></div></div>
-              <span class="step-count">${withAnalogsCount} из ${cases.length} (${withAnalogsPct}%)</span>
-            </div>
-
-            <div class="funnel-step">
-              <span class="step-num">3</span>
-              <span class="step-title">Расчёт корректировок Лейфера</span>
-              <div class="step-bar"><div class="step-bar-fill" style="width: ${leiferReadyPct}%; background: linear-gradient(90deg, #0ea5e9, #38bdf8);"></div></div>
-              <span class="step-count">${leiferReadyCount} из ${cases.length} (${leiferReadyPct}%)</span>
-            </div>
-
-            <div class="funnel-step">
-              <span class="step-num">4</span>
-              <span class="step-title">Контроль вариации V ≤ 33% и долей</span>
-              <div class="step-bar"><div class="step-bar-fill" style="width: ${readyPct}%; background: linear-gradient(90deg, #10b981, #34d399);"></div></div>
-              <span class="step-count">${readyCases.length} из ${cases.length} (${readyPct}%)</span>
-            </div>
-
-            <div class="funnel-step">
-              <span class="step-num">5</span>
-              <span class="step-title">Формирование Word-документа (.docx)</span>
-              <div class="step-bar"><div class="step-bar-fill" style="width: ${readyPct}%; background: linear-gradient(90deg, #059669, #10b981);"></div></div>
-              <span class="step-count">${readyCases.length} из ${cases.length} (${readyPct}%)</span>
-            </div>
-          </div>
-        </div>
-      </section>
-    </div>
-
-    <!-- Bottom Section: Матрица поправок (Compact, Clean, Without Small Descriptive Text) -->
-    <section class="leifer-panel reveal-on-scroll">
-      <div class="panel-head-flex">
-        <h3 class="panel-head-title">${icon('sliders')} Матрица поправок Лейфера 2026</h3>
-        <span class="kpi-pill kpi-pill-blue">ФСО I-VI, ФСО № 7</span>
-      </div>
-
-      <div class="leifer-matrix-grid">
-        <div class="leifer-card leifer-card-blue">
-          <div class="leifer-card-top">
-            <span class="leifer-tag">Торг</span>
-            <span class="leifer-badge">−6,0%</span>
-          </div>
-          <div class="leifer-title">Рынок предложений</div>
-          <div class="leifer-mini-track">
-            <div class="leifer-mini-fill" style="width: 65%; background: linear-gradient(90deg, #2563eb, #60a5fa);"></div>
-          </div>
-        </div>
-
-        <div class="leifer-card leifer-card-purple">
-          <div class="leifer-card-top">
-            <span class="leifer-tag">Этажность</span>
-            <span class="leifer-badge">+5% / +4%</span>
-          </div>
-          <div class="leifer-title">Первый и последний этаж</div>
-          <div class="leifer-mini-track">
-            <div class="leifer-mini-fill" style="width: 78%; background: linear-gradient(90deg, #7c3aed, #a78bfa);"></div>
-          </div>
-        </div>
-
-        <div class="leifer-card leifer-card-emerald">
-          <div class="leifer-card-top">
-            <span class="leifer-tag">Отделка</span>
-            <span class="leifer-badge">+6,0%</span>
-          </div>
-          <div class="leifer-title">Простая и улучшенная</div>
-          <div class="leifer-mini-track">
-            <div class="leifer-mini-fill" style="width: 82%; background: linear-gradient(90deg, #059669, #34d399);"></div>
-          </div>
-        </div>
-
-        <div class="leifer-card leifer-card-amber">
-          <div class="leifer-card-top">
-            <span class="leifer-tag">Однородность</span>
-            <span class="leifer-badge">V ≤ 33%</span>
-          </div>
-          <div class="leifer-title">Эталон выборки: 4,1%</div>
-          <div class="leifer-mini-track">
-            <div class="leifer-mini-fill" style="width: 90%; background: linear-gradient(90deg, #d97706, #fbbf24);"></div>
-          </div>
-        </div>
-      </div>
-    </section>
+          `;
+        }).join('')}
+      </tbody>
+    </table>
   `;
 }
 
@@ -2599,51 +2276,71 @@ function bindEvents() {
     toast('Свойства стекла сброшены по умолчанию');
   });
 
-  // Chart Period Switcher (Week / Month / Year)
+  function bindChartPointEvents() {
+    document.querySelectorAll('[data-point-idx]').forEach(dot => {
+      dot.addEventListener('mouseenter', () => {
+        const idx = Number(dot.dataset.pointIdx);
+        const pts = getDashboardChartPoints(chartPeriod);
+        const p = pts[idx];
+        if (!p) return;
+        document.querySelectorAll('.chart-html-dot.active').forEach(d => d.classList.remove('active'));
+        dot.classList.add('active');
+        const badge = document.getElementById('chart-pin-badge');
+        const line = document.getElementById('chart-crosshair-line');
+        const px = dot.dataset.px;
+        const py = dot.dataset.py;
+        const cx = dot.dataset.cx;
+        if (badge && px && py) {
+          badge.style.left = `${px}%`;
+          badge.style.top = `${py}%`;
+          badge.textContent = `${p.price.toLocaleString('ru-RU')} ₽`;
+        }
+        if (line && cx) {
+          line.setAttribute('x1', cx);
+          line.setAttribute('x2', cx);
+        }
+      });
+    });
+  }
+  bindChartPointEvents();
+
+  function refreshChartSlotSmoothly() {
+    const slot = document.getElementById('dash-chart-slot');
+    if (!slot) {
+      render({ animate: false });
+      return;
+    }
+    slot.style.opacity = '0.35';
+    requestAnimationFrame(() => {
+      slot.innerHTML = renderGlassChart(chartPeriod);
+      slot.style.opacity = '1';
+      bindChartPointEvents();
+    });
+  }
+
+  // Chart Period Switcher (in-place, zero page jump)
   document.querySelectorAll('[data-period]').forEach(btn => {
     btn.addEventListener('click', () => {
       chartPeriod = btn.dataset.period;
-      render();
+      document.querySelectorAll('[data-period]').forEach(b => b.classList.toggle('active', b === btn));
+      refreshChartSlotSmoothly();
     });
   });
 
-  // Chart / Table View Toggle
+  // Chart / Table View Toggle (in-place, zero page jump)
   document.querySelectorAll('[data-chart-view]').forEach(btn => {
     btn.addEventListener('click', () => {
       dashChartView = btn.dataset.chartView;
-      render();
+      document.querySelectorAll('[data-chart-view]').forEach(b => b.classList.toggle('active', b === btn));
+      refreshChartSlotSmoothly();
     });
   });
 
-  // Interactive Chart Point Hover
-  document.querySelectorAll('[data-point-idx]').forEach(dot => {
-    dot.addEventListener('mouseenter', () => {
-      const idx = Number(dot.dataset.pointIdx);
-      const pts = getDashboardChartPoints(chartPeriod);
-      const p = pts[idx];
-      if (!p) return;
-      const badge = document.getElementById('chart-pin-badge');
-      const line = document.getElementById('chart-crosshair-line');
-      const cx = dot.getAttribute('cx');
-      const cy = dot.getAttribute('cy');
-      if (badge && cx && cy) {
-        const pctX = ((Number(cx) / 680) * 100).toFixed(2);
-        badge.style.left = `${pctX}%`;
-        badge.style.top = `${cy}px`;
-        badge.textContent = `${p.price.toLocaleString('ru-RU')} ₽`;
-      }
-      if (line && cx) {
-        line.setAttribute('x1', cx);
-        line.setAttribute('x2', cx);
-      }
-    });
-  });
-
-  // Dashboard Registry Table Filter Pills
+  // Dashboard Registry Table Filter Pills (in-place, zero page jump)
   document.querySelectorAll('[data-dash-filter]').forEach(btn => {
     btn.addEventListener('click', () => {
       dashTableFilter = btn.dataset.dashFilter;
-      render();
+      render({ animate: false });
     });
   });
 
