@@ -4728,3 +4728,372 @@ dialog::backdrop {
   color: #1e293b;
   font-weight: 600;
 }
+
+/* ==========================================================================
+   Временный переключатель профиля в сайдбаре
+   ========================================================================== */
+
+.sidebar-role-box {
+  border-top: 1px solid var(--sidebar-border);
+  background: #ffffff;
+  flex-shrink: 0;
+}
+
+.sidebar-role-box .sidebar-profile {
+  border-top: none;
+}
+
+.role-toggle-pills,
+.sidebar-emp-select {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  margin: 0 12px;
+  transition: max-height 0.2s ease, opacity 0.18s ease, margin 0.2s ease;
+}
+
+.app-sidebar:hover .role-toggle-pills,
+.app-sidebar.is-expanded .role-toggle-pills,
+.app-sidebar.is-pinned .role-toggle-pills {
+  max-height: 44px;
+  opacity: 1;
+  pointer-events: auto;
+  margin: 10px 12px 6px;
+}
+
+.app-sidebar:hover .sidebar-emp-select,
+.app-sidebar.is-expanded .sidebar-emp-select,
+.app-sidebar.is-pinned .sidebar-emp-select {
+  max-height: 36px;
+  opacity: 1;
+  pointer-events: auto;
+  margin: 0 12px 6px;
+}
+
+.role-toggle-pills {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  background: #f1f5f9;
+  padding: 3px;
+  border-radius: 8px;
+}
+
+.role-pill {
+  border: none;
+  background: transparent;
+  padding: 5px 6px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.role-pill.active {
+  background: #ffffff;
+  color: var(--primary);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.sidebar-emp-select {
+  width: calc(100% - 24px);
+  padding: 6px 8px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dark);
+  background: #f8fafc;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* ==========================================================================
+   Quality Gate Pill & Зона контроля команды (Админ-панель руководителя)
+   ========================================================================== */
+
+.quality-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.quality-pill.ok {
+  background: var(--green-light);
+  color: #065f46;
+  border-color: var(--green-border);
+}
+
+.quality-pill.warn {
+  background: var(--amber-light);
+  color: #92400e;
+  border-color: var(--amber-border);
+}
+
+.control-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.control-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 18px;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 14px;
+  padding: 20px 24px;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.04);
+  flex-wrap: wrap;
+}
+
+.control-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--primary);
+  margin-bottom: 4px;
+}
+
+.control-header h2 {
+  font-size: 20px;
+  font-weight: 750;
+  color: var(--text-dark);
+  letter-spacing: -0.3px;
+}
+
+.control-header p {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+
+.control-filters-box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.period-pills {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.period-date-range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.period-date-range input[type="date"] {
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--text-dark);
+  background: #ffffff;
+}
+
+.control-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+@media (max-width: 1100px) {
+  .control-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 700px) {
+  .control-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.control-kpi-card {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.03);
+}
+
+.kpi-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.kpi-val {
+  font-size: 24px;
+  font-weight: 750;
+  color: var(--text-dark);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
+}
+
+.kpi-sub {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.kpi-foot {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.kpi-ok {
+  color: #065f46;
+  font-weight: 600;
+}
+
+.kpi-warn {
+  color: #b45309;
+  font-weight: 600;
+}
+
+.live-dot {
+  color: var(--green);
+  font-size: 11px;
+  margin-left: 4px;
+}
+
+.control-bottom-grid {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 18px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .control-bottom-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.audit-case-row {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: #ffffff;
+}
+
+.audit-blockers-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.blocker-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #991b1b;
+  background: var(--red-light);
+  border: 1px solid #fecaca;
+  padding: 3px 8px;
+  border-radius: 5px;
+}
+
+.audit-ok-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #065f46;
+}
+
+.timeline-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 520px;
+  overflow-y: auto;
+}
+
+.timeline-item {
+  display: flex;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+  background: #f8fafc;
+}
+
+.timeline-item.is-warning {
+  background: #fff5f5;
+  border-color: #fecaca;
+}
+
+.timeline-time {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  padding-top: 2px;
+}
+
+.timeline-title {
+  font-size: 12.5px;
+  color: var(--text-dark);
+  line-height: 1.35;
+}
+
+.timeline-case {
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--primary);
+  background: var(--primary-light);
+  padding: 0 6px;
+  border-radius: 4px;
+}
+
+.timeline-desc {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  line-height: 1.35;
+}
+

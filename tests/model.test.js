@@ -1,6 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { defaultObject, defaultAnalogs, calculateValuation } from '../src/model.js';
+import {
+  defaultObject,
+  defaultAnalogs,
+  defaultCases,
+  calculateValuation,
+  evaluateCaseQuality,
+  sumSharesFraction,
+  getRemainingShareFraction,
+} from '../src/model.js';
 
 test('Модель дает точное совпадение с официальным отчетом Анны (Дело № 19/0826-2)', () => {
   const obj = defaultObject();
@@ -53,4 +61,43 @@ test('Пересчет корректно реагирует на отключе
   // Сумма весов 4 оставшихся аналогов строго равна 1.0
   const sumWeights = result.rows.reduce((s, r) => s + r.weight, 0);
   assert.ok(Math.abs(sumWeights - 1.0) < 0.001);
+});
+
+test('evaluateCaseQuality: блокирует фиктивный статус «Готов» и пропускает эталонное дело', () => {
+  const [annaCase, inProgressCase, draftCase] = defaultCases();
+
+  const annaQuality = evaluateCaseQuality(annaCase);
+  assert.equal(annaQuality.score, 100);
+  assert.equal(annaQuality.canMarkReady, true);
+  assert.equal(annaQuality.blockers.length, 0);
+
+  // Дело без полного самоконтроля не может быть закрыто как «Готов»
+  const lyudaQuality = evaluateCaseQuality(inProgressCase);
+  assert.equal(lyudaQuality.canMarkReady, false);
+
+  // Черновик без аналогов и с неполным чеклистом блокируется
+  const draftQuality = evaluateCaseQuality(draftCase);
+  assert.equal(draftQuality.canMarkReady, false);
+  assert.ok(draftQuality.blockers.length >= 3);
+
+  // Дело с отсутствующими ссылками и долями != 100% блокируется
+  const badCase = structuredClone(annaCase);
+  badCase.analogs[0].url = '';
+  badCase.objectData.shares = [{ id: 's1', holder: 'Тест', num: 1, den: 2 }];
+  const badQuality = evaluateCaseQuality(badCase);
+  assert.equal(badQuality.canMarkReady, false);
+  assert.ok(badQuality.blockers.some(b => b.includes('Ссылки-источники')));
+  assert.ok(badQuality.blockers.some(b => b.includes('Долевая собственность')));
+});
+
+test('sumSharesFraction и getRemainingShareFraction: точный расчёт остатка до 100%', () => {
+  const s1 = [{ num: 1, den: 3 }, { num: 1, den: 3 }];
+  const rem = getRemainingShareFraction(s1);
+  assert.equal(rem.num, 1);
+  assert.equal(rem.den, 3);
+
+  const full = sumSharesFraction([{ num: 1, den: 2 }, { num: 1, den: 2 }]);
+  assert.equal(full.num, 1);
+  assert.equal(full.den, 1);
+  assert.equal(full.percent, 100);
 });

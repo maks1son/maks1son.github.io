@@ -1362,6 +1362,425 @@ function renderCabinetView() {
   `;
 }
 
+function getControlPeriodBounds() {
+  const now = new Date();
+  const today = toLocalDateStr(now);
+  if (controlPeriod === 'today') {
+    return { from: today, to: today, label: 'Сегодня' };
+  }
+  if (controlPeriod === 'week') {
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
+    return { from: toLocalDateStr(start), to: today, label: 'За последние 7 дней' };
+  }
+  if (controlPeriod === 'month') {
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29);
+    return { from: toLocalDateStr(start), to: today, label: 'За последние 30 дней' };
+  }
+  const f = controlDateFrom || today;
+  const t = controlDateTo || today;
+  return f <= t
+    ? { from: f, to: t, label: `${f} — ${t}` }
+    : { from: t, to: f, label: `${t} — ${f}` };
+}
+
+/**
+ * Экран руководителя: Зона управления и честного контроля команды
+ */
+function renderControlView() {
+  const store = getActivityStore();
+  const { from, to } = getControlPeriodBounds();
+
+  const casesWithQuality = cases.map(c => {
+    const res = calculateValuation(c.objectData, c.analogs, c.objectData.tradeAdjustment);
+    const quality = evaluateCaseQuality(c, res);
+    const owner = TEAM_MEMBERS.find(m => m.id === c.assignedTo) || TEAM_MEMBERS[0];
+    return { caseItem: c, res, quality, owner };
+  });
+
+  const periodEventsAll = (store.events || []).filter(ev => {
+    const day = toLocalDateStr(new Date(ev.timestamp));
+    return day >= from && day <= to;
+  });
+
+  const filteredEvents = periodEventsAll.filter(ev =>
+    controlEmployeeFilter === 'all' || ev.employeeId === controlEmployeeFilter
+  );
+
+  // Агрегируем время и метрики по каждому сотруднику за период [from..to]
+  const memberStats = TEAM_MEMBERS.map(emp => {
+    let activeSec = 0;
+    let idleSec = 0;
+    Object.entries(store.timeByDayEmp || {}).forEach(([day, dayMap]) => {
+      if (day >= from && day <= to && dayMap[emp.id]) {
+        activeSec += dayMap[emp.id].activeSec || 0;
+        idleSec += dayMap[emp.id].idleSec || 0;
+      }
+    });
+
+    const empEvents = periodEventsAll.filter(ev => ev.employeeId === emp.id);
+    const wordExports = empEvents.filter(ev => ev.actionType === 'export_word').length;
+    const blockedCount = empEvents.filter(ev => ev.actionType === 'status_blocked').length;
+    const actionsCount = empEvents.filter(ev => ev.actionType !== 'status_blocked').length;
+    const totalSec = activeSec + idleSec;
+    const efficiencyPct = totalSec > 0 ? Math.round((activeSec / totalSec) * 100) : 0;
+
+    const empCases = casesWithQuality.filter(item => item.owner.id === emp.id);
+    const verifiedCount = empCases.filter(i => i.caseItem.status === 'Готов' && i.quality.canMarkReady).length;
+    const inProgressCount = empCases.filter(i => i.caseItem.status !== 'Готов').length;
+
+    const avgQuality = empCases.length
+      ? Math.round(empCases.reduce((s, i) => s + i.quality.score, 0) / empCases.length)
+      : (wordExports > 0 ? 100 : null);
+
+    const varItems = empCases.filter(i => i.quality.variationCoeff != null && i.quality.selectedCount >= 3);
+    const avgVariation = varItems.length
+      ? varItems.reduce((s, i) => s + i.quality.variationCoeff, 0) / varItems.length
+      : null;
+
+    const srcItems = empCases.filter(i => i.quality.selectedCount > 0);
+    const avgSourceCov = srcItems.length
+      ? Math.round(srcItems.reduce((s, i) => s + i.quality.sourceCoveragePct, 0) / srcItems.length)
+      : (wordExports > 0 ? 100 : null);
+
+    const avgMinPerReport = wordExports > 0 && activeSec > 0
+      ? Math.round((activeSec / 60) / wordExports)
+      : null;
+
+    return {
+      emp,
+      activeSec,
+      idleSec,
+      efficiencyPct,
+      wordExports,
+      blockedCount,
+      actionsCount,
+      verifiedCount,
+      inProgressCount,
+      avgQuality,
+      avgVariation,
+      avgSourceCov,
+      avgMinPerReport,
+      lastEvent: empEvents[0] || null,
+    };
+  });
+
+  const visibleStats = memberStats.filter(s =>
+    controlEmployeeFilter === 'all' || s.emp.id === controlEmployeeFilter
+  );
+  const visibleCases = casesWithQuality.filter(i =>
+    controlEmployeeFilter === 'all' || i.owner.id === controlEmployeeFilter
+  );
+
+  // Сводные KPI за выбранный период
+  const sumActiveSec = visibleStats.reduce((s, m) => s + m.activeSec, 0);
+  const sumIdleSec = visibleStats.reduce((s, m) => s + m.idleSec, 0);
+  const sumTotalSec = sumActiveSec + sumIdleSec;
+  const teamEfficiency = sumTotalSec > 0 ? Math.round((sumActiveSec / sumTotalSec) * 100) : 0;
+  const sumWordExports = visibleStats.reduce((s, m) => s + m.wordExports, 0);
+  const sumActions = visibleStats.reduce((s, m) => s + m.actionsCount, 0);
+  const sumBlocked = visibleStats.reduce((s, m) => s + m.blockedCount, 0);
+  const verifiedCasesTotal = visibleCases.filter(i => i.caseItem.status === 'Готов' && i.quality.canMarkReady).length;
+  const issueCasesTotal = visibleCases.filter(i => !i.quality.canMarkReady).length;
+  const avgTeamQuality = visibleCases.length
+    ? Math.round(visibleCases.reduce((s, i) => s + i.quality.score, 0) / visibleCases.length)
+    : 100;
+  const varList = visibleCases.filter(i => i.quality.variationCoeff != null && i.quality.selectedCount >= 3);
+  const avgTeamVar = varList.length
+    ? (varList.reduce((s, i) => s + i.quality.variationCoeff, 0) / varList.length)
+    : null;
+
+  const fmtTimeHM = sec => {
+    const m = Math.round((sec || 0) / 60);
+    const h = Math.floor(m / 60);
+    const rem = m % 60;
+    return h > 0 ? `${h}ч ${rem}м` : `${rem}м`;
+  };
+
+  return `
+    <div class="control-view">
+      <!-- Шапка и гибкий фильтр периодов -->
+      <div class="control-header">
+        <div>
+          <div class="control-kicker">${icon('shield-check')} Кабинет руководителя · ООО «РусОценка»</div>
+          <h2>Контроль команды и объективное качество работы</h2>
+          <p>Учёт чистого активного времени (без простоя вкладки), проверка достоверности ФСО и защита от фиктивного статуса «Готов»</p>
+        </div>
+
+        <div class="control-filters-box">
+          <div class="period-pills">
+            <button type="button" class="city-pill ${controlPeriod === 'today' ? 'active' : ''}" data-ctrl-period="today">Сегодня</button>
+            <button type="button" class="city-pill ${controlPeriod === 'week' ? 'active' : ''}" data-ctrl-period="week">Неделя</button>
+            <button type="button" class="city-pill ${controlPeriod === 'month' ? 'active' : ''}" data-ctrl-period="month">Месяц</button>
+            <button type="button" class="city-pill ${controlPeriod === 'custom' ? 'active' : ''}" data-ctrl-period="custom">Свой период</button>
+          </div>
+
+          <div class="period-date-range">
+            <span>с</span>
+            <input type="date" id="control-date-from" value="${from}">
+            <span>по</span>
+            <input type="date" id="control-date-to" value="${to}">
+          </div>
+        </div>
+      </div>
+
+      <!-- Фильтр по сотрудникам -->
+      <div class="city-filter-bar" style="margin-bottom: 18px;">
+        <span class="city-filter-label">${icon('users')} Сотрудник:</span>
+        <button type="button" class="city-pill ${controlEmployeeFilter === 'all' ? 'active' : ''}" data-ctrl-emp="all">Вся команда (${TEAM_MEMBERS.length})</button>
+        ${TEAM_MEMBERS.map(m => `
+          <button type="button" class="city-pill ${controlEmployeeFilter === m.id ? 'active' : ''}" data-ctrl-emp="${m.id}">
+            ${m.shortName}
+          </button>
+        `).join('')}
+      </div>
+
+      <!-- 6 объективных KPI-метрик -->
+      <div class="control-kpi-grid">
+        <div class="control-kpi-card">
+          <div class="kpi-label">${icon('check-circle-2')} Верифицировано ФСО</div>
+          <div class="kpi-val">${verifiedCasesTotal} <span class="kpi-sub">дел 100%</span></div>
+          <div class="kpi-foot">${issueCasesTotal > 0 ? `<span class="kpi-warn">Ещё ${issueCasesTotal} в работе / с замечаниями</span>` : '<span class="kpi-ok">Нарушений по делам нет</span>'}</div>
+        </div>
+
+        <div class="control-kpi-card">
+          <div class="kpi-label">${icon('file-text')} Выгрузок Word (.docx)</div>
+          <div class="kpi-val">${sumWordExports} <span class="kpi-sub">за период</span></div>
+          <div class="kpi-foot"><span>Реально сформированных отчётов</span></div>
+        </div>
+
+        <div class="control-kpi-card">
+          <div class="kpi-label">${icon('award')} Индекс качества ФСО</div>
+          <div class="kpi-val" style="color: ${avgTeamQuality >= 85 ? 'var(--green)' : (avgTeamQuality >= 65 ? 'var(--amber)' : 'var(--red)')};">${avgTeamQuality}%</div>
+          <div class="kpi-foot"><span>Полнота ЕГРН, ссылок, долей и чеклиста</span></div>
+        </div>
+
+        <div class="control-kpi-card">
+          <div class="kpi-label">${icon('activity')} Средняя вариация (Vср)</div>
+          <div class="kpi-val">${avgTeamVar != null ? `${avgTeamVar.toFixed(2).replace('.', ',')}%` : '—'}</div>
+          <div class="kpi-foot"><span class="${avgTeamVar != null && avgTeamVar <= 33 ? 'kpi-ok' : ''}">Порог однородности ФСО: ≤ 33,0%</span></div>
+        </div>
+
+        <div class="control-kpi-card">
+          <div class="kpi-label">${icon('clock')} Чистое активное время</div>
+          <div class="kpi-val">${fmtTimeHM(sumActiveSec)} <span class="kpi-sub">КПД ${teamEfficiency}%</span></div>
+          <div class="kpi-foot"><span>Простой (вкладка открыта без действий): <b>${fmtTimeHM(sumIdleSec)}</b></span></div>
+        </div>
+
+        <div class="control-kpi-card">
+          <div class="kpi-label">${icon('shield-alert')} Операций / Блокировок</div>
+          <div class="kpi-val">${sumActions} <span class="kpi-sub">/ <b style="color: ${sumBlocked > 0 ? 'var(--red)' : 'var(--text-muted)'};">${sumBlocked} блок.</b></span></div>
+          <div class="kpi-foot"><span>${sumBlocked > 0 ? 'Были попытки закрыть сырой отчёт' : 'Попыток фиктивной сдачи не было'}</span></div>
+        </div>
+      </div>
+
+      <!-- Таблица эффективности оценщиков -->
+      <div class="panel" style="margin-bottom: 20px;">
+        <div class="panel-header">
+          <div class="panel-title">
+            <h3>Объективные показатели по сотрудникам</h3>
+            <p>Оценивается реальная активность за экраном (пауза после 45 сек простоя) и прохождение критериев ФСО</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="calc-table control-table">
+            <thead>
+              <tr>
+                <th>Сотрудник</th>
+                <th>Активное время / Простой</th>
+                <th>КПД активности</th>
+                <th>Выгрузки Word</th>
+                <th>Качество ФСО</th>
+                <th>Ссылки / Vср</th>
+                <th>Ср. время на отчёт</th>
+                <th>Операций / Блок.</th>
+                <th>Последнее действие</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${visibleStats.map(s => {
+                const isSelectedEmp = controlEmployeeFilter === s.emp.id;
+                const isLive = s.emp.id === currentProfile.employeeId;
+                const effColor = s.efficiencyPct >= 75 ? 'var(--green)' : (s.efficiencyPct >= 50 ? 'var(--amber)' : 'var(--red)');
+                const qColor = s.avgQuality == null ? 'var(--text-muted)' : (s.avgQuality >= 85 ? 'var(--green)' : (s.avgQuality >= 65 ? 'var(--amber)' : 'var(--red)'));
+                return `
+                  <tr class="${isSelectedEmp ? 'active-row' : ''}">
+                    <td>
+                      <div style="display: flex; align-items: center; gap: 10px;">
+                        <div class="profile-avatar" style="width: 32px; height: 32px; font-size: 11px;">${s.emp.initials}</div>
+                        <div>
+                          <div style="font-weight: 700; font-size: 13px; color: var(--text-dark);">
+                            ${s.emp.shortName}
+                            ${isLive ? '<span class="live-dot" title="Текущий активный профиль">●</span>' : ''}
+                          </div>
+                          <div style="font-size: 11px; color: var(--text-muted);">${s.emp.roleLabel} · дел: ${s.verifiedCount + s.inProgressCount}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div style="font-weight: 700; font-variant-numeric: tabular-nums;">${fmtTimeHM(s.activeSec)}</div>
+                      <div style="font-size: 11px; color: ${s.idleSec > s.activeSec ? 'var(--red)' : 'var(--text-muted)'};">
+                        простой: ${fmtTimeHM(s.idleSec)}
+                      </div>
+                    </td>
+                    <td>
+                      <div class="weight-bar-wrap">
+                        <div class="weight-track"><div class="weight-fill" style="width: ${s.efficiencyPct}%; background: ${effColor};"></div></div>
+                        <span class="weight-label" style="color: ${effColor};">${s.efficiencyPct}%</span>
+                      </div>
+                    </td>
+                    <td style="text-align: center; font-weight: 700; font-size: 14px;">
+                      ${s.wordExports}
+                    </td>
+                    <td>
+                      ${s.avgQuality != null ? `
+                        <span class="adj-chip" style="background: #f8fafc; border: 1px solid var(--border); color: ${qColor}; font-weight: 700;">
+                          ${s.avgQuality}%
+                        </span>
+                      ` : '<span style="color: var(--text-dim);">—</span>'}
+                    </td>
+                    <td>
+                      <div style="font-size: 12px; font-variant-numeric: tabular-nums;">
+                        Ссылки: <b>${s.avgSourceCov != null ? s.avgSourceCov + '%' : '—'}</b>
+                      </div>
+                      <div style="font-size: 11px; color: var(--text-muted);">
+                        Vср: <b>${s.avgVariation != null ? s.avgVariation.toFixed(1).replace('.', ',') + '%' : '—'}</b>
+                      </div>
+                    </td>
+                    <td style="font-variant-numeric: tabular-nums;">
+                      ${s.avgMinPerReport != null ? `<b>${s.avgMinPerReport} мин</b>` : '<span style="color: var(--text-dim);">—</span>'}
+                    </td>
+                    <td>
+                      <span style="font-weight: 700;">${s.actionsCount}</span>
+                      ${s.blockedCount > 0 ? `<span class="adj-chip neg" style="margin-left: 4px;" title="Заблокированные попытки сдать сырой отчёт">${s.blockedCount} блок.</span>` : ''}
+                    </td>
+                    <td style="max-width: 240px;">
+                      ${s.lastEvent ? `
+                        <div style="font-size: 12px; font-weight: 600; color: var(--text-dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${s.lastEvent.label}</div>
+                        <div style="font-size: 11px; color: var(--text-muted);">${new Date(s.lastEvent.timestamp).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · № ${s.lastEvent.caseNumber}</div>
+                      ` : '<span style="color: var(--text-dim); font-size: 12px;">Нет активности за период</span>'}
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="control-bottom-grid">
+        <!-- Аудит качества дел -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <h3>Честный аудит полноты дел</h3>
+              <p>Конкретные причины, почему дело готово или не допускается к сдаче</p>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            ${visibleCases.map(({ caseItem: c, quality, owner }) => `
+              <div class="audit-case-row">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
+                  <div>
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                      <strong style="font-size: 13.5px;">Дело № ${c.number}</strong>
+                      <span class="status-pill ${c.status === 'Готов' ? 'ready' : (c.status === 'В работе' ? 'work' : 'draft')}">${c.status}</span>
+                      <span style="font-size: 12px; color: var(--text-muted);">· ${owner.shortName}</span>
+                    </div>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px;">${cleanDisplayAddress(c.objectData.address)}</div>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="quality-pill ${quality.canMarkReady ? 'ok' : 'warn'}" style="cursor: default;">
+                      ${quality.score}% (${quality.passedCount}/${quality.totalChecks})
+                    </span>
+                    <button type="button" class="btn btn-secondary btn-sm" data-action="open-case" data-id="${c.id}">Открыть</button>
+                  </div>
+                </div>
+                ${quality.blockers.length > 0 ? `
+                  <div class="audit-blockers-list">
+                    ${quality.blockers.map(b => `<span class="blocker-chip">${icon('alert-triangle')} ${b}</span>`).join('')}
+                  </div>
+                ` : `
+                  <div class="audit-ok-note">${icon('check-circle')} Все 6 критериев ФСО пройдены: ЕГРН, доли 100%, 3+ аналога со ссылками, V ≤ 33%, самоконтроль.</div>
+                `}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <!-- Хронология работы за выбранный период -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <h3>Хронология работы (${filteredEvents.length})</h3>
+              <p>События за выбранный период: ${from === to ? from : `${from} — ${to}`}</p>
+            </div>
+          </div>
+          <div class="timeline-feed">
+            ${filteredEvents.length > 0 ? filteredEvents.slice(0, 30).map(ev => {
+              const emp = TEAM_MEMBERS.find(m => m.id === ev.employeeId) || TEAM_MEMBERS[0];
+              const dt = new Date(ev.timestamp);
+              const timeStr = dt.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+              return `
+                <div class="timeline-item ${ev.isWarning ? 'is-warning' : ''}">
+                  <div class="timeline-time">${timeStr}</div>
+                  <div class="timeline-body">
+                    <div class="timeline-title">
+                      <strong>${emp.shortName}</strong> · <span>${ev.label}</span>
+                      ${ev.caseNumber && ev.caseNumber !== '—' ? `<span class="timeline-case">№ ${ev.caseNumber}</span>` : ''}
+                    </div>
+                    ${ev.details ? `<div class="timeline-desc">${ev.details}</div>` : ''}
+                  </div>
+                </div>
+              `;
+            }).join('') : `
+              <div style="padding: 24px; text-align: center; color: var(--text-muted); font-size: 13px;">
+                За выбранный период (${from} — ${to}) событий не зафиксировано.
+              </div>
+            `}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function openQualityDetailsModal(caseItem, quality, blockedAttempt = false) {
+  const dialog = document.getElementById('modal-dialog');
+  if (!dialog) return;
+
+  dialog.innerHTML = `
+    <div class="modal-header">
+      <h3>${blockedAttempt ? 'Невозможно перевести отчёт в «Готов»' : `Аудит готовности дела № ${caseItem.number}`}</h3>
+      <button type="button" class="btn btn-secondary btn-sm" id="modal-close" aria-label="Закрыть">${CLOSE_ICON_SVG}</button>
+    </div>
+    <div class="modal-form" style="gap: 12px;">
+      ${blockedAttempt ? `
+        <div style="background: var(--red-light); border: 1px solid #fecaca; color: #991b1b; padding: 12px 14px; border-radius: 8px; font-size: 13px; line-height: 1.45;">
+          <strong>Сработала защита качества ФСО:</strong> нельзя закрыть отчёт как «Готов», пока не пройдены все обязательные проверки достоверности расчёта. Попытка зафиксирована в журнале контроля.
+        </div>
+      ` : ''}
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        ${quality.checks.map(ch => `
+          <div style="display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: 8px; border: 1px solid ${ch.passed ? 'var(--green-border)' : '#fecaca'}; background: ${ch.passed ? 'var(--green-light)' : '#fff5f5'};">
+            <span style="color: ${ch.passed ? 'var(--green)' : 'var(--red)'}; margin-top: 2px;">${icon(ch.passed ? 'check-circle-2' : 'x-circle')}</span>
+            <div>
+              <div style="font-size: 13px; font-weight: 700; color: var(--text-dark);">${ch.label}</div>
+              <div style="font-size: 12px; color: var(--text-body); margin-top: 2px;">${ch.reason}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-primary" id="modal-ok">Понятно</button>
+      </div>
+    </div>
+  `;
+  createIcons({ icons });
+  dialog.showModal();
+  dialog.querySelector('#modal-close').onclick = () => dialog.close();
+  dialog.querySelector('#modal-ok').onclick = () => dialog.close();
+}
+
 /**
  * Рендер рабочего места по открытому делу
  */
@@ -2255,6 +2674,8 @@ function bindEvents() {
       transitionRender(() => {
         if (target === 'dashboard') {
           currentView = 'dashboard';
+        } else if (target === 'control') {
+          currentView = 'control';
         } else {
           currentView = 'cabinet';
           if (target === 'all-cases') filterStatus = 'all';
@@ -2262,6 +2683,60 @@ function bindEvents() {
           if (target === 'ready') filterStatus = 'Готов';
         }
       });
+    });
+  });
+
+  // Temporary Profile Switcher (Руководитель / Оценщик)
+  document.querySelectorAll('[data-role-switch]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const nextRole = btn.dataset.roleSwitch;
+      if (nextRole === 'manager') {
+        currentProfile = setCurrentProfile({ role: 'manager', employeeId: 'emp_anna' });
+      } else {
+        const defaultAppraiser = currentProfile.employeeId === 'emp_anna' ? 'emp_lyuda' : currentProfile.employeeId;
+        currentProfile = setCurrentProfile({ role: 'appraiser', employeeId: defaultAppraiser });
+        if (currentView === 'control') currentView = 'dashboard';
+      }
+      render();
+      toast(`Профиль: ${getActiveMember().shortName} (${currentProfile.role === 'manager' ? 'Руководитель' : 'Оценщик'})`);
+    });
+  });
+
+  document.getElementById('sidebar-emp-select')?.addEventListener('change', e => {
+    currentProfile = setCurrentProfile({ role: 'appraiser', employeeId: e.target.value });
+    render();
+    toast(`Активный оценщик: ${getActiveMember().shortName}`);
+  });
+
+  // Control Zone period & employee filters
+  document.querySelectorAll('[data-ctrl-period]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      controlPeriod = btn.dataset.ctrlPeriod;
+      if (controlPeriod !== 'custom') {
+        const bounds = getControlPeriodBounds();
+        controlDateFrom = bounds.from;
+        controlDateTo = bounds.to;
+      }
+      render();
+    });
+  });
+
+  document.getElementById('control-date-from')?.addEventListener('change', e => {
+    controlPeriod = 'custom';
+    controlDateFrom = e.target.value;
+    render();
+  });
+
+  document.getElementById('control-date-to')?.addEventListener('change', e => {
+    controlPeriod = 'custom';
+    controlDateTo = e.target.value;
+    render();
+  });
+
+  document.querySelectorAll('[data-ctrl-emp]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      controlEmployeeFilter = btn.dataset.ctrlEmp;
+      render();
     });
   });
 
@@ -2363,6 +2838,17 @@ function bindEvents() {
           toast('Формирование официального отчёта Word по стандарту ООО «РусОценка»...');
           try {
             await exportApartmentReport(c.objectData, c.analogs);
+            const res = calculateValuation(c.objectData, c.analogs, c.objectData.tradeAdjustment);
+            const quality = evaluateCaseQuality(c, res);
+            logActivityEvent({
+              employeeId: currentProfile.employeeId,
+              caseId: c.id,
+              caseNumber: c.number,
+              actionType: 'export_word',
+              label: 'Выгружен официальный Word (.docx)',
+              details: `Качество ФСО: ${quality.score}%, аналогов: ${quality.selectedCount}`,
+              isWarning: !quality.canMarkReady,
+            });
             toast('Отчёт сформирован и загружен');
           } catch (err) {
             console.error(err);
@@ -2373,17 +2859,57 @@ function bindEvents() {
     });
   });
 
-  // Case status select
+  // Quality Gate details modal
+  document.getElementById('btn-show-quality-gate')?.addEventListener('click', () => {
+    const c = getActiveCase();
+    if (c) {
+      const res = calculateValuation(c.objectData, c.analogs, c.objectData.tradeAdjustment);
+      const quality = evaluateCaseQuality(c, res);
+      openQualityDetailsModal(c, quality, false);
+    }
+  });
+
+  // Case status select (Anti-Cheat: блокировка «Готов» без прохождения критериев ФСО)
   const statusSelect = document.getElementById('case-status-select');
   if (statusSelect) {
     statusSelect.addEventListener('change', e => {
       const c = getActiveCase();
-      if (c) {
-        c.status = e.target.value;
-        cases = updateCase(cases, c);
-        render();
-        toast('Статус дела изменён: ' + c.status);
+      if (!c) return;
+      const nextStatus = e.target.value;
+      const res = calculateValuation(c.objectData, c.analogs, c.objectData.tradeAdjustment);
+      const quality = evaluateCaseQuality(c, res);
+
+      if (nextStatus === 'Готов' && !quality.canMarkReady) {
+        e.target.value = c.status;
+        logActivityEvent({
+          employeeId: currentProfile.employeeId,
+          caseId: c.id,
+          caseNumber: c.number,
+          actionType: 'status_blocked',
+          label: 'Блокировка статуса «Готов»',
+          details: `Отклонено: ${quality.blockers.slice(0, 2).join('; ')}`,
+          isWarning: true,
+        });
+        openQualityDetailsModal(c, quality, true);
+        return;
       }
+
+      c.status = nextStatus;
+      if (nextStatus === 'Готов') {
+        c.progress = 100;
+        logActivityEvent({
+          employeeId: currentProfile.employeeId,
+          caseId: c.id,
+          caseNumber: c.number,
+          actionType: 'status_ready',
+          label: 'Отчёт переведён в «Готов»',
+          details: `Пройдены все 6 критериев ФСО (100%, V = ${quality.variationCoeff != null ? quality.variationCoeff.toFixed(2).replace('.', ',') + '%' : '—'})`,
+          isWarning: false,
+        });
+      }
+      cases = updateCase(cases, c);
+      render();
+      toast('Статус дела изменён: ' + c.status);
     });
   }
 
@@ -2395,6 +2921,17 @@ function bindEvents() {
       toast('Формирование официального отчёта Word по стандарту ООО «РусОценка»...');
       try {
         await exportApartmentReport(c.objectData, c.analogs);
+        const res = calculateValuation(c.objectData, c.analogs, c.objectData.tradeAdjustment);
+        const quality = evaluateCaseQuality(c, res);
+        logActivityEvent({
+          employeeId: currentProfile.employeeId,
+          caseId: c.id,
+          caseNumber: c.number,
+          actionType: 'export_word',
+          label: 'Выгружен официальный Word (.docx)',
+          details: `Качество ФСО: ${quality.score}%, аналогов: ${quality.selectedCount}`,
+          isWarning: !quality.canMarkReady,
+        });
         toast('Отчёт успешно сформирован и загружен');
       } catch (err) {
         console.error(err);
@@ -2442,10 +2979,22 @@ function bindEvents() {
     btn.addEventListener('click', e => {
       e.stopPropagation();
       const id = btn.dataset.id;
-      if (expandedAuditIds.has(id)) {
-        expandedAuditIds.delete(id);
-      } else {
+      const opening = !expandedAuditIds.has(id);
+      if (opening) {
         expandedAuditIds.add(id);
+        const c = getActiveCase();
+        if (c) {
+          logActivityEvent({
+            employeeId: currentProfile.employeeId,
+            caseId: c.id,
+            caseNumber: c.number,
+            actionType: 'audit_formula',
+            label: 'Сверка формул Лейфера',
+            details: 'Раскрыт пошаговый формульный аудит аналога',
+          });
+        }
+      } else {
+        expandedAuditIds.delete(id);
       }
       render();
     });
@@ -2462,6 +3011,14 @@ function bindEvents() {
       }
       c.checklist[key] = e.target.checked;
       cases = updateCase(cases, c);
+      logActivityEvent({
+        employeeId: currentProfile.employeeId,
+        caseId: c.id,
+        caseNumber: c.number,
+        actionType: 'checklist_update',
+        label: 'Обновлён самоконтроль оценщика',
+        details: `Пройдено ${Object.values(c.checklist).filter(Boolean).length} из 5 пунктов`,
+      });
 
       const itemEl = e.target.closest('.checklist-item');
       if (itemEl) {
@@ -2572,6 +3129,14 @@ function bindEvents() {
       c.objectData.purpose = fd.get('purpose');
       c.number = c.objectData.reportNumber;
       cases = updateCase(cases, c);
+      logActivityEvent({
+        employeeId: currentProfile.employeeId,
+        caseId: c.id,
+        caseNumber: c.number,
+        actionType: 'save_object',
+        label: 'Сохранены параметры объекта',
+        details: `${c.objectData.address}, ${c.objectData.area} м²`,
+      });
       render();
       toast('Параметры объекта успешно сохранены');
     }
@@ -2848,11 +3413,20 @@ function openCreateCaseModal() {
       totalFloors: parseInt(fd.get('totalFloors')),
       finish: fd.get('finish'),
       client: fd.get('client'),
+      assignedTo: currentProfile.employeeId,
       analogs: includeAnalogs ? defaultAnalogs() : [],
     });
 
     cases.unshift(newCase);
     saveCases(cases);
+    logActivityEvent({
+      employeeId: currentProfile.employeeId,
+      caseId: newCase.id,
+      caseNumber: newCase.number,
+      actionType: 'create_case',
+      label: 'Создано новое дело',
+      details: `${newCase.objectData.address}, ${newCase.objectData.area} м²`,
+    });
     activeCaseId = newCase.id;
     setActiveCaseId(activeCaseId);
     currentView = 'case';
@@ -2955,11 +3529,50 @@ function openAddAnalogModal() {
     };
     c.analogs.push(newAnalog);
     cases = updateCase(cases, c);
+    logActivityEvent({
+      employeeId: currentProfile.employeeId,
+      caseId: c.id,
+      caseNumber: c.number,
+      actionType: 'add_analog',
+      label: `Добавлен аналог (${srcName})`,
+      details: `${newAnalog.address}, ${money(newAnalog.price)}`,
+    });
     dialog.close();
     render();
     toast('Аналог добавлен в сравнительную таблицу');
   };
 }
 
+/**
+ * Умный трекинг чистого активного времени (исключает простой при открытой вкладке)
+ */
+function setupActivityTracker() {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+  const markActive = () => {
+    lastUserInteractionAt = Date.now();
+  };
+  ['keydown', 'mousedown', 'click', 'input', 'change', 'scroll', 'mousemove'].forEach(evt => {
+    window.addEventListener(evt, markActive, { passive: true });
+  });
+
+  setInterval(() => {
+    const isVisible = document.visibilityState === 'visible';
+    const isRecentlyActive = (Date.now() - lastUserInteractionAt) < 45_000;
+    const isWorking = isVisible && isRecentlyActive;
+    recordTimeTick(currentProfile.employeeId, isWorking, 5);
+
+    const liveLabel = document.getElementById('sidebar-live-time');
+    if (liveLabel) {
+      const member = getActiveMember();
+      const todayStr = toLocalDateStr(new Date());
+      const store = getActivityStore();
+      const todayTime = store.timeByDayEmp?.[todayStr]?.[member.id] || { activeSec: 0, idleSec: 0 };
+      const roleText = currentProfile.role === 'manager' ? 'Руководитель' : 'Оценщик';
+      liveLabel.textContent = `${roleText} · ${formatDurationShort(todayTime.activeSec)}${isWorking ? '' : ' (пауза)'}`;
+    }
+  }, 5000);
+}
+
 // Initial render
+setupActivityTracker();
 render();
