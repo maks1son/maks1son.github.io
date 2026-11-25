@@ -5868,3 +5868,200 @@ dialog::backdrop {
   font-size: 14px;
   margin-top: 2px;
 }
+
+
+/* ==========================================================================
+   Облегчённые кнопки, таблица сотрудников, портфель дел и история на всю ширину
+   ========================================================================== */
+
+/* Лёгкие, современные кнопки без тяжёлых теней и градиентов */
+.btn-primary {
+  background: #2563eb !important;
+  border: 1px solid #2563eb !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+  font-weight: 600 !important;
+}
+
+.btn-primary:hover {
+  background: #1d4ed8 !important;
+  border-color: #1d4ed8 !important;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.16) !important;
+  transform: none !important;
+}
+
+.btn-secondary {
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #1e293b !important;
+  box-shadow: none !important;
+}
+
+.btn-secondary:hover {
+  background: #f8fafc !important;
+  border-color: #94a3b8 !important;
+}
+
+/* Виджет "Портфель и готовность дел по ФСО" на главной */
+.dash-portfolio-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dash-port-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(110px, 0.9fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #eef2f6;
+  background: #fafcff;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.dash-port-row:hover {
+  border-color: #bfdbfe;
+  background: #f0f7ff;
+}
+
+.dash-port-meta {
+  min-width: 0;
+}
+
+.dash-port-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-dark);
+}
+
+.dash-port-addr {
+  display: block;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+.dash-port-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dash-port-track {
+  flex: 1;
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.dash-port-fill {
+  height: 100%;
+  background: #3b82f6;
+  border-radius: 999px;
+}
+
+.dash-port-fill.good {
+  background: #10b981;
+}
+
+.dash-port-pct {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  width: 34px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-port-val {
+  font-size: 13.5px;
+  font-weight: 750;
+  color: var(--text-dark);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dash-chart-compact .gw-chart-canvas-wrap {
+  height: 146px;
+}
+
+/* Таблица сотрудников — больше воздуха и чёткое выравнивание */
+.control-table th {
+  padding: 13px 16px;
+}
+
+.control-table td {
+  padding: 14px 16px;
+}
+
+.th-with-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Компактная строка недостающих пунктов в задачах оценщика */
+.prod-missing-inline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 12px;
+}
+
+.prod-missing-lbl {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.prod-missing-tag {
+  font-size: 11px;
+  font-weight: 600;
+  color: #92400e;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.prod-missing-ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 650;
+  color: #059669;
+}
+
+/* История действий на всю ширину экрана */
+.prod-history-full {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.control-feed-wide {
+  max-height: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 10px;
+}
+
+@media (max-width: 720px) {
+  .dash-port-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .control-feed-wide {
+    grid-template-columns: 1fr;
+  }
+}

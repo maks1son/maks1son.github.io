@@ -259,9 +259,9 @@ function renderSidebarContent(activeCase, inProgressCount, readyCount) {
           <span class="nav-label">Контроль команды</span>
         </button>
       ` : `
-        <button class="nav-item ${currentView === 'productivity' ? 'active' : ''}" data-nav="productivity" title="Продуктивность">
-          <span class="nav-icon">${icon('trending-up')}</span>
-          <span class="nav-label">Продуктивность</span>
+        <button class="nav-item ${currentView === 'productivity' ? 'active' : ''}" data-nav="productivity" title="Мои заказы и отчёты">
+          <span class="nav-icon">${icon('briefcase')}</span>
+          <span class="nav-label">Моя работа</span>
         </button>
       `}
 
@@ -552,7 +552,7 @@ function renderTopbarContent(activeCase) {
         ` : currentView === 'productivity' ? `
           <a href="#" id="crumb-dashboard">Главная</a>
           <span>/</span>
-          <strong>Продуктивность оценщика</strong>
+          <strong>Мои заказы и отчёты</strong>
         ` : `
           <a href="#" id="crumb-dashboard">Главная</a>
           <span>/</span>
@@ -837,44 +837,45 @@ function renderDashboardView() {
       </article>
     </section>
 
-    <!-- Tier 2: Smooth Chart + Minimalist District Bars -->
+    <!-- Tier 2: Case Portfolio & Readiness + Minimalist District Bars -->
     <div class="dash-analytics-grid anim-fade-up anim-delay-2">
       <section class="gw-panel dash-chart-panel">
-        <div class="dash-chart-head">
+        <div class="dash-chart-head" style="margin-bottom: 14px;">
           <div>
-            <h2 class="gw-cashflow-title">Динамика рынка</h2>
+            <h2 class="gw-cashflow-title">Портфель и готовность дел по ФСО</h2>
             <div class="dash-chart-kpi-line">
-              <strong>${moneyPerSqm(avgPricePerSqm)}</strong>
-              <span class="kpi-delta pos">+2,4%</span>
+              <strong>${money(totalValuation)}</strong>
+              <span class="kpi-delta neutral">${cases.length} дел в работе и архиве</span>
             </div>
           </div>
-          <div class="dash-chart-tools">
-            <div class="gw-segment gw-segment-subtle" role="group" aria-label="Период">
-              <button type="button" class="${chartPeriod === 'month' ? 'active' : ''}" data-period="month">Месяц</button>
-              <button type="button" class="${chartPeriod === 'year' ? 'active' : ''}" data-period="year">Год</button>
-              <button type="button" class="${chartPeriod === 'custom' ? 'active' : ''}" data-period="custom">Свой период</button>
-            </div>
-            <div class="view-toggle-group" role="group" aria-label="Вид">
-              <button type="button" class="view-toggle-btn ${dashChartView === 'chart' ? 'active' : ''}" data-chart-view="chart" title="График">
-                ${icon('trending-up')}
-              </button>
-              <button type="button" class="view-toggle-btn ${dashChartView === 'table' ? 'active' : ''}" data-chart-view="table" title="Таблица">
-                ${icon('table-2')}
-              </button>
-            </div>
-            ${renderInfoBadge('Средняя удельная цена предложения 1 м² по рынку в сравнении с прошлым периодом.')}
-          </div>
+          ${renderInfoBadge('Оценочная стоимость каждого дела и процент его готовности к сдаче по стандартам ФСО (ЕГРН, аналоги, доли, чеклист).')}
         </div>
 
-        <div class="dash-custom-dates ${chartPeriod === 'custom' ? 'open' : ''}" id="dash-custom-dates">
-          <span>Период:</span>
-          <input type="date" id="dash-date-from" value="${dashDateFrom}">
-          <span>—</span>
-          <input type="date" id="dash-date-to" value="${dashDateTo}">
-        </div>
-
-        <div id="dash-chart-slot" class="dash-chart-slot">
-          ${renderGlassChart(chartPeriod)}
+        <div class="dash-portfolio-bars">
+          ${cases.slice(0, 5).map(c => {
+            const res = calculateValuation(c.objectData, c.analogs, c.objectData.tradeAdjustment);
+            const val = res.total || Math.round((c.objectData.area * 47000) / 1000) * 1000;
+            const q = evaluateCaseQuality(c, res);
+            const statusClass = c.status === 'Готов' ? 'ready' : (c.status === 'В работе' ? 'in-progress' : 'draft');
+            return `
+              <div class="dash-port-row" data-action="open-case" data-id="${c.id}" title="Открыть дело № ${c.number}">
+                <div class="dash-port-meta">
+                  <div class="dash-port-title">
+                    <strong>№ ${c.number}</strong>
+                    <span class="badge-status ${statusClass}">${c.status}</span>
+                  </div>
+                  <span class="dash-port-addr">${cleanDisplayAddress(c.objectData.address)}</span>
+                </div>
+                <div class="dash-port-bar-wrap">
+                  <div class="dash-port-track">
+                    <div class="dash-port-fill ${q.score >= 85 ? 'good' : ''}" style="width: ${q.score}%;"></div>
+                  </div>
+                  <span class="dash-port-pct">${q.score}%</span>
+                </div>
+                <div class="dash-port-val">${money(val)}</div>
+              </div>
+            `;
+          }).join('')}
         </div>
       </section>
 
@@ -941,6 +942,46 @@ function renderDashboardView() {
 
       <div class="table-wrap" style="border: none; border-radius: 0;" id="dash-table-slot">
         ${renderDashRegistryTableBody(tableCases)}
+      </div>
+    </section>
+
+    <!-- Compact Secondary Widget: Market Dynamics (Moved below as requested) -->
+    <section class="gw-panel dash-chart-panel dash-chart-compact anim-fade-up anim-delay-3" style="margin-top: 16px;">
+      <div class="dash-chart-head">
+        <div>
+          <h2 class="gw-cashflow-title">Динамика рынка (1 м²)</h2>
+          <div class="dash-chart-kpi-line">
+            <strong>${moneyPerSqm(avgPricePerSqm)}</strong>
+            <span class="kpi-delta pos">+2,4%</span>
+          </div>
+        </div>
+        <div class="dash-chart-tools">
+          <div class="gw-segment gw-segment-subtle" role="group" aria-label="Период">
+            <button type="button" class="${chartPeriod === 'month' ? 'active' : ''}" data-period="month">Месяц</button>
+            <button type="button" class="${chartPeriod === 'year' ? 'active' : ''}" data-period="year">Год</button>
+            <button type="button" class="${chartPeriod === 'custom' ? 'active' : ''}" data-period="custom">Свой период</button>
+          </div>
+          <div class="view-toggle-group" role="group" aria-label="Вид">
+            <button type="button" class="view-toggle-btn ${dashChartView === 'chart' ? 'active' : ''}" data-chart-view="chart" title="График">
+              ${icon('trending-up')}
+            </button>
+            <button type="button" class="view-toggle-btn ${dashChartView === 'table' ? 'active' : ''}" data-chart-view="table" title="Таблица">
+              ${icon('table-2')}
+            </button>
+          </div>
+          ${renderInfoBadge('Средняя удельная цена предложения 1 м² по рынку в сравнении с прошлым периодом.')}
+        </div>
+      </div>
+
+      <div class="dash-custom-dates ${chartPeriod === 'custom' ? 'open' : ''}" id="dash-custom-dates">
+        <span>Период:</span>
+        <input type="date" id="dash-date-from" value="${dashDateFrom}">
+        <span>—</span>
+        <input type="date" id="dash-date-to" value="${dashDateTo}">
+      </div>
+
+      <div id="dash-chart-slot" class="dash-chart-slot">
+        ${renderGlassChart(chartPeriod)}
       </div>
     </section>
   `;
@@ -1323,14 +1364,21 @@ function renderControlView() {
           <table class="calc-table control-table">
             <thead>
               <tr>
-                <th>Сотрудник</th>
-                <th>Активное время / Простой</th>
-                <th>КПД активности</th>
-                <th>Выгрузки Word</th>
-                <th>Качество ФСО</th>
-                <th>Ссылки / Vср</th>
+                <th style="min-width: 265px;">Сотрудник</th>
+                <th>
+                  <span class="th-with-info">Активное время / Простой ${renderInfoBadge('Чистое время работы на экране и время бездействия (простой фиксируется после 45 сек без активности).')}</span>
+                </th>
+                <th>
+                  <span class="th-with-info">КПД активности ${renderInfoBadge('Доля чистого активного времени от общего времени открытой вкладки.')}</span>
+                </th>
+                <th style="text-align: center;">Выгрузки Word</th>
+                <th>
+                  <span class="th-with-info">Качество ФСО ${renderInfoBadge('Средняя полнота дел по стандартам ФСО (ЕГРН, аналоги, доли 100%, самоконтроль).')}</span>
+                </th>
+                <th>
+                  <span class="th-with-info">Ссылки / Vср ${renderInfoBadge('Процент аналогов с активными ссылками на объявление и средний коэффициент вариации V (норма ≤ 33%).')}</span>
+                </th>
                 <th>Ср. время на отчёт</th>
-                <th>Операций / Блок.</th>
                 <th>Последнее действие</th>
               </tr>
             </thead>
@@ -1343,20 +1391,20 @@ function renderControlView() {
                 return `
                   <tr class="${isSelectedEmp ? 'active-row' : ''}">
                     <td>
-                      <div style="display: flex; align-items: center; gap: 10px;">
-                        <div class="profile-avatar" style="width: 32px; height: 32px; font-size: 11px;">${s.emp.initials}</div>
-                        <div>
-                          <div style="font-weight: 700; font-size: 13px; color: var(--text-dark);">
-                            ${s.emp.shortName}
+                      <div style="display: flex; align-items: center; gap: 11px;">
+                        <div class="profile-avatar" style="width: 34px; height: 34px; font-size: 11.5px; flex-shrink: 0;">${s.emp.initials}</div>
+                        <div style="min-width: 0;">
+                          <div style="font-weight: 700; font-size: 13px; color: var(--text-dark); white-space: nowrap;">
+                            ${s.emp.name}
                             ${isLive ? '<span class="live-dot" title="Текущий активный профиль">●</span>' : ''}
                           </div>
-                          <div style="font-size: 11px; color: var(--text-muted);">${s.emp.roleLabel} · дел: ${s.verifiedCount + s.inProgressCount}</div>
+                          <div style="font-size: 11.5px; color: var(--text-muted); white-space: nowrap;">${s.emp.roleLabel} · ${s.verifiedCount + s.inProgressCount} дел</div>
                         </div>
                       </div>
                     </td>
                     <td>
-                      <div style="font-weight: 700; font-variant-numeric: tabular-nums;">${fmtTimeHM(s.activeSec)}</div>
-                      <div style="font-size: 11px; color: ${s.idleSec > s.activeSec ? 'var(--red)' : 'var(--text-muted)'};">
+                      <div style="font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap;">${fmtTimeHM(s.activeSec)}</div>
+                      <div style="font-size: 11px; white-space: nowrap; color: ${s.idleSec > s.activeSec ? 'var(--red)' : 'var(--text-muted)'};">
                         простой: ${fmtTimeHM(s.idleSec)}
                       </div>
                     </td>
@@ -1377,25 +1425,21 @@ function renderControlView() {
                       ` : '<span style="color: var(--text-dim);">—</span>'}
                     </td>
                     <td>
-                      <div style="font-size: 12px; font-variant-numeric: tabular-nums;">
+                      <div style="font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap;">
                         Ссылки: <b>${s.avgSourceCov != null ? s.avgSourceCov + '%' : '—'}</b>
                       </div>
-                      <div style="font-size: 11px; color: var(--text-muted);">
+                      <div style="font-size: 11px; color: var(--text-muted); white-space: nowrap;">
                         Vср: <b>${s.avgVariation != null ? s.avgVariation.toFixed(1).replace('.', ',') + '%' : '—'}</b>
                       </div>
                     </td>
-                    <td style="font-variant-numeric: tabular-nums;">
+                    <td style="font-variant-numeric: tabular-nums; white-space: nowrap;">
                       ${s.avgMinPerReport != null ? `<b>${s.avgMinPerReport} мин</b>` : '<span style="color: var(--text-dim);">—</span>'}
                     </td>
-                    <td>
-                      <span style="font-weight: 700;">${s.actionsCount}</span>
-                      ${s.blockedCount > 0 ? `<span class="adj-chip neg" style="margin-left: 4px;" title="Заблокированные попытки сдать сырой отчёт">${s.blockedCount} блок.</span>` : ''}
-                    </td>
-                    <td style="max-width: 240px;">
+                    <td style="min-width: 200px; max-width: 250px;">
                       ${s.lastEvent ? `
                         <div style="font-size: 12px; font-weight: 600; color: var(--text-dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${s.lastEvent.label}</div>
-                        <div style="font-size: 11px; color: var(--text-muted);">${new Date(s.lastEvent.timestamp).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · № ${s.lastEvent.caseNumber}</div>
-                      ` : '<span style="color: var(--text-dim); font-size: 12px;">Нет активности за период</span>'}
+                        <div style="font-size: 11px; color: var(--text-muted); white-space: nowrap;">${new Date(s.lastEvent.timestamp).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · № ${s.lastEvent.caseNumber}</div>
+                      ` : '<span style="color: var(--text-dim); font-size: 12px;">Нет активности</span>'}
                     </td>
                   </tr>
                 `;
@@ -1615,9 +1659,8 @@ function renderProductivityView() {
       <!-- Шапка и фильтр периода -->
       <div class="control-header">
         <div>
-          <div class="control-kicker">${icon('trending-up')} Личный кабинет оценщика · ${member.name}</div>
-          <h2>Моя продуктивность и рабочий план</h2>
-          <p>Сколько отчётов уже сделано, что предстоит доделать по стандартам ФСО и учёт чистого рабочего времени</p>
+          <h2>Мои заказы и отчёты</h2>
+          <p style="margin-top: 2px; font-size: 13px; color: var(--text-muted);">${member.name}</p>
         </div>
 
         <div class="control-filters-box">
@@ -1640,7 +1683,7 @@ function renderProductivityView() {
       <!-- Переключатель области: Мои дела / Все дела бюро -->
       <div class="prod-scope-bar">
         <div class="city-filter-bar" style="margin-bottom: 0;">
-          <span class="city-filter-label">${icon('folder')} Показать дела:</span>
+          <span class="city-filter-label">${icon('folder')} Заказы:</span>
           <button type="button" class="city-pill ${prodScope === 'mine' ? 'active' : ''}" data-prod-scope="mine">
             Мои дела (${myCases.length})
           </button>
@@ -1654,90 +1697,78 @@ function renderProductivityView() {
         </button>
       </div>
 
-      <!-- Прогресс выполнения плана месяца -->
-      <section class="prod-plan-card">
-        <div class="prod-plan-head">
-          <div>
-            <h3>Выполнение рабочего плана (${prodScope === 'all' ? 'Бюро' : member.shortName})</h3>
-            <p>План на месяц: <b>${monthlyPlan} готовых отчётов</b> · Осталось сдать: <b>${remainingToPlan}</b></p>
-          </div>
-          <div class="prod-plan-big">
-            <strong>${doneCount} / ${monthlyPlan}</strong>
-            <span>${planPct}% плана выполнено</span>
-          </div>
-        </div>
-
-        <div class="prod-plan-bar" role="progressbar" aria-valuenow="${planPct}" aria-valuemin="0" aria-valuemax="100">
-          ${doneBarPct > 0 ? `<div class="prod-bar-seg done" style="width: ${doneBarPct}%;" title="Сделано: ${doneCount}"></div>` : ''}
-          ${inProgBarPct > 0 ? `<div class="prod-bar-seg prog" style="width: ${inProgBarPct}%;" title="В работе: ${inProgCount}"></div>` : ''}
-          ${draftBarPct > 0 ? `<div class="prod-bar-seg draft" style="width: ${draftBarPct}%;" title="Черновики: ${draftCount}"></div>` : ''}
-        </div>
-
-        <div class="prod-plan-legend">
-          <span><i class="dot done"></i> Сделано (Готово): <b>${doneCount}</b></span>
-          <span><i class="dot prog"></i> В работе сейчас: <b>${inProgCount}</b></span>
-          <span><i class="dot draft"></i> Черновики (не начаты): <b>${draftCount}</b></span>
-          <span><i class="dot rem"></i> Осталось до плана: <b>${remainingToPlan}</b></span>
-        </div>
-      </section>
-
       <!-- 6 ключевых показателей оценщика -->
       <div class="control-kpi-grid">
         <div class="control-kpi-card">
-          <div class="kpi-label">${icon('check-circle-2')} Сделано отчётов</div>
+          <div class="kpi-card-top-row">
+            <div class="kpi-label">${icon('check-circle-2')} Сделано отчётов</div>
+            ${renderInfoBadge('Количество полностью завершённых и верифицированных отчётов за период.')}
+          </div>
           <div class="kpi-val">${doneCount} <span class="kpi-sub">готово</span></div>
-          <div class="kpi-foot"><span>Выгружено Word за период: <b>${wordExports}</b></span></div>
+          <div class="kpi-foot"><span>Выгружено Word: <b>${wordExports}</b></span></div>
         </div>
 
         <div class="control-kpi-card">
-          <div class="kpi-label">${icon('list-todo')} Предстоит сделать</div>
+          <div class="kpi-card-top-row">
+            <div class="kpi-label">${icon('list-todo')} Предстоит доработать</div>
+            ${renderInfoBadge('Текущие заказы в работе и черновики, требующие завершения расчётов или проверки.')}
+          </div>
           <div class="kpi-val">${pendingCases.length} <span class="kpi-sub">в очереди</span></div>
           <div class="kpi-foot"><span>В работе: <b>${inProgCount}</b> · Черновики: <b>${draftCount}</b></span></div>
         </div>
 
         <div class="control-kpi-card">
-          <div class="kpi-label">${icon('award')} Качество по ФСО</div>
+          <div class="kpi-card-top-row">
+            <div class="kpi-label">${icon('award')} Качество по ФСО</div>
+            ${renderInfoBadge('Полнота заполнения дел по Федеральным стандартам оценки (ЕГРН, аналоги, доли, чеклист).')}
+          </div>
           <div class="kpi-val" style="color: ${avgQuality == null ? 'var(--text-muted)' : (avgQuality >= 85 ? 'var(--green)' : (avgQuality >= 65 ? 'var(--amber)' : 'var(--red)'))};">
             ${avgQuality != null ? `${avgQuality}%` : '—'}
           </div>
-          <div class="kpi-foot"><span>Полнота ЕГРН, долей, аналогов и чеклиста</span></div>
+          <div class="kpi-foot"><span>Соответствие ФСО</span></div>
         </div>
 
         <div class="control-kpi-card">
-          <div class="kpi-label">${icon('activity')} Однородность (Vср)</div>
+          <div class="kpi-card-top-row">
+            <div class="kpi-label">${icon('activity')} Однородность (Vср)</div>
+            ${renderInfoBadge('Средний коэффициент вариации цен аналогов. По ФСО №7 выборка однородна при V ≤ 33%.')}
+          </div>
           <div class="kpi-val">${avgVariation != null ? `${avgVariation.toFixed(2).replace('.', ',')}%` : '—'}</div>
           <div class="kpi-foot"><span class="${avgVariation != null && avgVariation <= 33 ? 'kpi-ok' : ''}">Норматив ФСО: ≤ 33,0%</span></div>
         </div>
 
         <div class="control-kpi-card">
-          <div class="kpi-label">${icon('clock')} Моё рабочее время</div>
+          <div class="kpi-card-top-row">
+            <div class="kpi-label">${icon('clock')} Моё рабочее время</div>
+            ${renderInfoBadge('Чистое активное время работы на экране (пауза после 45 сек бездействия).')}
+          </div>
           <div class="kpi-val">${fmtTimeHM(activeSec)} <span class="kpi-sub">КПД ${efficiencyPct}%</span></div>
-          <div class="kpi-foot"><span>Простой без действий: <b>${fmtTimeHM(idleSec)}</b></span></div>
+          <div class="kpi-foot"><span>Простой: <b>${fmtTimeHM(idleSec)}</b></span></div>
         </div>
 
         <div class="control-kpi-card">
-          <div class="kpi-label">${icon('gauge')} Скорость на 1 отчёт</div>
+          <div class="kpi-card-top-row">
+            <div class="kpi-label">${icon('gauge')} Скорость на 1 отчёт</div>
+            ${renderInfoBadge('Среднее чистое время, затраченное на подготовку и выгрузку одного отчёта.')}
+          </div>
           <div class="kpi-val">${avgMinPerReport != null ? `${avgMinPerReport} мин` : '—'}</div>
-          <div class="kpi-foot"><span>Операций за период: <b>${actionsCount}</b></span></div>
+          <div class="kpi-foot"><span>Выгрузок: <b>${wordExports}</b></span></div>
         </div>
       </div>
 
-      <!-- Основная рабочая сетка оценщика -->
+      <!-- Основная рабочая сетка: заказы в работе + критерии ФСО -->
       <div class="prod-main-grid">
-        <!-- Левая колонка: Что предстоит сделать + Что уже сделано -->
         <div class="prod-col-stack">
           <section class="control-panel">
             <div class="control-panel-head">
-              <h3>${icon('clipboard-list')} Что предстоит сделать и доработать (${pendingCases.length})</h3>
-              <span>Конкретные шаги по каждому незавершённому делу</span>
+              <h3>${icon('clipboard-list')} Что предстоит доработать</h3>
             </div>
 
             ${pendingCases.length === 0 ? `
               <div class="prod-empty-box">
                 <div class="prod-empty-icon">${icon('check-circle-2')}</div>
                 <div>
-                  <strong>Все текущие дела в этой выборке уже завершены</strong>
-                  <p>Можно переключиться на «Все дела бюро» или создать новое дело в работу.</p>
+                  <strong>Все текущие заказы завершены</strong>
                 </div>
               </div>
             ` : `
@@ -1745,7 +1776,6 @@ function renderProductivityView() {
                 ${pendingCases.map(({ caseItem: c, res, quality, owner }) => {
                   const statusClass = c.status === 'В работе' ? 'status-work' : 'status-draft';
                   const missingChecks = quality.checks.filter(ch => !ch.passed);
-                  const passedChecks = quality.checks.filter(ch => ch.passed);
                   return `
                     <article class="prod-task-card">
                       <div class="prod-task-top">
@@ -1753,46 +1783,24 @@ function renderProductivityView() {
                           <div class="prod-task-title-row">
                             <span class="prod-case-num">Дело № ${c.number}</span>
                             <span class="badge ${statusClass}">${c.status}</span>
-                            <span class="prod-score-pill ${quality.score >= 85 ? 'good' : (quality.score >= 50 ? 'mid' : 'low')}">
-                              Готовность ФСО: ${quality.score}% (${quality.passedCount}/${quality.totalChecks})
-                            </span>
                           </div>
-                          <div class="prod-task-addr">${c.objectData.address || 'Адрес не указан'}</div>
+                          <div class="prod-task-addr">${cleanDisplayAddress(c.objectData.address) || 'Адрес не указан'}</div>
                           <div class="prod-task-meta">
-                            Заказчик: <b>${c.objectData.client || '—'}</b> · Площадь: <b>${sqm(c.objectData.area)}</b>
-                            ${prodScope === 'all' ? ` · Исполнитель: <b>${owner.shortName}</b>` : ''}
+                            ${c.objectData.client || '—'} · ${sqm(c.objectData.area)}${prodScope === 'all' ? ` · ${owner.shortName}` : ''}
                           </div>
                         </div>
 
                         <div class="prod-task-price">
-                          <strong>${res.total ? money(res.total) : 'Расчёт не завершён'}</strong>
+                          <strong>${res.total ? money(res.total) : 'В расчёте'}</strong>
                           <span>${res.pricePerSqm ? moneyPerSqm(res.pricePerSqm) : ''}</span>
                         </div>
                       </div>
 
-                      <!-- Что сделано и что осталось сделать -->
-                      <div class="prod-checks-split">
-                        <div class="prod-checks-col todo">
-                          <div class="prod-checks-col-title">${icon('alert-circle')} Осталось сделать (${missingChecks.length}):</div>
-                          ${missingChecks.length === 0 ? `
-                            <div class="prod-check-line ok">${icon('check')} Всё готово — можно переводить в статус «Готов»</div>
-                          ` : missingChecks.map(ch => `
-                            <div class="prod-check-line warn">
-                              ${icon('arrow-right')} <span><b>${ch.label}:</b> ${ch.reason}</span>
-                            </div>
-                          `).join('')}
-                        </div>
-
-                        <div class="prod-checks-col done">
-                          <div class="prod-checks-col-title">${icon('check-circle-2')} Уже выполнено (${passedChecks.length}):</div>
-                          ${passedChecks.length === 0 ? `
-                            <div class="prod-check-line muted">Пока нет выполненных пунктов</div>
-                          ` : passedChecks.map(ch => `
-                            <div class="prod-check-line ok">
-                              ${icon('check')} <span>${ch.label}</span>
-                            </div>
-                          `).join('')}
-                        </div>
+                      <div class="prod-missing-inline">
+                        ${missingChecks.length === 0
+                          ? `<span class="prod-missing-ok">${icon('check')} Готово к сдаче</span>`
+                          : `<span class="prod-missing-lbl">Осталось:</span> ${missingChecks.map(ch => `<span class="prod-missing-tag">${ch.label}</span>`).join('')}`
+                        }
                       </div>
 
                       <div class="prod-task-actions">
@@ -1802,8 +1810,8 @@ function renderProductivityView() {
                           </div>
                           <span>${quality.score}%</span>
                         </div>
-                        <button type="button" class="btn btn-primary" data-action="open-case" data-id="${c.id}">
-                          ${icon('arrow-right')} Открыть и доделать
+                        <button type="button" class="btn btn-primary btn-sm" data-action="open-case" data-id="${c.id}">
+                          Открыть
                         </button>
                       </div>
                     </article>
@@ -1816,12 +1824,11 @@ function renderProductivityView() {
           <!-- Уже сделанные отчёты -->
           <section class="control-panel">
             <div class="control-panel-head">
-              <h3>${icon('check-circle')} Уже сделано — готовые отчёты (${doneCases.length})</h3>
-              <span>Завершённые дела, прошедшие проверку стандартов ФСО</span>
+              <h3>${icon('check-circle')} Готовые отчёты</h3>
             </div>
 
             ${doneCases.length === 0 ? `
-              <div class="control-empty">За выбранный выбор дел в статусе «Готов» пока нет.</div>
+              <div class="control-empty">Готовых отчётов в этой выборке пока нет.</div>
             ` : `
               <div class="prod-done-list">
                 ${doneCases.map(({ caseItem: c, res, quality, owner }) => `
@@ -1830,9 +1837,8 @@ function renderProductivityView() {
                       <div class="prod-done-title">
                         <strong>Дело № ${c.number}</strong>
                         <span class="badge status-ready">Готов</span>
-                        <span class="prod-score-pill ${quality.canMarkReady ? 'good' : 'mid'}">${quality.score}% ФСО</span>
                       </div>
-                      <div class="prod-done-sub">${c.objectData.address} · ${c.objectData.client}${prodScope === 'all' ? ` · ${owner.shortName}` : ''}</div>
+                      <div class="prod-done-sub">${cleanDisplayAddress(c.objectData.address)} · ${c.objectData.client}${prodScope === 'all' ? ` · ${owner.shortName}` : ''}</div>
                     </div>
                     <div class="prod-done-right">
                       <div class="prod-done-sum">${res.total ? money(res.total) : '—'}</div>
@@ -1847,12 +1853,12 @@ function renderProductivityView() {
           </section>
         </div>
 
-        <!-- Правая колонка: Как я делаю отчёты + Баланс времени + Лента действий -->
+        <!-- Правая колонка: Критерии ФСО -->
         <div class="prod-col-stack">
           <section class="control-panel">
-            <div class="control-panel-head">
-              <h3>${icon('bar-chart-3')} Как я делаю отчёты (критерии ФСО)</h3>
-              <span>Где всё отлично, а на что обратить внимание</span>
+            <div class="control-panel-head" style="display: flex; justify-content: space-between; align-items: center;">
+              <h3>${icon('bar-chart-3')} Критерии ФСО</h3>
+              ${renderInfoBadge('Показывает, какой процент ваших дел полностью соответствует каждому обязательному требованию ФСО.')}
             </div>
 
             ${scopedCases.length === 0 ? `
@@ -1863,7 +1869,7 @@ function renderProductivityView() {
                   <div class="prod-quality-row">
                     <div class="prod-quality-labels">
                       <span>${cr.label}</span>
-                      <b>${cr.passed}/${cr.total} (${cr.pct}%)</b>
+                      <b>${cr.pct}%</b>
                     </div>
                     <div class="prod-quality-track">
                       <div class="prod-quality-fill ${cr.pct >= 80 ? 'good' : (cr.pct >= 50 ? 'mid' : 'low')}" style="width: ${cr.pct}%;"></div>
@@ -1872,73 +1878,39 @@ function renderProductivityView() {
                 `).join('')}
               </div>
             `}
-
-            <div class="prod-block-note ${blockedCount > 0 ? 'warn' : 'ok'}">
-              ${icon(blockedCount > 0 ? 'shield-alert' : 'shield-check')}
-              <span>
-                ${blockedCount > 0
-                  ? `За период было ${blockedCount} попыт. закрыть недоделанный отчёт (система защитила от ошибки ФСО).`
-                  : 'Ошибок при сдаче отчётов за период не зафиксировано.'}
-              </span>
-            </div>
-          </section>
-
-          <section class="control-panel">
-            <div class="control-panel-head">
-              <h3>${icon('clock')} Баланс моего рабочего времени</h3>
-              <span>Активная работа против простоя вкладки</span>
-            </div>
-
-            <div class="prod-time-summary">
-              <div>
-                <span>Активная работа</span>
-                <strong style="color: var(--primary);">${fmtTimeHM(activeSec)}</strong>
-              </div>
-              <div>
-                <span>Простой</span>
-                <strong style="color: var(--text-muted);">${fmtTimeHM(idleSec)}</strong>
-              </div>
-              <div>
-                <span>Полезное время</span>
-                <strong style="color: ${efficiencyPct >= 75 ? 'var(--green)' : 'var(--amber)'};">${efficiencyPct}%</strong>
-              </div>
-            </div>
-
-            <div class="prod-time-bar">
-              <div class="prod-time-active" style="width: ${totalSec > 0 ? efficiencyPct : 100}%;"></div>
-            </div>
-          </section>
-
-          <section class="control-panel">
-            <div class="control-panel-head">
-              <h3>${icon('activity')} История моих действий</h3>
-              <span>Последние операции за выбранный период</span>
-            </div>
-
-            <div class="control-feed">
-              ${empEvents.length === 0 ? `
-                <div class="control-empty">За выбранный период действий пока не зафиксировано.</div>
-              ` : empEvents.slice(0, 12).map(ev => {
-                const d = new Date(ev.timestamp);
-                const timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-                const dateStr = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`;
-                return `
-                  <div class="control-feed-item ${ev.isWarning ? 'warning' : ''}">
-                    <div class="feed-time">${dateStr} ${timeStr}</div>
-                    <div class="feed-body">
-                      <div class="feed-top">
-                        <span class="feed-action">${ev.label}</span>
-                        ${ev.caseNumber ? `<span class="feed-case">Дело № ${ev.caseNumber}</span>` : ''}
-                      </div>
-                      ${ev.details ? `<div class="feed-details">${ev.details}</div>` : ''}
-                    </div>
-                  </div>
-                `;
-              }).join('')}
-            </div>
           </section>
         </div>
       </div>
+
+      <!-- Полноширинная история действий от края до края -->
+      <section class="control-panel prod-history-full">
+        <div class="control-panel-head" style="display: flex; justify-content: space-between; align-items: center;">
+          <h3>${icon('activity')} История моих действий</h3>
+          ${renderInfoBadge('Журнал последних действий по делам за выбранный период.')}
+        </div>
+
+        <div class="control-feed control-feed-wide">
+          ${empEvents.length === 0 ? `
+            <div class="control-empty">За выбранный период действий пока не зафиксировано.</div>
+          ` : empEvents.slice(0, 12).map(ev => {
+            const d = new Date(ev.timestamp);
+            const timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+            const dateStr = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`;
+            return `
+              <div class="control-feed-item ${ev.isWarning ? 'warning' : ''}">
+                <div class="feed-time">${dateStr} ${timeStr}</div>
+                <div class="feed-body">
+                  <div class="feed-top">
+                    <span class="feed-action">${ev.label}</span>
+                    ${ev.caseNumber ? `<span class="feed-case">Дело № ${ev.caseNumber}</span>` : ''}
+                  </div>
+                  ${ev.details ? `<div class="feed-details">${ev.details}</div>` : ''}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </section>
     </div>
   `;
 }

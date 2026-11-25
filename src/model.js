@@ -5,12 +5,12 @@
  */
 
 export const TEAM_MEMBERS = [
-  { id: 'emp_anna', name: 'Орлова Анна Александровна', shortName: 'Орлова Анна А.', initials: 'АО', role: 'manager', roleLabel: 'Руководитель' },
-  { id: 'emp_lyuda', name: 'Смирнова Людмила Игоревна', shortName: 'Смирнова Люда', initials: 'СЛ', role: 'appraiser', roleLabel: 'Оценщик' },
-  { id: 'emp_masha', name: 'Петрова Мария Сергеевна', shortName: 'Петрова Маша', initials: 'ПМ', role: 'appraiser', roleLabel: 'Оценщик' },
-  { id: 'emp_sveta', name: 'Соколова Светлана Николаевна', shortName: 'Соколова Света', initials: 'СС', role: 'appraiser', roleLabel: 'Оценщик' },
-  { id: 'emp_petya', name: 'Волков Пётр Алексеевич', shortName: 'Волков Петя', initials: 'ВП', role: 'appraiser', roleLabel: 'Оценщик' },
-  { id: 'emp_dima', name: 'Кузнецов Дмитрий Олегович', shortName: 'Кузнецов Дима', initials: 'КД', role: 'appraiser', roleLabel: 'Оценщик' },
+  { id: 'emp_anna', name: 'Орлова Анна Александровна', shortName: 'Орлова Анна', initials: 'АО', role: 'manager', roleLabel: 'Руководитель' },
+  { id: 'emp_lyuda', name: 'Смирнова Людмила Игоревна', shortName: 'Смирнова Людмила', initials: 'СЛ', role: 'appraiser', roleLabel: 'Оценщик' },
+  { id: 'emp_masha', name: 'Петрова Мария Сергеевна', shortName: 'Петрова Мария', initials: 'ПМ', role: 'appraiser', roleLabel: 'Оценщик' },
+  { id: 'emp_sveta', name: 'Соколова Светлана Николаевна', shortName: 'Соколова Светлана', initials: 'СС', role: 'appraiser', roleLabel: 'Оценщик' },
+  { id: 'emp_petya', name: 'Волков Пётр Алексеевич', shortName: 'Волков Пётр', initials: 'ВП', role: 'appraiser', roleLabel: 'Оценщик' },
+  { id: 'emp_dima', name: 'Кузнецов Дмитрий Олегович', shortName: 'Кузнецов Дмитрий', initials: 'КД', role: 'appraiser', roleLabel: 'Оценщик' },
   { id: 'emp_olga', name: 'Морозова Ольга Викторовна', shortName: 'Морозова Ольга', initials: 'МО', role: 'appraiser', roleLabel: 'Оценщик' },
   { id: 'emp_ivan', name: 'Новиков Иван Андреевич', shortName: 'Новиков Иван', initials: 'НИ', role: 'appraiser', roleLabel: 'Оценщик' },
 ];
