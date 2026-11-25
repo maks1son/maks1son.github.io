@@ -3505,45 +3505,121 @@ dialog::backdrop {
 }
 
 /* Кнопка "Где взят аналог" (прямая ссылка) */
-.analog-source-wrap {
-  margin-top: 4px;
+/* ==========================================================================
+   Минималистичный фирменный чекбокс (плавная анимация без скачков)
+   ========================================================================== */
+.ro-checkbox {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  flex-shrink: 0;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
+.ro-checkbox input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  margin: 0;
+  pointer-events: none;
+}
+
+.ro-checkbox-visual {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  transition:
+    background-color 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ro-checkbox-visual svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.ro-cb-check {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  opacity: 0;
+  transition:
+    stroke-dashoffset 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.18s ease;
+}
+
+.ro-checkbox:hover .ro-checkbox-visual {
+  border-color: var(--primary);
+  background: #f0f7ff;
+}
+
+.ro-checkbox input:checked + .ro-checkbox-visual {
+  background: #0066cc;
+  border-color: #0066cc;
+  box-shadow: 0 2px 6px rgba(0, 102, 204, 0.24);
+}
+
+.ro-checkbox input:checked + .ro-checkbox-visual .ro-cb-check {
+  stroke-dashoffset: 0;
+  opacity: 1;
+  transition:
+    stroke-dashoffset 0.28s cubic-bezier(0.22, 1, 0.36, 1) 0.04s,
+    opacity 0.14s ease 0.04s;
+}
+
+.ro-checkbox:hover input:checked + .ro-checkbox-visual {
+  background: #0055b3;
+  border-color: #0055b3;
+  box-shadow: 0 3px 8px rgba(0, 102, 204, 0.32);
+}
+
+/* Компактная кнопка источника в отдельном столбце таблицы */
 .btn-source-link {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 11.5px;
+  font-weight: 650;
   color: var(--primary);
   background: var(--primary-light);
   border: 1px solid var(--primary-border);
-  padding: 3px 8px;
-  border-radius: 5px;
+  padding: 4px 10px;
+  border-radius: 6px;
   text-decoration: none;
+  white-space: nowrap;
   transition: all 0.15s ease;
+}
+
+.btn-source-link svg {
+  width: 12px;
+  height: 12px;
 }
 
 .btn-source-link:hover {
   background: #dbeafe;
   border-color: #93c5fd;
   color: var(--primary-hover);
+  transform: translateY(-1px);
 }
 
 .btn-source-link.empty {
   color: var(--text-dim);
   background: var(--border-light);
   border-color: var(--border);
-}
-
-.source-badge {
-  background: #ffffff;
-  border: 1px solid var(--primary-border);
-  padding: 1px 5px;
-  border-radius: 3px;
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--primary);
+  cursor: default;
 }
 
 /* Кнопка "Ход расчёта" (аудит) */
@@ -3768,7 +3844,7 @@ dialog::backdrop {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #b45309;
+  color: var(--primary);
   margin-bottom: 4px;
 }
 
@@ -3793,18 +3869,19 @@ dialog::backdrop {
   padding: 6px 12px;
   border-radius: 8px;
   white-space: nowrap;
+  transition: all 0.2s ease;
 }
 
 .checklist-status-badge.verified {
-  background: var(--green-light);
-  color: #065f46;
-  border: 1px solid var(--green-border);
+  background: var(--primary-light);
+  color: var(--primary);
+  border: 1px solid var(--primary-border);
 }
 
 .checklist-status-badge.pending {
-  background: var(--amber-light);
-  color: #92400e;
-  border: 1px solid var(--amber-border);
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
 }
 
 .checklist-items-wrap {
@@ -3818,50 +3895,27 @@ dialog::backdrop {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 11px 14px;
+  padding: 12px 14px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: border-color 0.2s ease, background 0.2s ease;
   background: #ffffff;
   user-select: none;
 }
 
 .checklist-item:hover {
   border-color: var(--primary-border);
-  background: #fbfcfe;
+  background: #f8fbff;
 }
 
 .checklist-item.checked {
-  border-color: var(--green-border);
-  background: var(--green-light);
+  border-color: var(--primary-border);
+  background: #f0f7ff;
 }
 
-.checklist-item input[type="checkbox"] {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.checklist-box {
-  width: 20px;
-  height: 20px;
-  border: 2px solid var(--border);
-  border-radius: 5px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+.checklist-item .ro-checkbox {
   margin-top: 1px;
-  background: #ffffff;
-  transition: all 0.15s ease;
-  color: transparent;
-}
-
-.checklist-item.checked .checklist-box {
-  background: var(--green);
-  border-color: var(--green);
-  color: #ffffff;
 }
 
 .checklist-text {

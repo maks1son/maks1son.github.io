@@ -80,6 +80,21 @@ applyGlassSettings();
 const icon = name => `<i data-lucide="${name}"></i>`;
 const CLOSE_ICON_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
 
+function renderRosocenkaCheckbox({ attrs = '', checked = false, title = '', asSpan = false } = {}) {
+  const tag = asSpan ? 'span' : 'label';
+  const titleAttr = title ? ` title="${title}"` : '';
+  return `
+    <${tag} class="ro-checkbox"${titleAttr}>
+      <input type="checkbox" ${attrs} ${checked ? 'checked' : ''}>
+      <span class="ro-checkbox-visual" aria-hidden="true">
+        <svg viewBox="0 0 20 20" fill="none">
+          <path class="ro-cb-check" pathLength="1" d="M5.2 10.3L8.4 13.5L14.8 6.8" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+    </${tag}>
+  `;
+}
+
 function toast(msg) {
   const el = document.getElementById('toast');
   if (!el) return;
@@ -1559,8 +1574,9 @@ function renderTabAnalogs(activeCase, res) {
         <table class="calc-table">
           <thead>
             <tr>
-              <th style="width: 36px;"><span class="sr-only">Выбор</span></th>
-              <th>Предложение, адрес и источник</th>
+              <th style="width: 58px; text-align: center;">Выбор</th>
+              <th>Предложение и адрес</th>
+              <th style="text-align: center;">Источник</th>
               <th>Цена предложения</th>
               <th>Торг</th>
               <th>Отделка</th>
@@ -1582,9 +1598,13 @@ function renderTabAnalogs(activeCase, res) {
               const audit = (row && row.audit) ? row.audit : calculateAnalogAudit(a, o, o.tradeAdjustment, res.totalCorrections, res.selectedCount);
 
               return `
-                <tr class="${isSelected ? 'active-row' : 'inactive-row'}">
-                  <td>
-                    <input type="checkbox" data-analog-toggle="${a.id}" ${isSelected ? 'checked' : ''} title="Включить аналог в расчёт">
+                <tr class="${isSelected ? 'active-row' : 'inactive-row'}" data-analog-row="${a.id}">
+                  <td style="text-align: center;">
+                    ${renderRosocenkaCheckbox({
+                      attrs: `data-analog-toggle="${a.id}"`,
+                      checked: isSelected,
+                      title: 'Включить аналог в расчёт'
+                    })}
                   </td>
                   <td>
                     <div class="analog-desc">
@@ -1595,22 +1615,18 @@ function renderTabAnalogs(activeCase, res) {
                         <span>${a.floor}/${a.totalFloors} эт.</span>
                         <span>·</span>
                         <span>${a.finish}</span>
-                        <span>·</span>
-                        <span class="analog-source-wrap">
-                          ${a.url ? `
-                            <a class="btn-source-link" href="${a.url}" target="_blank" rel="noopener noreferrer" title="Открыть первоисточник объявления">
-                              <span class="source-badge">${a.source || 'Источник'}</span>
-                              ${icon('external-link')}
-                              <span>Где взят</span>
-                            </a>
-                          ` : `
-                            <span class="btn-source-link empty" title="Ссылка на объявление не указана">
-                              ${icon('link-2')} Без ссылки
-                            </span>
-                          `}
-                        </span>
                       </div>
                     </div>
+                  </td>
+                  <td style="text-align: center;">
+                    ${a.url ? `
+                      <a class="btn-source-link" href="${a.url}" target="_blank" rel="noopener noreferrer" title="Открыть объявление на ${a.source || 'сайте'}">
+                        <span>${a.source || 'Ссылка'}</span>
+                        ${icon('external-link')}
+                      </a>
+                    ` : `
+                      <span class="btn-source-link empty" title="Ссылка на объявление не указана">—</span>
+                    `}
                   </td>
                   <td class="price-cell">
                     ${money(a.price)}
@@ -1628,13 +1644,13 @@ function renderTabAnalogs(activeCase, res) {
                   <td>
                     <span class="adj-chip ${a.areaAdj > 0 ? 'pos' : (a.areaAdj < 0 ? 'neg' : 'neutral')}">${percent(a.areaAdj)}</span>
                   </td>
-                  <td class="price-cell" style="color: var(--primary);">
+                  <td class="price-cell" style="color: var(--primary);" data-cell="adj-price">
                     ${isSelected && row ? moneyPerSqm(row.finalAdjustedPrice) : '—'}
                   </td>
-                  <td style="text-align: center;">
+                  <td style="text-align: center;" data-cell="ki">
                     <b>${isSelected && row ? row.correctionsCount : '—'}</b>
                   </td>
-                  <td>
+                  <td data-cell="weight">
                     ${isSelected && row ? `
                       <div class="weight-bar-wrap">
                         <div class="weight-track"><div class="weight-fill" style="width: ${row.weight * 100 * 3}%;"></div></div>
@@ -1653,8 +1669,8 @@ function renderTabAnalogs(activeCase, res) {
                   </td>
                 </tr>
                 ${isExpanded ? `
-                  <tr class="audit-drawer-row">
-                    <td colspan="12">
+                  <tr class="audit-drawer-row" data-audit-row="${a.id}">
+                    <td colspan="13">
                       ${renderAnalogAuditDrawer(a, audit, o, idx + 1)}
                     </td>
                   </tr>
@@ -1863,48 +1879,43 @@ function renderTabReport(activeCase, res) {
               <h4>Самоконтроль перед выгрузкой</h4>
               <p>Обязательная персональная верификация данных перед печатью отчёта</p>
             </div>
-            <div class="checklist-status-badge ${allChecked ? 'verified' : 'pending'}">
-              ${icon(allChecked ? 'check-circle-2' : 'alert-circle')}
-              <span>${allChecked ? 'Отчёт полностью проверен (5 из 5)' : `Самоконтроль: пройдено ${checkedCount} из 5`}</span>
+            <div class="checklist-status-badge ${allChecked ? 'verified' : 'pending'}" id="checklist-status-badge">
+              ${icon(allChecked ? 'check-circle-2' : 'shield-check')}
+              <span id="checklist-status-text">${allChecked ? 'Отчёт полностью проверен (5 из 5)' : `Самоконтроль: пройдено ${checkedCount} из 5`}</span>
             </div>
           </div>
 
           <div class="checklist-items-wrap">
             <label class="checklist-item ${cl.egrn ? 'checked' : ''}">
-              <input type="checkbox" data-checklist-key="egrn" ${cl.egrn ? 'checked' : ''}>
-              <span class="checklist-box">${icon(cl.egrn ? 'check' : '')}</span>
+              ${renderRosocenkaCheckbox({ attrs: 'data-checklist-key="egrn"', checked: !!cl.egrn, asSpan: true })}
               <span class="checklist-text">
                 <strong>1. Сверка с ЕГРН:</strong> кадастровый номер <b>${o.cadastralNumber}</b>, площадь <b>${o.area} м²</b>, этаж <b>${o.floor}/${o.totalFloors}</b> сверены с выпиской.
               </span>
             </label>
 
             <label class="checklist-item ${cl.inspection ? 'checked' : ''}">
-              <input type="checkbox" data-checklist-key="inspection" ${cl.inspection ? 'checked' : ''}>
-              <span class="checklist-box">${icon(cl.inspection ? 'check' : '')}</span>
+              ${renderRosocenkaCheckbox({ attrs: 'data-checklist-key="inspection"', checked: !!cl.inspection, asSpan: true })}
               <span class="checklist-text">
                 <strong>2. Акт осмотра:</strong> класс отделки <b>«${o.finish}»</b> и состояние подтверждены актом натурного осмотра.
               </span>
             </label>
 
             <label class="checklist-item ${cl.market ? 'checked' : ''}">
-              <input type="checkbox" data-checklist-key="market" ${cl.market ? 'checked' : ''}>
-              <span class="checklist-box">${icon(cl.market ? 'check' : '')}</span>
+              ${renderRosocenkaCheckbox({ attrs: 'data-checklist-key="market"', checked: !!cl.market, asSpan: true })}
               <span class="checklist-text">
                 <strong>3. Чистота аналогов:</strong> объявления проверены на открытом рынке (цены без скрытых условий и комиссии, ссылки активны).
               </span>
             </label>
 
             <label class="checklist-item ${cl.leifer ? 'checked' : ''}">
-              <input type="checkbox" data-checklist-key="leifer" ${cl.leifer ? 'checked' : ''}>
-              <span class="checklist-box">${icon(cl.leifer ? 'check' : '')}</span>
+              ${renderRosocenkaCheckbox({ attrs: 'data-checklist-key="leifer"', checked: !!cl.leifer, asSpan: true })}
               <span class="checklist-text">
                 <strong>4. Таблица 12.2:</strong> поправки Лейфера (торг ${percent(o.tradeAdjustment)}, этаж, площадь, отделка) и веса согласованы.
               </span>
             </label>
 
             <label class="checklist-item ${cl.shares ? 'checked' : ''}">
-              <input type="checkbox" data-checklist-key="shares" ${cl.shares ? 'checked' : ''}>
-              <span class="checklist-box">${icon(cl.shares ? 'check' : '')}</span>
+              ${renderRosocenkaCheckbox({ attrs: 'data-checklist-key="shares"', checked: !!cl.shares, asSpan: true })}
               <span class="checklist-text">
                 <strong>5. Таблица 12.5:</strong> доли правообладателей (${(o.shares || []).length} чел.) проверены по документам собственности.
               </span>
@@ -2220,39 +2231,86 @@ function bindEvents() {
     });
   });
 
-  // Interactive self-control checklist in tab 4
+  // Interactive self-control checklist in tab 4 (in-place DOM update, no page jump)
   document.querySelectorAll('[data-checklist-key]').forEach(cb => {
     cb.addEventListener('change', e => {
       const key = e.target.dataset.checklistKey;
       const c = getActiveCase();
-      if (c) {
-        if (!c.checklist) {
-          c.checklist = { egrn: false, inspection: false, market: false, leifer: false, shares: false };
-        }
-        c.checklist[key] = e.target.checked;
-        cases = updateCase(cases, c);
-        render();
-        const count = Object.values(c.checklist).filter(Boolean).length;
-        if (count === 5) {
-          toast('Все 5 пунктов самоконтроля подтверждены! Отчёт готов.');
-        }
+      if (!c) return;
+      if (!c.checklist) {
+        c.checklist = { egrn: false, inspection: false, market: false, leifer: false, shares: false };
+      }
+      c.checklist[key] = e.target.checked;
+      cases = updateCase(cases, c);
+
+      const itemEl = e.target.closest('.checklist-item');
+      if (itemEl) {
+        itemEl.classList.toggle('checked', e.target.checked);
+      }
+
+      const count = Object.values(c.checklist).filter(Boolean).length;
+      const allOk = count === 5;
+      const badgeEl = document.getElementById('checklist-status-badge');
+      const textEl = document.getElementById('checklist-status-text');
+      if (badgeEl) {
+        badgeEl.classList.toggle('verified', allOk);
+        badgeEl.classList.toggle('pending', !allOk);
+      }
+      if (textEl) {
+        textEl.textContent = allOk
+          ? 'Отчёт полностью проверен (5 из 5)'
+          : `Самоконтроль: пройдено ${count} из 5`;
+      }
+      if (allOk) {
+        toast('Все 5 пунктов самоконтроля подтверждены! Отчёт готов.');
       }
     });
   });
 
-  // Toggle analog checkbox
+  // Toggle analog checkbox (in-place recalculation, no page jump or animation replay)
   document.querySelectorAll('[data-analog-toggle]').forEach(cb => {
     cb.addEventListener('change', e => {
       const id = e.target.dataset.analogToggle;
       const c = getActiveCase();
-      if (c) {
-        const item = c.analogs.find(a => a.id === id);
-        if (item) {
-          item.selected = e.target.checked;
-          cases = updateCase(cases, c);
-          render();
+      if (!c) return;
+      const item = c.analogs.find(a => a.id === id);
+      if (!item) return;
+
+      item.selected = e.target.checked;
+      cases = updateCase(cases, c);
+
+      const res = calculateValuation(c.objectData, c.analogs, c.objectData.tradeAdjustment);
+      c.analogs.forEach((a, idx) => {
+        const rowEl = document.querySelector(`[data-analog-row="${a.id}"]`);
+        if (!rowEl) return;
+        const row = res.rows.find(r => r.id === a.id);
+        const isSelected = a.selected;
+
+        rowEl.classList.toggle('active-row', isSelected);
+        rowEl.classList.toggle('inactive-row', !isSelected);
+
+        const adjPriceCell = rowEl.querySelector('[data-cell="adj-price"]');
+        if (adjPriceCell) {
+          adjPriceCell.textContent = isSelected && row ? moneyPerSqm(row.finalAdjustedPrice) : '—';
         }
-      }
+        const kiCell = rowEl.querySelector('[data-cell="ki"]');
+        if (kiCell) {
+          kiCell.innerHTML = `<b>${isSelected && row ? row.correctionsCount : '—'}</b>`;
+        }
+        const weightCell = rowEl.querySelector('[data-cell="weight"]');
+        if (weightCell) {
+          weightCell.innerHTML = isSelected && row
+            ? `<div class="weight-bar-wrap"><div class="weight-track"><div class="weight-fill" style="width: ${row.weight * 100 * 3}%;"></div></div><span class="weight-label">${weightFmt(row.weight)}</span></div>`
+            : '<span style="color: var(--text-dim);">0%</span>';
+        }
+
+        const auditRow = document.querySelector(`[data-audit-row="${a.id}"] td`);
+        if (auditRow) {
+          const audit = (row && row.audit) ? row.audit : calculateAnalogAudit(a, c.objectData, c.objectData.tradeAdjustment, res.totalCorrections, res.selectedCount);
+          auditRow.innerHTML = renderAnalogAuditDrawer(a, audit, c.objectData, idx + 1);
+          createIcons({ icons });
+        }
+      });
     });
   });
 
