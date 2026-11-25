@@ -1521,6 +1521,429 @@ function openQualityDetailsModal(caseItem, quality, blockedAttempt = false) {
 }
 
 /**
+ * Экран оценщика: Личный кабинет продуктивности, плана работы и качества ФСО
+ */
+function renderProductivityView() {
+  const member = getActiveMember();
+  const store = getActivityStore();
+  const { from, to } = getControlPeriodBounds();
+
+  const allCasesWithQuality = cases.map(c => {
+    const res = calculateValuation(c.objectData, c.analogs, c.objectData.tradeAdjustment);
+    const quality = evaluateCaseQuality(c, res);
+    const owner = TEAM_MEMBERS.find(m => m.id === c.assignedTo) || TEAM_MEMBERS[0];
+    return { caseItem: c, res, quality, owner };
+  });
+
+  const myCases = allCasesWithQuality.filter(i => i.owner.id === member.id);
+  const scopedCases = prodScope === 'all' ? allCasesWithQuality : myCases;
+
+  const doneCases = scopedCases.filter(i => i.caseItem.status === 'Готов');
+  const inProgressCases = scopedCases.filter(i => i.caseItem.status === 'В работе');
+  const draftCases = scopedCases.filter(i => i.caseItem.status === 'Черновик');
+  const pendingCases = scopedCases.filter(i => i.caseItem.status !== 'Готов');
+
+  // Личное время оценщика за выбранный период
+  let activeSec = 0;
+  let idleSec = 0;
+  Object.entries(store.timeByDayEmp || {}).forEach(([day, dayMap]) => {
+    if (day >= from && day <= to && dayMap[member.id]) {
+      activeSec += dayMap[member.id].activeSec || 0;
+      idleSec += dayMap[member.id].idleSec || 0;
+    }
+  });
+  const totalSec = activeSec + idleSec;
+  const efficiencyPct = totalSec > 0 ? Math.round((activeSec / totalSec) * 100) : 0;
+
+  const empEvents = (store.events || []).filter(ev => {
+    const day = toLocalDateStr(new Date(ev.timestamp));
+    return ev.employeeId === member.id && day >= from && day <= to;
+  });
+  const wordExports = empEvents.filter(ev => ev.actionType === 'export_word').length;
+  const blockedCount = empEvents.filter(ev => ev.actionType === 'status_blocked').length;
+  const actionsCount = empEvents.filter(ev => ev.actionType !== 'status_blocked').length;
+  const avgMinPerReport = wordExports > 0 && activeSec > 0 ? Math.round((activeSec / 60) / wordExports) : null;
+
+  const avgQuality = scopedCases.length
+    ? Math.round(scopedCases.reduce((s, i) => s + i.quality.score, 0) / scopedCases.length)
+    : null;
+  const varItems = scopedCases.filter(i => i.quality.variationCoeff != null && i.quality.selectedCount >= 3);
+  const avgVariation = varItems.length
+    ? varItems.reduce((s, i) => s + i.quality.variationCoeff, 0) / varItems.length
+    : null;
+
+  // План на месяц (8 отчётов на оценщика; при просмотре всех дел бюро — 20)
+  const monthlyPlan = prodScope === 'all' ? 20 : 8;
+  const doneCount = doneCases.length;
+  const inProgCount = inProgressCases.length;
+  const draftCount = draftCases.length;
+  const remainingToPlan = Math.max(0, monthlyPlan - doneCount);
+  const planPct = Math.min(100, Math.round((doneCount / monthlyPlan) * 100));
+
+  const denom = Math.max(monthlyPlan, doneCount + inProgCount + draftCount);
+  const doneBarPct = Math.round((doneCount / denom) * 100);
+  const inProgBarPct = Math.round((inProgCount / denom) * 100);
+  const draftBarPct = Math.round((draftCount / denom) * 100);
+
+  // Анализ качества по 6 критериям ФСО («Как я делаю отчёты»)
+  const fsoCriteria = [
+    { key: 'objectComplete', label: 'ЕГРН и реквизиты объекта' },
+    { key: 'sharesValid', label: 'Долевая собственность (100%)' },
+    { key: 'analogsCount', label: 'Минимум 3 аналога в выборке' },
+    { key: 'analogsSources', label: 'Ссылки-первоисточники и цены' },
+    { key: 'variationPass', label: 'Однородность выборки (V ≤ 33%)' },
+    { key: 'checklistComplete', label: 'Чеклист самоконтроля оценщика' },
+  ].map(crit => {
+    const total = scopedCases.length;
+    const passed = scopedCases.filter(i => {
+      const found = i.quality.checks.find(ch => ch.key === crit.key);
+      return found && found.passed;
+    }).length;
+    const pct = total > 0 ? Math.round((passed / total) * 100) : 0;
+    return { ...crit, passed, total, pct };
+  });
+
+  const fmtTimeHM = sec => {
+    const m = Math.round((sec || 0) / 60);
+    const h = Math.floor(m / 60);
+    const rem = m % 60;
+    return h > 0 ? `${h}ч ${rem}м` : `${rem}м`;
+  };
+
+  return `
+    <div class="control-view productivity-view">
+      <!-- Шапка и фильтр периода -->
+      <div class="control-header">
+        <div>
+          <div class="control-kicker">${icon('trending-up')} Личный кабинет оценщика · ${member.name}</div>
+          <h2>Моя продуктивность и рабочий план</h2>
+          <p>Сколько отчётов уже сделано, что предстоит доделать по стандартам ФСО и учёт чистого рабочего времени</p>
+        </div>
+
+        <div class="control-filters-box">
+          <div class="period-pills">
+            <button type="button" class="city-pill ${controlPeriod === 'today' ? 'active' : ''}" data-ctrl-period="today">Сегодня</button>
+            <button type="button" class="city-pill ${controlPeriod === 'week' ? 'active' : ''}" data-ctrl-period="week">Неделя</button>
+            <button type="button" class="city-pill ${controlPeriod === 'month' ? 'active' : ''}" data-ctrl-period="month">Месяц</button>
+            <button type="button" class="city-pill ${controlPeriod === 'custom' ? 'active' : ''}" data-ctrl-period="custom">Свой период</button>
+          </div>
+
+          <div class="period-date-range">
+            <span>с</span>
+            <input type="date" id="control-date-from" value="${from}">
+            <span>по</span>
+            <input type="date" id="control-date-to" value="${to}">
+          </div>
+        </div>
+      </div>
+
+      <!-- Переключатель области: Мои дела / Все дела бюро -->
+      <div class="prod-scope-bar">
+        <div class="city-filter-bar" style="margin-bottom: 0;">
+          <span class="city-filter-label">${icon('folder')} Показать дела:</span>
+          <button type="button" class="city-pill ${prodScope === 'mine' ? 'active' : ''}" data-prod-scope="mine">
+            Мои дела (${myCases.length})
+          </button>
+          <button type="button" class="city-pill ${prodScope === 'all' ? 'active' : ''}" data-prod-scope="all">
+            Все дела бюро (${allCasesWithQuality.length})
+          </button>
+        </div>
+
+        <button type="button" class="btn btn-primary" id="btn-prod-new-case">
+          ${icon('plus')} Новое дело в работу
+        </button>
+      </div>
+
+      <!-- Прогресс выполнения плана месяца -->
+      <section class="prod-plan-card">
+        <div class="prod-plan-head">
+          <div>
+            <h3>Выполнение рабочего плана (${prodScope === 'all' ? 'Бюро' : member.shortName})</h3>
+            <p>План на месяц: <b>${monthlyPlan} готовых отчётов</b> · Осталось сдать: <b>${remainingToPlan}</b></p>
+          </div>
+          <div class="prod-plan-big">
+            <strong>${doneCount} / ${monthlyPlan}</strong>
+            <span>${planPct}% плана выполнено</span>
+          </div>
+        </div>
+
+        <div class="prod-plan-bar" role="progressbar" aria-valuenow="${planPct}" aria-valuemin="0" aria-valuemax="100">
+          ${doneBarPct > 0 ? `<div class="prod-bar-seg done" style="width: ${doneBarPct}%;" title="Сделано: ${doneCount}"></div>` : ''}
+          ${inProgBarPct > 0 ? `<div class="prod-bar-seg prog" style="width: ${inProgBarPct}%;" title="В работе: ${inProgCount}"></div>` : ''}
+          ${draftBarPct > 0 ? `<div class="prod-bar-seg draft" style="width: ${draftBarPct}%;" title="Черновики: ${draftCount}"></div>` : ''}
+        </div>
+
+        <div class="prod-plan-legend">
+          <span><i class="dot done"></i> Сделано (Готово): <b>${doneCount}</b></span>
+          <span><i class="dot prog"></i> В работе сейчас: <b>${inProgCount}</b></span>
+          <span><i class="dot draft"></i> Черновики (не начаты): <b>${draftCount}</b></span>
+          <span><i class="dot rem"></i> Осталось до плана: <b>${remainingToPlan}</b></span>
+        </div>
+      </section>
+
+      <!-- 6 ключевых показателей оценщика -->
+      <div class="control-kpi-grid">
+        <div class="control-kpi-card">
+          <div class="kpi-label">${icon('check-circle-2')} Сделано отчётов</div>
+          <div class="kpi-val">${doneCount} <span class="kpi-sub">готово</span></div>
+          <div class="kpi-foot"><span>Выгружено Word за период: <b>${wordExports}</b></span></div>
+        </div>
+
+        <div class="control-kpi-card">
+          <div class="kpi-label">${icon('list-todo')} Предстоит сделать</div>
+          <div class="kpi-val">${pendingCases.length} <span class="kpi-sub">в очереди</span></div>
+          <div class="kpi-foot"><span>В работе: <b>${inProgCount}</b> · Черновики: <b>${draftCount}</b></span></div>
+        </div>
+
+        <div class="control-kpi-card">
+          <div class="kpi-label">${icon('award')} Качество по ФСО</div>
+          <div class="kpi-val" style="color: ${avgQuality == null ? 'var(--text-muted)' : (avgQuality >= 85 ? 'var(--green)' : (avgQuality >= 65 ? 'var(--amber)' : 'var(--red)'))};">
+            ${avgQuality != null ? `${avgQuality}%` : '—'}
+          </div>
+          <div class="kpi-foot"><span>Полнота ЕГРН, долей, аналогов и чеклиста</span></div>
+        </div>
+
+        <div class="control-kpi-card">
+          <div class="kpi-label">${icon('activity')} Однородность (Vср)</div>
+          <div class="kpi-val">${avgVariation != null ? `${avgVariation.toFixed(2).replace('.', ',')}%` : '—'}</div>
+          <div class="kpi-foot"><span class="${avgVariation != null && avgVariation <= 33 ? 'kpi-ok' : ''}">Норматив ФСО: ≤ 33,0%</span></div>
+        </div>
+
+        <div class="control-kpi-card">
+          <div class="kpi-label">${icon('clock')} Моё рабочее время</div>
+          <div class="kpi-val">${fmtTimeHM(activeSec)} <span class="kpi-sub">КПД ${efficiencyPct}%</span></div>
+          <div class="kpi-foot"><span>Простой без действий: <b>${fmtTimeHM(idleSec)}</b></span></div>
+        </div>
+
+        <div class="control-kpi-card">
+          <div class="kpi-label">${icon('gauge')} Скорость на 1 отчёт</div>
+          <div class="kpi-val">${avgMinPerReport != null ? `${avgMinPerReport} мин` : '—'}</div>
+          <div class="kpi-foot"><span>Операций за период: <b>${actionsCount}</b></span></div>
+        </div>
+      </div>
+
+      <!-- Основная рабочая сетка оценщика -->
+      <div class="prod-main-grid">
+        <!-- Левая колонка: Что предстоит сделать + Что уже сделано -->
+        <div class="prod-col-stack">
+          <section class="control-panel">
+            <div class="control-panel-head">
+              <h3>${icon('clipboard-list')} Что предстоит сделать и доработать (${pendingCases.length})</h3>
+              <span>Конкретные шаги по каждому незавершённому делу</span>
+            </div>
+
+            ${pendingCases.length === 0 ? `
+              <div class="prod-empty-box">
+                <div class="prod-empty-icon">${icon('check-circle-2')}</div>
+                <div>
+                  <strong>Все текущие дела в этой выборке уже завершены</strong>
+                  <p>Можно переключиться на «Все дела бюро» или создать новое дело в работу.</p>
+                </div>
+              </div>
+            ` : `
+              <div class="prod-tasks-list">
+                ${pendingCases.map(({ caseItem: c, res, quality, owner }) => {
+                  const statusClass = c.status === 'В работе' ? 'status-work' : 'status-draft';
+                  const missingChecks = quality.checks.filter(ch => !ch.passed);
+                  const passedChecks = quality.checks.filter(ch => ch.passed);
+                  return `
+                    <article class="prod-task-card">
+                      <div class="prod-task-top">
+                        <div>
+                          <div class="prod-task-title-row">
+                            <span class="prod-case-num">Дело № ${c.number}</span>
+                            <span class="badge ${statusClass}">${c.status}</span>
+                            <span class="prod-score-pill ${quality.score >= 85 ? 'good' : (quality.score >= 50 ? 'mid' : 'low')}">
+                              Готовность ФСО: ${quality.score}% (${quality.passedCount}/${quality.totalChecks})
+                            </span>
+                          </div>
+                          <div class="prod-task-addr">${c.objectData.address || 'Адрес не указан'}</div>
+                          <div class="prod-task-meta">
+                            Заказчик: <b>${c.objectData.client || '—'}</b> · Площадь: <b>${sqm(c.objectData.area)}</b>
+                            ${prodScope === 'all' ? ` · Исполнитель: <b>${owner.shortName}</b>` : ''}
+                          </div>
+                        </div>
+
+                        <div class="prod-task-price">
+                          <strong>${res.total ? money(res.total) : 'Расчёт не завершён'}</strong>
+                          <span>${res.pricePerSqm ? moneyPerSqm(res.pricePerSqm) : ''}</span>
+                        </div>
+                      </div>
+
+                      <!-- Что сделано и что осталось сделать -->
+                      <div class="prod-checks-split">
+                        <div class="prod-checks-col todo">
+                          <div class="prod-checks-col-title">${icon('alert-circle')} Осталось сделать (${missingChecks.length}):</div>
+                          ${missingChecks.length === 0 ? `
+                            <div class="prod-check-line ok">${icon('check')} Всё готово — можно переводить в статус «Готов»</div>
+                          ` : missingChecks.map(ch => `
+                            <div class="prod-check-line warn">
+                              ${icon('arrow-right')} <span><b>${ch.label}:</b> ${ch.reason}</span>
+                            </div>
+                          `).join('')}
+                        </div>
+
+                        <div class="prod-checks-col done">
+                          <div class="prod-checks-col-title">${icon('check-circle-2')} Уже выполнено (${passedChecks.length}):</div>
+                          ${passedChecks.length === 0 ? `
+                            <div class="prod-check-line muted">Пока нет выполненных пунктов</div>
+                          ` : passedChecks.map(ch => `
+                            <div class="prod-check-line ok">
+                              ${icon('check')} <span>${ch.label}</span>
+                            </div>
+                          `).join('')}
+                        </div>
+                      </div>
+
+                      <div class="prod-task-actions">
+                        <div class="prod-progress-wrap">
+                          <div class="prod-progress-track">
+                            <div class="prod-progress-fill" style="width: ${quality.score}%;"></div>
+                          </div>
+                          <span>${quality.score}%</span>
+                        </div>
+                        <button type="button" class="btn btn-primary" data-action="open-case" data-id="${c.id}">
+                          ${icon('arrow-right')} Открыть и доделать
+                        </button>
+                      </div>
+                    </article>
+                  `;
+                }).join('')}
+              </div>
+            `}
+          </section>
+
+          <!-- Уже сделанные отчёты -->
+          <section class="control-panel">
+            <div class="control-panel-head">
+              <h3>${icon('check-circle')} Уже сделано — готовые отчёты (${doneCases.length})</h3>
+              <span>Завершённые дела, прошедшие проверку стандартов ФСО</span>
+            </div>
+
+            ${doneCases.length === 0 ? `
+              <div class="control-empty">За выбранный выбор дел в статусе «Готов» пока нет.</div>
+            ` : `
+              <div class="prod-done-list">
+                ${doneCases.map(({ caseItem: c, res, quality, owner }) => `
+                  <div class="prod-done-row">
+                    <div class="prod-done-info">
+                      <div class="prod-done-title">
+                        <strong>Дело № ${c.number}</strong>
+                        <span class="badge status-ready">Готов</span>
+                        <span class="prod-score-pill ${quality.canMarkReady ? 'good' : 'mid'}">${quality.score}% ФСО</span>
+                      </div>
+                      <div class="prod-done-sub">${c.objectData.address} · ${c.objectData.client}${prodScope === 'all' ? ` · ${owner.shortName}` : ''}</div>
+                    </div>
+                    <div class="prod-done-right">
+                      <div class="prod-done-sum">${res.total ? money(res.total) : '—'}</div>
+                      <button type="button" class="btn btn-secondary btn-sm" data-action="open-case" data-id="${c.id}">
+                        Открыть
+                      </button>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            `}
+          </section>
+        </div>
+
+        <!-- Правая колонка: Как я делаю отчёты + Баланс времени + Лента действий -->
+        <div class="prod-col-stack">
+          <section class="control-panel">
+            <div class="control-panel-head">
+              <h3>${icon('bar-chart-3')} Как я делаю отчёты (критерии ФСО)</h3>
+              <span>Где всё отлично, а на что обратить внимание</span>
+            </div>
+
+            ${scopedCases.length === 0 ? `
+              <div class="control-empty">Нет дел для анализа критериев.</div>
+            ` : `
+              <div class="prod-quality-list">
+                ${fsoCriteria.map(cr => `
+                  <div class="prod-quality-row">
+                    <div class="prod-quality-labels">
+                      <span>${cr.label}</span>
+                      <b>${cr.passed}/${cr.total} (${cr.pct}%)</b>
+                    </div>
+                    <div class="prod-quality-track">
+                      <div class="prod-quality-fill ${cr.pct >= 80 ? 'good' : (cr.pct >= 50 ? 'mid' : 'low')}" style="width: ${cr.pct}%;"></div>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            `}
+
+            <div class="prod-block-note ${blockedCount > 0 ? 'warn' : 'ok'}">
+              ${icon(blockedCount > 0 ? 'shield-alert' : 'shield-check')}
+              <span>
+                ${blockedCount > 0
+                  ? `За период было ${blockedCount} попыт. закрыть недоделанный отчёт (система защитила от ошибки ФСО).`
+                  : 'Ошибок при сдаче отчётов за период не зафиксировано.'}
+              </span>
+            </div>
+          </section>
+
+          <section class="control-panel">
+            <div class="control-panel-head">
+              <h3>${icon('clock')} Баланс моего рабочего времени</h3>
+              <span>Активная работа против простоя вкладки</span>
+            </div>
+
+            <div class="prod-time-summary">
+              <div>
+                <span>Активная работа</span>
+                <strong style="color: var(--primary);">${fmtTimeHM(activeSec)}</strong>
+              </div>
+              <div>
+                <span>Простой</span>
+                <strong style="color: var(--text-muted);">${fmtTimeHM(idleSec)}</strong>
+              </div>
+              <div>
+                <span>Полезное время</span>
+                <strong style="color: ${efficiencyPct >= 75 ? 'var(--green)' : 'var(--amber)'};">${efficiencyPct}%</strong>
+              </div>
+            </div>
+
+            <div class="prod-time-bar">
+              <div class="prod-time-active" style="width: ${totalSec > 0 ? efficiencyPct : 100}%;"></div>
+            </div>
+          </section>
+
+          <section class="control-panel">
+            <div class="control-panel-head">
+              <h3>${icon('activity')} История моих действий</h3>
+              <span>Последние операции за выбранный период</span>
+            </div>
+
+            <div class="control-feed">
+              ${empEvents.length === 0 ? `
+                <div class="control-empty">За выбранный период действий пока не зафиксировано.</div>
+              ` : empEvents.slice(0, 12).map(ev => {
+                const d = new Date(ev.timestamp);
+                const timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                const dateStr = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`;
+                return `
+                  <div class="control-feed-item ${ev.isWarning ? 'warning' : ''}">
+                    <div class="feed-time">${dateStr} ${timeStr}</div>
+                    <div class="feed-body">
+                      <div class="feed-top">
+                        <span class="feed-action">${ev.label}</span>
+                        ${ev.caseNumber ? `<span class="feed-case">Дело № ${ev.caseNumber}</span>` : ''}
+                      </div>
+                      ${ev.details ? `<div class="feed-details">${ev.details}</div>` : ''}
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/**
  * Рендер рабочего места по открытому делу
  */
 function renderCaseWorkspaceView(activeCase) {
@@ -2468,6 +2891,8 @@ function bindEvents() {
           currentView = 'dashboard';
         } else if (target === 'control') {
           currentView = 'control';
+        } else if (target === 'productivity') {
+          currentView = 'productivity';
         } else {
           currentView = 'cabinet';
           if (target === 'all-cases') filterStatus = 'all';
@@ -2484,10 +2909,11 @@ function bindEvents() {
       const nextRole = btn.dataset.roleSwitch;
       if (nextRole === 'manager') {
         currentProfile = setCurrentProfile({ role: 'manager', employeeId: 'emp_anna' });
+        if (currentView === 'productivity') currentView = 'control';
       } else {
         const defaultAppraiser = currentProfile.employeeId === 'emp_anna' ? 'emp_lyuda' : currentProfile.employeeId;
         currentProfile = setCurrentProfile({ role: 'appraiser', employeeId: defaultAppraiser });
-        if (currentView === 'control') currentView = 'dashboard';
+        if (currentView === 'control') currentView = 'productivity';
       }
       render();
       toast(`Профиль: ${getActiveMember().shortName} (${currentProfile.role === 'manager' ? 'Руководитель' : 'Оценщик'})`);
@@ -2498,6 +2924,18 @@ function bindEvents() {
     currentProfile = setCurrentProfile({ role: 'appraiser', employeeId: e.target.value });
     render();
     toast(`Активный оценщик: ${getActiveMember().shortName}`);
+  });
+
+  // Переключатель области дел в разделе «Продуктивность»
+  document.querySelectorAll('[data-prod-scope]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      prodScope = btn.dataset.prodScope;
+      render({ animate: false });
+    });
+  });
+
+  document.getElementById('btn-prod-new-case')?.addEventListener('click', () => {
+    openNewCaseModal();
   });
 
   // Control Zone period & employee filters
