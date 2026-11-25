@@ -1,4 +1,5 @@
-import { calculateValuation, money, moneyPerSqm, sqm, percent, weightFmt } from './model.js';
+import JSZip from 'jszip';
+import { calculateValuation } from './model.js';
 
 /**
  * Преобразование целого числа в сумму прописью на русском языке
@@ -60,87 +61,209 @@ export function numberToWordsRu(num) {
   return result.join(' ').trim();
 }
 
-/**
- * Триггер скачивания файла в браузере
- */
-export function download(blob, name) {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = name;
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 15000);
+const fmtNum = n => (n == null || !Number.isFinite(n) ? '—' : new Intl.NumberFormat('ru-RU').format(Math.round(n)));
+const fmtDec1 = n => (n == null || !Number.isFinite(n) ? '—' : Number(n).toFixed(1).replace('.', ','));
+const fmtPct2 = n => (n == null || !Number.isFinite(n) ? '0,00%' : `${Number(n).toFixed(2).replace('.', ',')}%`);
+
+function formatDateRu(isoDate) {
+  if (!isoDate) return '—';
+  const m = String(isoDate).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[3]}.${m[2]}.${m[1]}`;
+  return String(isoDate);
+}
+
+function formatMonthYearRu(isoDate) {
+  const months = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
+  const m = String(isoDate || '').match(/^(\d{4})-(\d{2})/);
+  if (!m) return 'текущий месяц';
+  const idx = parseInt(m[2], 10) - 1;
+  return `${months[idx] || 'август'} ${m[1]}г.`;
+}
+
+function escapeXml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function unescapeXml(str) {
+  return String(str)
+    .replace(/&apos;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&gt;/g, '>')
+    .replace(/&lt;/g, '<')
+    .replace(/&amp;/g, '&');
 }
 
 /**
- * Загрузка буфера эмблемы РусОценки
+ * Заменяет текст внутри <w:p>, сохраняя <w:rPr> форматирование каждого run,
+ * даже если Word разбил искомую фразу на несколько <w:t> тегов.
  */
-async function loadEmblemBuffer() {
-  try {
-    if (typeof window === 'undefined') {
-      const fsMod = 'fs';
-      const pathMod = 'path';
-      const fs = await import(/* @vite-ignore */ fsMod);
-      const path = await import(/* @vite-ignore */ pathMod);
-      const p = path.resolve('public/images/rosocenka-emblem.png');
-      if (fs.existsSync(p)) {
-        return fs.readFileSync(p);
-      }
-    } else {
-      const res = await fetch('/images/rosocenka-emblem.png');
-      if (res.ok) {
-        return await res.arrayBuffer();
-      }
-    }
-  } catch (err) {
-    console.warn('Не удалось загрузить эмблему для отчета:', err);
+function replaceInParagraphXml(pXml, replacements) {
+  const tRegex = /<w:t(?:\s+[^>]*)?>([\s\S]*?)<\/w:t>/g;
+  const runs = [];
+  let match;
+  while ((match = tRegex.exec(pXml)) !== null) {
+    runs.push({
+      fullMatchStart: match.index,
+      fullMatchEnd: match.index + match[0].length,
+      text: unescapeXml(match[1]),
+    });
   }
-  return null;
+  if (!runs.length) return pXml;
+
+  let fullText = runs.map(r => r.text).join('');
+  let changed = false;
+
+  for (const [search, replaceWith] of replacements) {
+    if (!search || search === replaceWith) continue;
+    let startIdx = 0;
+    while (true) {
+      const idx = fullText.indexOf(search, startIdx);
+      if (idx === -1) break;
+      changed = true;
+
+      const endIdx = idx + search.length;
+      let cursor = 0;
+      for (let i = 0; i < runs.length; i++) {
+        const rLen = runs[i].text.length;
+        const rStart = cursor;
+        const rEnd = cursor + rLen;
+        cursor = rEnd;
+
+        if (rEnd <= idx || rStart >= endIdx) continue;
+
+        const overlapStart = Math.max(0, idx - rStart);
+        const overlapEnd = Math.min(rLen, endIdx - rStart);
+        const prefix = runs[i].text.slice(0, overlapStart);
+        const suffix = runs[i].text.slice(overlapEnd);
+
+        if (rStart <= idx && idx < rEnd) {
+          runs[i].text = prefix + replaceWith + suffix;
+        } else {
+          runs[i].text = prefix + suffix;
+        }
+      }
+      fullText = runs.map(r => r.text).join('');
+      startIdx = idx + replaceWith.length;
+    }
+  }
+
+  if (!changed) return pXml;
+
+  let out = '';
+  let lastPos = 0;
+  for (const r of runs) {
+    out += pXml.slice(lastPos, r.fullMatchStart);
+    out += `<w:t xml:space="preserve">${escapeXml(r.text)}</w:t>`;
+    lastPos = r.fullMatchEnd;
+  }
+  out += pXml.slice(lastPos);
+  return out;
+}
+
+function replaceInAllParagraphs(xml, replacements) {
+  return xml.replace(/<w:p(?:\s+[^>]*)?>[\s\S]*?<\/w:p>/g, pXml => replaceInParagraphXml(pXml, replacements));
 }
 
 /**
- * Генерация официального отчёта об оценке жилой недвижимости.
- * Полностью формируется на основании фактических параметров дела (objectData и analogsList),
- * без посторонних устаревших шаблонов или чужих данных.
- * Строго соответствует требованиям 135-ФЗ, ФСО I-VI № 200 и ФСО № 7.
+ * Извлекает строки <w:tr> и ячейки <w:tc>, позволяя менять текст ячейки
+ * с сохранением всех стилей (шрифт, размер, цвет, границы, выравнивание).
+ */
+function setCellText(tcXml, newText) {
+  const tcPrMatch = tcXml.match(/<w:tcPr>[\s\S]*?<\/w:tcPr>/);
+  const pMatch = tcXml.match(/<w:p(?:\s+[^>]*)?>[\s\S]*?<\/w:p>/);
+  const pPrMatch = pMatch ? pMatch[0].match(/<w:pPr>[\s\S]*?<\/w:pPr>/) : null;
+  const rPrMatch = pMatch ? pMatch[0].match(/<w:rPr>[\s\S]*?<\/w:rPr>/) : null;
+
+  const tcPr = tcPrMatch ? tcPrMatch[0] : '';
+  const pPr = pPrMatch ? pPrMatch[0] : '';
+  const rPr = rPrMatch ? rPrMatch[0] : '';
+
+  return `<w:tc>${tcPr}<w:p>${pPr}<w:r>${rPr}<w:t xml:space="preserve">${escapeXml(newText)}</w:t></w:r></w:p></w:tc>`;
+}
+
+function splitRows(tblXml) {
+  return tblXml.match(/<w:tr(?:\s+[^>]*)?>[\s\S]*?<\/w:tr>/g) || [];
+}
+
+function splitCells(trXml) {
+  return trXml.match(/<w:tc(?:\s+[^>]*)?>[\s\S]*?<\/w:tc>/g) || [];
+}
+
+function replaceRowCells(trXml, updater) {
+  const cells = splitCells(trXml);
+  const newCells = updater(cells);
+  let idx = 0;
+  return trXml.replace(/<w:tc(?:\s+[^>]*)?>[\s\S]*?<\/w:tc>/g, () => newCells[idx++] || '');
+}
+
+function patchTableByIndex(xml, targetIndex, patchFn) {
+  let current = 0;
+  return xml.replace(/<w:tbl(?:\s+[^>]*)?>[\s\S]*?<\/w:tbl>/g, tblXml => {
+    if (current++ !== targetIndex) return tblXml;
+    const rows = splitRows(tblXml);
+    const updatedRows = patchFn(rows);
+    const firstTr = tblXml.indexOf('<w:tr');
+    const lastTrEnd = tblXml.lastIndexOf('</w:tr>') + '</w:tr>'.length;
+    if (firstTr === -1 || lastTrEnd < '</w:tr>'.length) return tblXml;
+    return tblXml.slice(0, firstTr) + updatedRows.join('') + tblXml.slice(lastTrEnd);
+  });
+}
+
+async function loadTemplateBuffer() {
+  if (typeof window !== 'undefined' && typeof fetch === 'function') {
+    const res = await fetch('/templates/rosocenka_apartment_template.docx');
+    if (!res.ok) {
+      throw new Error(`Не удалось загрузить фирменный шаблон отчёта (${res.status})`);
+    }
+    return await res.arrayBuffer();
+  }
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  const templatePath = path.resolve(__dirname, '../public/templates/rosocenka_apartment_template.docx');
+  return fs.readFileSync(templatePath);
+}
+
+/**
+ * Генерация официального Word-отчёта 1-в-1 по фирменному шаблону ООО «РусОценка»
+ * Сохраняет все фоны, изображения, шрифты, размеры текста, колонтитулы и стили оригинала.
  */
 export async function exportApartmentReport(objectData, analogsList) {
-  const {
-    Document,
-    Packer,
-    Paragraph,
-    TextRun,
-    Table,
-    TableRow,
-    TableCell,
-    TableLayoutType,
-    WidthType,
-    AlignmentType,
-    BorderStyle,
-    HeadingLevel,
-    PageBreak,
-    Header,
-    Footer,
-    PageNumber,
-    ImageRun,
-  } = await import('docx');
+  const templateBuffer = await loadTemplateBuffer();
+  const zip = await JSZip.loadAsync(templateBuffer);
+  let xml = await zip.file('word/document.xml').async('string');
+
+  // Убираем маркеры проверки орфографии Word, чтобы не дробились строки
+  xml = xml.replace(/<w:proofErr[^>]*\/>/g, '');
 
   const tradeAdj = objectData.tradeAdjustment != null ? objectData.tradeAdjustment : -6.0;
   const result = calculateValuation(objectData, analogsList, tradeAdj);
-  const emblemBuffer = await loadEmblemBuffer();
 
   const reportNum = objectData.reportNumber || '19/0826-2';
-  const valDate = objectData.valuationDate || new Date().toISOString().slice(0, 10);
-  const repDate = objectData.reportDate || valDate;
+  const valDateIso = objectData.valuationDate || new Date().toISOString().slice(0, 10);
+  const repDateIso = objectData.reportDate || valDateIso;
+  const valDateRu = formatDateRu(valDateIso);
+  const repDateRu = formatDateRu(repDateIso);
+  const repMonthYear = formatMonthYearRu(valDateIso);
+
   const clientName = objectData.client || 'Не указан';
   const appraiserName = objectData.appraiser || 'Орлова Анна Александровна';
   const companyName = objectData.company || 'ООО «РусОценка»';
   const address = objectData.address || 'Адрес не указан';
+  const shortAddress = address.replace(/^.*?(ул\.|пр-т|б-р|пр\.|пер\.)/i, '$1');
   const cadNum = objectData.cadastralNumber || 'Не указан';
-  const area = objectData.area || 0;
+  const area = Number(objectData.area) || 0;
+  const areaStr = fmtDec1(area);
   const rooms = objectData.rooms || 1;
   const floor = objectData.floor || 1;
   const totalFloors = objectData.totalFloors || 1;
+  const floorStr = `${floor}/${totalFloors}`;
   const wallMaterial = objectData.wallMaterial || 'панель';
   const finish = objectData.finish || 'улучшенная';
   const condition = objectData.condition || 'хорошее';
@@ -149,706 +272,304 @@ export async function exportApartmentReport(objectData, analogsList) {
   const purpose = objectData.purpose || 'Определение рыночной стоимости для совершения сделки купли-продажи (ст. 30 ГК РФ)';
 
   const totalValue = result.total || 0;
+  const rawTotal = Math.round(result.rawTotal || totalValue);
   const totalWords = numberToWordsRu(totalValue);
   const pricePerSqm = result.pricePerSqm || 0;
+  const selectedRows = result.rows || [];
+  const allAnalogs = analogsList || [];
 
-  // Типографические стили
-  const h1 = text =>
-    new Paragraph({
-      children: [
-        new TextRun({
-          text,
-          bold: true,
-          size: 24, // 12pt
-          color: '1E3A8A',
-          font: 'Calibri',
-        }),
-      ],
-      heading: HeadingLevel.HEADING_1,
-      spacing: { before: 320, after: 140 },
+  const shares = result.shares || [];
+  const sharesOwnershipType = shares.length > 1 ? 'общая долевая собственность' : 'индивидуальная собственность';
+  const sharesText = shares.map(s => `${s.holder} (доля ${s.shareFraction})`).join(', ');
+
+  // 1. Таблицы 2 и 24: Итоговая величина рыночной стоимости + доли
+  const patchSummaryTable = rows => {
+    if (rows.length < 3) return rows;
+    const header = rows[0];
+    const fullPropRow = replaceRowCells(rows[1], cells => {
+      cells[1] = setCellText(cells[1], `Жилое помещение (${rooms}-комнатная квартира) с кадастровым номером ${cadNum}, общей площадью ${areaStr} кв.м., расположенное по адресу: ${address}`);
+      cells[2] = setCellText(cells[2], `${fmtNum(totalValue)} (${totalWords}) рублей`);
+      return cells;
     });
-
-  const h2 = text =>
-    new Paragraph({
-      children: [
-        new TextRun({
-          text,
-          bold: true,
-          size: 21, // 10.5pt
-          color: '1E293B',
-          font: 'Calibri',
-        }),
-      ],
-      heading: HeadingLevel.HEADING_2,
-      spacing: { before: 240, after: 100 },
-    });
-
-  const p = (text, opts = {}) =>
-    new Paragraph({
-      children: [
-        new TextRun({
-          text: String(text ?? ''),
-          size: opts.size || 20, // 10pt
-          bold: opts.bold,
-          italics: opts.italics,
-          color: opts.color || '334155',
-          font: 'Calibri',
-        }),
-      ],
-      alignment: opts.align || AlignmentType.LEFT,
-      spacing: { after: opts.after ?? 100, line: 260 },
-    });
-
-  const borderCfg = {
-    top: { style: BorderStyle.SINGLE, size: 1, color: 'CBD5E1' },
-    bottom: { style: BorderStyle.SINGLE, size: 1, color: 'CBD5E1' },
-    left: { style: BorderStyle.SINGLE, size: 1, color: 'CBD5E1' },
-    right: { style: BorderStyle.SINGLE, size: 1, color: 'CBD5E1' },
-    insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: 'E2E8F0' },
-    insideVertical: { style: BorderStyle.SINGLE, size: 1, color: 'E2E8F0' },
-  };
-
-  const PAGE_CONTENT_WIDTH_DXA = 9639; // 210mm (11906) - left 25mm (1417) - right 15mm (850)
-
-  const createTable = (matrix, opts = {}) => {
-    const firstRow = matrix[0] || [];
-    const colCount = firstRow.length || 1;
-    const rawPct = firstRow.map(cell =>
-      typeof cell === 'object' && cell !== null && cell.width ? Number(cell.width) : Math.floor(100 / colCount)
-    );
-    const totalPct = rawPct.reduce((s, v) => s + v, 0) || 100;
-    const colWidthsDxa = rawPct.map(v => Math.max(480, Math.round((v / totalPct) * PAGE_CONTENT_WIDTH_DXA)));
-    const widthDiff = PAGE_CONTENT_WIDTH_DXA - colWidthsDxa.reduce((s, v) => s + v, 0);
-    if (colWidthsDxa.length > 0) {
-      colWidthsDxa[colWidthsDxa.length - 1] += widthDiff;
-    }
-
-    return new Table({
-      width: { size: PAGE_CONTENT_WIDTH_DXA, type: WidthType.DXA },
-      layout: TableLayoutType.FIXED,
-      columnWidths: colWidthsDxa,
-      borders: borderCfg,
-      rows: matrix.map((row, rowIdx) => {
-        const isHeader = rowIdx === 0 && opts.hasHeader;
-        return new TableRow({
-          tableHeader: isHeader,
-          cantSplit: true,
-          children: row.map((cell, colIdx) => {
-            const data = typeof cell === 'object' && cell !== null && ('text' in cell || 'children' in cell)
-              ? cell
-              : { text: cell };
-            const cellDxa = colWidthsDxa[colIdx] || Math.floor(PAGE_CONTENT_WIDTH_DXA / colCount);
-            const defaultFontSize = colCount >= 6 ? (isHeader ? 16 : 15) : (isHeader ? 18 : 17);
-            return new TableCell({
-              width: { size: cellDxa, type: WidthType.DXA },
-              shading: data.bg ? { fill: data.bg } : (isHeader ? { fill: 'F1F5F9' } : (rowIdx % 2 === 1 && opts.zebra ? { fill: 'F8FAFC' } : undefined)),
-              margins: {
-                top: opts.cellPaddingTop ?? 90,
-                bottom: opts.cellPaddingBottom ?? 90,
-                left: opts.cellPaddingLeft ?? (colCount >= 6 ? 70 : 120),
-                right: opts.cellPaddingRight ?? (colCount >= 6 ? 70 : 120),
-              },
-              children: data.children || [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: String(data.text ?? '—'),
-                      bold: data.bold ?? isHeader,
-                      size: data.size || defaultFontSize,
-                      color: data.color || (isHeader ? '0F172A' : '1E293B'),
-                      font: 'Calibri',
-                    }),
-                  ],
-                  alignment: data.align || AlignmentType.LEFT,
-                  spacing: { after: 0 },
-                }),
-              ],
-            });
-          }),
-        });
-      }),
-    });
-  };
-
-  const children = [];
-
-  // -------------------------------------------------------------
-  // 1. ТИТУЛЬНЫЙ ЛИСТ (Title Page)
-  // -------------------------------------------------------------
-  const headerLeftChildren = [];
-  if (emblemBuffer) {
-    headerLeftChildren.push(
-      new Paragraph({
-        children: [
-          new ImageRun({
-            data: emblemBuffer,
-            transformation: { width: 44, height: 44 },
-          }),
-        ],
-        spacing: { after: 60 },
+    const shareTemplate = rows[2];
+    const shareRows = shares.map((sh, idx) =>
+      replaceRowCells(shareTemplate, cells => {
+        cells[0] = setCellText(cells[0], String(idx + 2));
+        cells[1] = setCellText(cells[1], `${sh.shareFraction} доли в праве собственности (${sh.holder}) на жилое помещение (квартиру) с кадастровым номером ${cadNum}`);
+        cells[2] = setCellText(cells[2], `${fmtNum(sh.rounded)} (${numberToWordsRu(sh.rounded)}) рублей`);
+        return cells;
       })
     );
-  }
-  headerLeftChildren.push(
-    new Paragraph({
-      children: [
-        new TextRun({ text: 'ООО «РусОценка»', bold: true, size: 22, color: '1E3A8A', font: 'Calibri' }),
-      ],
-      spacing: { after: 20 },
-    }),
-    new Paragraph({
-      children: [
-        new TextRun({
-          text: 'ИНН 6324027810 · ОГРН 1126382001540\nСамарская обл., г. Тольятти, ул. Гидростроевская, д. 12\nтел.: (8482) 28-48-08 · сайт: ro63.ru',
-          size: 16,
-          color: '64748B',
-          font: 'Calibri',
-        }),
-      ],
-      spacing: { after: 0, line: 220 },
-    })
-  );
+    return [header, fullPropRow, ...shareRows];
+  };
+  xml = patchTableByIndex(xml, 2, patchSummaryTable);
+  xml = patchTableByIndex(xml, 24, patchSummaryTable);
 
-  const headerRightChildren = [
-    new Paragraph({
-      children: [
-        new TextRun({ text: 'УТВЕРЖДАЮ', bold: true, size: 20, color: '0F172A', font: 'Calibri' }),
-      ],
-      alignment: AlignmentType.RIGHT,
-      spacing: { after: 40 },
-    }),
-    new Paragraph({
-      children: [
-        new TextRun({
-          text: 'Генеральный директор ООО «РусОценка»\n___________ / А.А. Орлова /\n«___» ____________ 2026 г.\nМ.П.',
-          size: 18,
-          color: '334155',
-          font: 'Calibri',
-        }),
-      ],
-      alignment: AlignmentType.RIGHT,
-      spacing: { after: 0, line: 240 },
-    }),
-  ];
+  // 2. Таблица 13: Имущественные права ЕГРН
+  xml = patchTableByIndex(xml, 13, rows => {
+    if (rows[3]) {
+      rows[3] = replaceRowCells(rows[3], cells => {
+        cells[1] = setCellText(cells[1], `Имущественные права на объект оценки – ${sharesOwnershipType}. Правообладатели: ${sharesText}.`);
+        return cells;
+      });
+    }
+    return rows;
+  });
 
-  children.push(
-    new Table({
-      width: { size: PAGE_CONTENT_WIDTH_DXA, type: WidthType.DXA },
-      layout: TableLayoutType.FIXED,
-      columnWidths: [5301, 4338],
-      borders: {
-        top: { style: BorderStyle.NONE },
-        bottom: { style: BorderStyle.NONE },
-        left: { style: BorderStyle.NONE },
-        right: { style: BorderStyle.NONE },
-        insideHorizontal: { style: BorderStyle.NONE },
-        insideVertical: { style: BorderStyle.NONE },
-      },
-      rows: [
-        new TableRow({
-          children: [
-            new TableCell({ width: { size: 5301, type: WidthType.DXA }, children: headerLeftChildren }),
-            new TableCell({ width: { size: 4338, type: WidthType.DXA }, children: headerRightChildren }),
-          ],
-        }),
-      ],
-    }),
-
-    new Paragraph({ spacing: { before: 360, after: 80 } }),
-
-    new Paragraph({
-      children: [
-        new TextRun({ text: `ОТЧЕТ ОБ ОЦЕНКЕ № ${reportNum}`, bold: true, size: 36, color: '1E3A8A', font: 'Calibri' }),
-      ],
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 60 },
-    }),
-
-    new Paragraph({
-      children: [
-        new TextRun({ text: 'об определении рыночной стоимости жилого помещения (квартиры)', size: 22, color: '475569', font: 'Calibri' }),
-      ],
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 300 },
-    }),
-
-    // Карточка дела на титульном листе
-    createTable([
-      [{ text: 'Параметр дела', bold: true, bg: 'F1F5F9', width: 35 }, { text: 'Сведения об объекте оценки', bold: true, bg: 'F1F5F9', width: 65 }],
-      ['Объект оценки', `${objectData.propertyType || 'Жилое помещение (квартира)'}, ${rooms}-комнатная квартира`],
-      ['Кадастровый номер', cadNum],
-      ['Общая площадь', sqm(area)],
-      ['Местоположение (адрес)', address],
-      ['Заказчик оценки', clientName],
-      ['Оценщик', `${appraiserName}, ${companyName}`],
-      ['Дата оценки', `${valDate} г.`],
-      ['Дата составления отчета', `${repDate} г.`],
-    ]),
-
-    new Paragraph({ spacing: { before: 240, after: 120 } }),
-
-    // Выделенный блок итоговой стоимости на титуле
-    new Table({
-      width: { size: PAGE_CONTENT_WIDTH_DXA, type: WidthType.DXA },
-      layout: TableLayoutType.FIXED,
-      columnWidths: [PAGE_CONTENT_WIDTH_DXA],
-      borders: {
-        top: { style: BorderStyle.SINGLE, size: 2, color: '2563EB' },
-        bottom: { style: BorderStyle.SINGLE, size: 2, color: '2563EB' },
-        left: { style: BorderStyle.SINGLE, size: 2, color: '2563EB' },
-        right: { style: BorderStyle.SINGLE, size: 2, color: '2563EB' },
-      },
-      rows: [
-        new TableRow({
-          children: [
-            new TableCell({
-              width: { size: PAGE_CONTENT_WIDTH_DXA, type: WidthType.DXA },
-              shading: { fill: 'EFF6FF' },
-              margins: { top: 160, bottom: 160, left: 200, right: 200 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({ text: 'ИТОГОВАЯ ВЕЛИЧИНА РЫНОЧНОЙ СТОИМОСТИ ОБЪЕКТА ОЦЕНКИ:', bold: true, size: 19, color: '1E40AF', font: 'Calibri' }),
-                  ],
-                  alignment: AlignmentType.CENTER,
-                  spacing: { after: 60 },
-                }),
-                new Paragraph({
-                  children: [
-                    new TextRun({ text: money(totalValue), bold: true, size: 40, color: '1E3A8A', font: 'Calibri' }),
-                  ],
-                  alignment: AlignmentType.CENTER,
-                  spacing: { after: 40 },
-                }),
-                new Paragraph({
-                  children: [
-                    new TextRun({ text: `(${totalWords} рублей)`, italics: true, size: 21, color: '1E40AF', font: 'Calibri' }),
-                  ],
-                  alignment: AlignmentType.CENTER,
-                  spacing: { after: 80 },
-                }),
-                new Paragraph({
-                  children: [
-                    new TextRun({ text: 'Удельная стоимость 1 кв.м: ', size: 19, color: '475569', font: 'Calibri' }),
-                    new TextRun({ text: moneyPerSqm(pricePerSqm), bold: true, size: 20, color: '0F172A', font: 'Calibri' }),
-                  ],
-                  alignment: AlignmentType.CENTER,
-                  spacing: { after: 0 },
-                }),
-              ],
-            }),
-          ],
-        }),
-      ],
-    }),
-
-    new Paragraph({ spacing: { before: 360, after: 0 } }),
-    p('г. Тольятти\n2026 год', { align: AlignmentType.CENTER, size: 18, color: '64748B' }),
-    new Paragraph({ children: [new PageBreak()] })
-  );
-
-  // -------------------------------------------------------------
-  // 2. РАЗДЕЛ 1. ОСНОВНЫЕ ФАКТЫ И ВЫВОДЫ
-  // -------------------------------------------------------------
-  const sharesSummary = (objectData.shares || []).map(s => `${s.holder} (${s.num}/${s.den})`).join(', ') || '1/1 доля';
-  children.push(
-    h1('1. ОСНОВНЫЕ ФАКТЫ И ВЫВОДЫ'),
-    p(`Настоящий отчет об оценке № ${reportNum} подготовлен в соответствии с требованиями Федерального закона от 29.07.1998 г. № 135-ФЗ «Об оценочной деятельности в РФ», Федеральных стандартов оценки (ФСО I–VI № 200 от 14.04.2022 г.) и Федерального стандарта оценки «Оценка недвижимости» (ФСО № 7).`),
-    p('В отчете определена рыночная стоимость жилого помещения на основе сравнительного подхода (метод сравнения продаж). Сводные сведения об объекте и результаты оценки приведены в Таблице 1.1.'),
-
-    h2('Таблица 1.1. Сводные данные об объекте оценки и результатах'),
-    createTable([
-      [{ text: 'Показатель', bold: true, width: 32 }, { text: 'Значение (описание)', bold: true, width: 68 }],
-      ['Общая информация об объекте', `${objectData.propertyType || 'Жилое помещение (квартира)'}, ${rooms}-комнатная квартира, кадастровый номер ${cadNum}, площадь ${sqm(area)}, адрес: ${address}`],
-      ['Имущественные права', objectData.shares && objectData.shares.length > 1 ? 'Право общей долевой собственности' : 'Право собственности'],
-      ['Правообладатели и доли', sharesSummary],
-      ['Дата оценки', `${valDate} г.`],
-      ['Дата составления отчета', `${repDate} г.`],
-      ['Итоговая рыночная стоимость полного права', `${money(totalValue)} (${totalWords} рублей)`],
-      ['Рыночная стоимость 1 кв.м', moneyPerSqm(pricePerSqm)],
-      ['Ограничения и пределы применения', 'Итоговая величина рыночной стоимости действительна в течение 6 месяцев с даты проведения оценки для целей, указанных в Задании на оценку.'],
-      ['Основание для проведения оценки', `Задание на оценку к договору № ${reportNum}`],
-    ], { hasHeader: true, zebra: true })
-  );
-
-  // Распределение по долям (Таблица 1.2 / 12.5)
-  if (result.shares && result.shares.length > 0) {
-    const shareRows = [
-      [
-        { text: '№', bold: true, width: 10 },
-        { text: 'Правообладатель (ФИО)', bold: true, width: 32 },
-        { text: 'Размер доли', bold: true, width: 11 },
-        { text: 'Доля, %', bold: true, width: 11 },
-        { text: 'Номинальная стоимость', bold: true, width: 18 },
-        { text: 'Рыночная стоимость (округл.)', bold: true, width: 18 },
-      ],
-      ...result.shares.map((s, idx) => [
-        String(idx + 1),
-        s.holder,
-        s.shareFraction,
-        `${s.percentOfTotal}%`,
-        money(s.nominal),
-        { text: money(s.rounded), bold: true, color: '1E3A8A' },
-      ]),
-      [
-        { text: 'Итого', bold: true },
-        { text: 'Полное право собственности (100%)', bold: true },
-        { text: '1/1', bold: true },
-        { text: '100,00%', bold: true },
-        { text: money(totalValue), bold: true },
-        { text: money(result.shares.reduce((sum, sh) => sum + sh.rounded, 0)), bold: true, color: '1E3A8A' },
-      ],
-    ];
-
-    children.push(
-      h2('Таблица 1.2. Распределение рыночной стоимости по долям в праве общей собственности'),
-      createTable(shareRows, { hasHeader: true, zebra: true })
+  // 3. Таблица 15 (Таблица 12.1): Выборка рыночных аналогов
+  xml = patchTableByIndex(xml, 15, rows => {
+    if (rows.length < 2) return rows;
+    const header = rows[0];
+    const rowTemplate = rows[5] || rows[1];
+    const sourceAnalogs = allAnalogs.length ? allAnalogs : selectedRows;
+    const analogRows = sourceAnalogs.map((a, idx) =>
+      replaceRowCells(rowTemplate, cells => {
+        const pSqm = a.area ? Math.round(a.price / a.area) : 0;
+        cells[0] = setCellText(cells[0], String(idx + 1));
+        cells[1] = setCellText(cells[1], 'жилое помещение (квартира)');
+        cells[2] = setCellText(cells[2], '—');
+        cells[3] = setCellText(cells[3], a.address || '');
+        cells[4] = setCellText(cells[4], `${a.floor}/${a.totalFloors}`);
+        cells[5] = setCellText(cells[5], fmtDec1(a.area));
+        cells[6] = setCellText(cells[6], fmtNum(a.price));
+        cells[7] = setCellText(cells[7], fmtNum(pSqm));
+        cells[8] = setCellText(cells[8], a.url || a.source || 'Открытый рынок');
+        return cells;
+      })
     );
-  }
+    return [header, ...analogRows];
+  });
 
-  // -------------------------------------------------------------
-  // 3. РАЗДЕЛ 2. ЗАДАНИЕ НА ОЦЕНКУ
-  // -------------------------------------------------------------
-  children.push(
-    h1('2. ЗАДАНИЕ НА ОЦЕНКУ В СООТВЕТСТВИИ С ТРЕБОВАНИЯМИ ФСО'),
-    p('Задание на оценку составлено в соответствии с требованиями Федерального стандарта оценки «Задание на оценку (ФСО IV)» и ФСО № 7 «Оценка недвижимости».'),
-    createTable([
-      [{ text: '№ п/п', bold: true, width: 8 }, { text: 'Элемент задания на оценку', bold: true, width: 32 }, { text: 'Содержание задания на оценку', bold: true, width: 60 }],
-      ['1.', 'Объект оценки', `${objectData.propertyType || 'Жилое помещение (квартира)'}, кадастровый номер ${cadNum}, общей площадью ${sqm(area)}, расположенное по адресу: ${address}`],
-      ['2.', 'Имущественные права на объект оценки', objectData.shares && objectData.shares.length > 1 ? 'Право общей долевой собственности' : 'Право собственности'],
-      ['3.', 'Характеристики объекта оценки', `${rooms}-комнатная квартира, общая площадь ${sqm(area)}, этаж ${floor}/${totalFloors}, материал стен: ${wallMaterial}, отделка: ${finish}, техническое состояние: ${condition}`],
-      ['4.', 'Цель оценки', purpose],
-      ['5.', 'Предполагаемое использование результатов', 'Для совершения сделки купли-продажи, принятия финансовых, имущественных и управленческих решений'],
-      ['6.', 'Вид определяемой стоимости', 'Рыночная стоимость в соответствии со ст. 3 Федерального закона № 135-ФЗ'],
-      ['7.', 'Дата оценки', `${valDate} г.`],
-      ['8.', 'Срок проведения оценки', '10 рабочих дней с даты предоставления полного комплекта исходных документов'],
-      ['9.', 'Допущения и ограничения', 'Оценка проводится на основе документов и открытых данных рынка; права считаются свободными от неучтенных притязаний и скрытых дефектов.'],
-      ['10.', 'Форма представления отчета', 'Письменный отчет об оценке в электронной форме (.docx)'],
-    ], { hasHeader: true, zebra: true })
-  );
+  // Вспомогательная функция заполнения 5 колонок аналогов
+  const fillAnalogCol = (cells, startCol, getVal) => {
+    for (let i = 0; i < 5; i++) {
+      const col = startCol + i;
+      if (col < cells.length) {
+        const r = selectedRows[i];
+        cells[col] = setCellText(cells[col], r ? getVal(r, i) : '—');
+      }
+    }
+  };
 
-  // -------------------------------------------------------------
-  // 4. РАЗДЕЛ 3. СВЕДЕНИЯ О ЗАКАЗЧИКЕ И ОЦЕНЩИКЕ
-  // -------------------------------------------------------------
-  children.push(
-    h1('3. СВЕДЕНИЯ О ЗАКАЗЧИКЕ ОЦЕНКИ И ОБ ОЦЕНЩИКЕ'),
-    h2('3.1. Сведения о заказчике оценки'),
-    createTable([
-      [{ text: 'Параметр', bold: true, width: 35 }, { text: 'Сведения', bold: true, width: 65 }],
-      ['Заказчик оценки (ФИО / наименование)', clientName],
-      ['Статус заказчика', 'Физическое лицо / Заявитель'],
-    ], { hasHeader: true }),
+  // 4. Таблица 18: Элементы сравнения
+  xml = patchTableByIndex(xml, 18, rows => {
+    const mapObj = {
+      3: `${valDateRu}г.`,
+      5: sharesOwnershipType,
+      6: address,
+      7: finish,
+      8: floorStr,
+      9: areaStr,
+      10: balcony,
+      11: wallMaterial,
+      12: furniture,
+      13: condition,
+    };
+    const mapAn = {
+      3: r => r.published || repMonthYear,
+      5: () => 'собственность',
+      6: r => r.address || '—',
+      7: r => r.finish || '—',
+      8: r => `${r.floor}/${r.totalFloors}`,
+      9: r => fmtDec1(r.area),
+      10: r => r.balcony || 'да',
+      11: r => r.wallMaterial || wallMaterial,
+      12: r => r.furniture || 'да',
+      13: r => r.condition || 'хорошее',
+      14: r => fmtNum(r.price),
+      15: r => fmtNum(r.initialPricePerSqm),
+      16: r => r.url || r.source || '—',
+    };
+    return rows.map((tr, rIdx) => {
+      if (!mapObj[rIdx] && !mapAn[rIdx]) return tr;
+      return replaceRowCells(tr, cells => {
+        if (mapObj[rIdx] && cells[2]) cells[2] = setCellText(cells[2], mapObj[rIdx]);
+        if (mapAn[rIdx]) fillAnalogCol(cells, 3, mapAn[rIdx]);
+        return cells;
+      });
+    });
+  });
 
-    h2('3.2. Сведения об Оценщике'),
-    createTable([
-      [{ text: 'Параметр', bold: true, width: 35 }, { text: 'Сведения', bold: true, width: 65 }],
-      ['Фамилия, имя, отчество оценщика', appraiserName],
-      ['Членство в СРО оценщиков', 'Член Ассоциации «Русское общество оценщиков» (РОО)'],
-      ['Квалификационный аттестат', 'Квалификационный аттестат в области оценочной деятельности по направлению «Оценка недвижимости» № 018452-1'],
-      ['Страхование ответственности оценщика', 'Полис обязательного страхования гражданской ответственности оценщика № 24060D4001928, САО «РЕСО-Гарантия»'],
-      ['Стаж оценочной деятельности', 'Более 12 лет'],
-    ], { hasHeader: true }),
+  // 5. Таблица 19 (Таблица 12.2): Матрица корректировок Лейфера
+  xml = patchTableByIndex(xml, 19, rows => {
+    return rows.map((tr, rIdx) => {
+      const cells = splitCells(tr);
+      if (rIdx === 42) {
+        return replaceRowCells(tr, c => {
+          if (c[2]) c[2] = setCellText(c[2], fmtNum(pricePerSqm));
+          return c;
+        });
+      }
+      if (rIdx === 43) {
+        return replaceRowCells(tr, c => {
+          if (c[2]) c[2] = setCellText(c[2], `${fmtNum(rawTotal)}\nОкругленно ${fmtNum(totalValue)}`);
+          return c;
+        });
+      }
+      if (cells.length >= 8) {
+        return replaceRowCells(tr, c => {
+          // Объект оценки (col 2)
+          if (rIdx === 2) c[2] = setCellText(c[2], areaStr);
+          if (rIdx === 6) c[2] = setCellText(c[2], `${valDateRu}г.`);
+          if (rIdx === 9) c[2] = setCellText(c[2], sharesOwnershipType);
+          if (rIdx === 15) c[2] = setCellText(c[2], address);
+          if (rIdx === 18) c[2] = setCellText(c[2], finish);
+          if (rIdx === 21) c[2] = setCellText(c[2], wallMaterial);
+          if (rIdx === 24) c[2] = setCellText(c[2], furniture);
+          if (rIdx === 27) c[2] = setCellText(c[2], floorStr);
+          if (rIdx === 30) c[2] = setCellText(c[2], areaStr);
+          if (rIdx === 33) c[2] = setCellText(c[2], condition);
+          if (rIdx === 36) c[2] = setCellText(c[2], balcony);
 
-    h2('3.3. Сведения об оценочной компании'),
-    createTable([
-      [{ text: 'Параметр', bold: true, width: 35 }, { text: 'Сведения', bold: true, width: 65 }],
-      ['Полное фирменное наименование', companyName],
-      ['Юридический и фактический адрес', '445012, Самарская область, г. Тольятти, ул. Гидростроевская, д. 12'],
-      ['ОГРН / ИНН / КПП', '1126382001540 / 6324027810 / 632401001'],
-      ['Контактная информация', 'тел. (8482) 28-48-08 · сайт: ro63.ru · e-mail: info@ro63.ru'],
-    ], { hasHeader: true }),
+          // Аналоги (cols 3..7)
+          const anMap = {
+            1: r => fmtNum(r.price),
+            2: r => fmtDec1(r.area),
+            3: r => fmtNum(r.initialPricePerSqm),
+            4: r => fmtPct2(r.tradeAdjustment),
+            5: r => fmtNum(r.priceAfterTrade),
+            6: r => r.published || repMonthYear,
+            8: r => fmtNum(r.priceAfterTrade),
+            9: () => 'собственность',
+            11: r => fmtNum(r.priceAfterTrade),
+            14: r => fmtNum(r.priceAfterTrade),
+            15: r => r.address || '—',
+            17: r => fmtNum(r.priceAfterTrade),
+            18: r => r.finish || '—',
+            19: r => fmtPct2(r.finishAdj),
+            20: r => fmtNum(r.priceAfterFinish),
+            21: r => r.wallMaterial || wallMaterial,
+            23: r => fmtNum(r.priceAfterFinish),
+            24: r => r.furniture || 'да',
+            26: r => fmtNum(r.priceAfterFinish),
+            27: r => `${r.floor}/${r.totalFloors}`,
+            28: r => fmtPct2(r.floorAdj),
+            29: r => fmtNum(r.priceAfterFloor),
+            30: r => fmtDec1(r.area),
+            31: r => fmtPct2(r.areaAdj),
+            32: r => fmtNum(r.finalAdjustedPrice),
+            33: r => r.condition || 'хорошее',
+            35: r => fmtNum(r.finalAdjustedPrice),
+            36: r => r.balcony || 'да',
+            38: r => fmtNum(r.finalAdjustedPrice),
+            40: r => String(r.correctionsCount),
+            41: r => r.weight.toFixed(4).replace('.', ','),
+          };
+          if (anMap[rIdx]) fillAnalogCol(c, 3, anMap[rIdx]);
+          return c;
+        });
+      }
+      return tr;
+    });
+  });
 
-    h2('3.4. Заявление о независимости'),
-    p('Оценщик и оценочная организация подтверждают полное соблюдение требований статьи 16 Федерального закона № 135-ФЗ «О независимости оценщика». Оценщик не является учредителем, собственником или кредитором заказчика, не имеет имущественного или иного финансового интереса в отношении объекта оценки.')
-  );
-
-  // -------------------------------------------------------------
-  // 5. РАЗДЕЛ 4. СТАНДАРТЫ ОЦЕНКИ И МЕТОДОЛОГИЯ
-  // -------------------------------------------------------------
-  children.push(
-    h1('4. СТАНДАРТЫ ОЦЕНКИ И МЕТОДИЧЕСКИЕ РЕКОМЕНДАЦИИ'),
-    p('Оценка объекта выполнена в соответствии с действующей нормативной базой:'),
-    p('1. Федеральный закон от 29.07.1998 г. № 135-ФЗ «Об оценочной деятельности в Российской Федерации».\n' +
-      '2. Федеральные стандарты оценки (Приказ Минэкономразвития России от 14.04.2022 г. № 200):\n' +
-      '   • ФСО I «Структура федеральных стандартов оценки»;\n' +
-      '   • ФСО II «Виды стоимости»;\n' +
-      '   • ФСО III «Процесс оценки»;\n' +
-      '   • ФСО IV «Задание на оценку»;\n' +
-      '   • ФСО V «Подходы и методы оценки»;\n' +
-      '   • ФСО VI «Отчет об оценке».\n' +
-      '3. Федеральный стандарт оценки «Оценка недвижимости» (ФСО № 7).', { size: 19 }),
-
-    h2('Обоснование выбора подходов к оценке:'),
-    p('• Затратный подход — не применялся. Для изолированных жилых помещений (квартир) в многоквартирном жилом доме затратный подход не отражает рыночной мотивации покупателей и физически не применим без изолированного воспроизводства здания.\n' +
-      '• Доходный подход — не применялся. Сегмент типового жилья ориентирован на приобретение объектов для личного пользования, арендный поток носит вторичный характер и не обеспечивает необходимой точности.\n' +
-      '• Сравнительный подход (метод сравнения продаж) — принят в качестве основного и единственного метода. На рынке г. Тольятти сформирован развитый, ликвидный рынок предложений аналогичных квартир с достаточным объемом рыночной информации.')
-  );
-
-  // -------------------------------------------------------------
-  // 6. РАЗДЕЛ 5. ОПИСАНИЕ ОБЪЕКТА ОЦЕНКИ
-  // -------------------------------------------------------------
-  children.push(
-    h1('5. ОПИСАНИЕ И ХАРАКТЕРИСТИКИ ОБЪЕКТА ОЦЕНКИ'),
-    p('Количественные и качественные характеристики объекта оценки установлены на основании выписки из ЕГРН и предоставленных исходных данных:'),
-    createTable([
-      [{ text: 'Параметр характеристики', bold: true, width: 35 }, { text: 'Значение параметра', bold: true, width: 65 }],
-      ['Полный адрес объекта', address],
-      ['Кадастровый номер', cadNum],
-      ['Назначение объекта', objectData.propertyType || 'Жилое помещение (квартира)'],
-      ['Количество комнат', `${rooms}-комнатная`],
-      ['Общая площадь', sqm(area)],
-      ['Этаж расположения', String(floor)],
-      ['Этажность здания', String(totalFloors)],
-      ['Материал наружных стен', wallMaterial],
-      ['Тип внутренней отделки', finish],
-      ['Техническое состояние', condition],
-      ['Наличие балкона / лоджии', balcony],
-      ['Наличие мебели и оборудования', furniture],
-      ['Целевое назначение оценки', purpose],
-    ], { hasHeader: true, zebra: true }),
-    p('Справка о распределении данных раздела:\n' +
-      '• [ЗАПОЛНЕНО ПРОГРАММОЙ]: адрес, кадастровый номер, этажность и площадь автоматически внесены из выписки ЕГРН и параметров дела.\n' +
-      '• [ЗАПОЛНЯЕТСЯ ОЦЕНЩИКОМ]: фактическое состояние отделки («' + finish + '») и оборудования подтверждено оценщиком по результатам визуального осмотра.', { size: 18, color: '475569', italics: true })
-  );
-
-  // -------------------------------------------------------------
-  // 7. РАЗДЕЛ 6. АНАЛИЗ СЕГМЕНТА РЫНКА ЖИЛОЙ НЕДВИЖИМОСТИ
-  // -------------------------------------------------------------
-  children.push(
-    h1('6. АНАЛИЗ СЕГМЕНТА РЫНКА ЖИЛОЙ НЕДВИЖИМОСТИ (г. Тольятти)'),
-    p('Рынок жилой недвижимости г.о. Тольятти характеризуется умеренной активностью со стабильным объемом предложения вторичного жилья. Наибольший удельный вес в структуре предложения занимают типовые 1–3-комнатные квартиры в панельных и кирпичных домах типовой застройки.'),
-    p(`При определении рыночной стоимости скидка на уторгование принята в размере ${percent(tradeAdj)}. Величина корректировки обоснована данными «Справочника оценщика недвижимости» под ред. Л.А. Лейфера (НБ «Информ-Оценка») для сегмента жилых квартир в городах РФ средней ценовой категории.`)
-  );
-
-  // -------------------------------------------------------------
-  // 8. РАЗДЕЛ 7. СРАВНИТЕЛЬНЫЙ ПОДХОД К ОЦЕНКЕ
-  // -------------------------------------------------------------
-  children.push(
-    h1('7. СРАВНИТЕЛЬНЫЙ ПОДХОД К ОЦЕНКЕ (МЕТОД СРАВНЕНИЯ ПРОДАЖ)'),
-    p('Оценка объекта сравнительным подходом выполнена в соответствии с требованиями ФСО № 7 путем последовательного сопоставления объекта оценки с объектами-аналогами, внесения корректировок и расчета средневзвешенного значения.')
-  );
-
-  // 7.1. Характеристики аналогов (Таблица 12.1)
-  if (result.rows && result.rows.length > 0) {
-    const table12_1_rows = [
-      [
-        { text: '№', bold: true, width: 6 },
-        { text: 'Адрес предложения', bold: true, width: 30 },
-        { text: 'Источник / Дата', bold: true, width: 18 },
-        { text: 'Цена предложения', bold: true, width: 14 },
-        { text: 'Площадь', bold: true, width: 10 },
-        { text: 'Цена 1 м²', bold: true, width: 13 },
-        { text: 'Этаж', bold: true, width: 9 },
-      ],
-      ...result.rows.map(r => [
-        String(r.number),
-        r.address,
-        `${r.source || 'База'} (${r.published || 'текущий'})`,
-        money(r.price),
-        sqm(r.area),
-        moneyPerSqm(r.initialPricePerSqm),
-        `${r.floor}/${r.totalFloors}`,
-      ]),
-    ];
-
-    children.push(
-      h2('7.1. Характеристики отобранных объектов-аналогов (Таблица 12.1)'),
-      createTable(table12_1_rows, { hasHeader: true, zebra: true })
-    );
-
-    // 7.2. Матрица сравнительного анализа (Таблица 12.2)
-    const n = result.rows.length || 1;
-    const pWidth = 24;
-    const oWidth = 13;
-    const aWidth = Math.floor((100 - pWidth - oWidth) / n);
-
-    const t12_2_header = [
-      { text: 'Элемент сравнения / Поправка', bold: true, width: pWidth },
-      { text: 'Объект оценки', bold: true, width: oWidth },
-      ...result.rows.map(r => ({ text: `Аналог №${r.number}`, bold: true, width: aWidth })),
-    ];
-
-    const t12_2_rows = [
-      t12_2_header,
-      ['Адрес предложения', address, ...result.rows.map(r => r.address)],
-      ['Цена предложения, руб.', 'Определяется', ...result.rows.map(r => money(r.price))],
-      ['Общая площадь, кв.м', String(area), ...result.rows.map(r => String(r.area))],
-      ['Цена за 1 кв.м до поправок', '—', ...result.rows.map(r => moneyPerSqm(r.initialPricePerSqm))],
-      [`Поправка на торг (${percent(tradeAdj)})`, '—', ...result.rows.map(r => `${percent(tradeAdj)} → ${moneyPerSqm(r.priceAfterTrade)}`)],
-      ['Поправка на отделку', finish, ...result.rows.map(r => `${percent(r.finishAdj)} → ${moneyPerSqm(r.priceAfterFinish)}`)],
-      ['Поправка на этаж', `${floor}/${totalFloors}`, ...result.rows.map(r => `${r.floor}/${r.totalFloors} (${percent(r.floorAdj)}) → ${moneyPerSqm(r.priceAfterFloor)}`)],
-      ['Поправка на масштаб площади', sqm(area), ...result.rows.map(r => `${percent(r.areaAdj)} → ${moneyPerSqm(r.finalAdjustedPrice)}`)],
-      ['Число поправок (Ki)', '—', ...result.rows.map(r => String(r.correctionsCount))],
-      ['Удельный вес аналога (Wi)', '—', ...result.rows.map(r => weightFmt(r.weight))],
-    ];
-
-    children.push(
-      h2('7.2. Матрица сравнительного анализа и расчета корректировок (Таблица 12.2)'),
-      createTable(t12_2_rows, { hasHeader: true, zebra: true, cellPaddingLeft: 60, cellPaddingRight: 60 })
-    );
-
-    // 7.3. Контроль качества выборки (Таблица 12.3)
-    children.push(
-      h2('7.3. Контроль качества выборки и анализ вариации (Таблица 12.3)'),
-      createTable([
-        [{ text: 'Показатель статистического анализа выборки', bold: true, width: 60 }, { text: 'Расчетное значение', bold: true, width: 40 }],
-        ['Число объектов-аналогов в расчете (N)', String(result.selectedCount)],
-        ['Среднее арифметическое значение цены 1 кв.м (Pср)', moneyPerSqm(result.meanPrice)],
-        ['Стандартное среднеквадратическое отклонение (σ)', `±${result.stdDev} руб./м²`],
-        ['Коэффициент вариации выборки (V)', `${result.variationCoeff != null ? result.variationCoeff.toFixed(2) + '%' : '—'}`],
-        ['Критерий однородности выборки (ФСО № 7)', 'V ≤ 33,0%'],
-        ['Статус статистического контроля', result.variationPass ? 'ТРЕБОВАНИЕ ВЫПОЛНЕНО: выборка признана однородной' : 'ВНИМАНИЕ: V > 33%'],
-      ], { hasHeader: true, zebra: true })
-    );
-  }
-
-  // 7.4. Итоговое согласование
-  children.push(
-    h2('7.4. Согласование результатов сравнительного подхода'),
-    p(`Средневзвешенная стоимость 1 кв.м объекта оценки: ${moneyPerSqm(pricePerSqm)}`, { bold: true }),
-    p(`Точная расчетная величина полной рыночной стоимости: ${money(result.rawTotal)} руб.`),
-    p(`Итоговая рыночная стоимость полного права собственности (округленно до 1 000 руб.): ${money(totalValue)} руб.`, { bold: true, color: '1E3A8A' }),
-    p(`Сумма прописью: ${totalWords} рублей.`, { bold: true, italics: true, color: '1E40AF' })
-  );
-
-  // -------------------------------------------------------------
-  // 9. РАЗДЕЛ 8. РЕЕСТР ИСТОЧНИКОВ ИНФОРМАЦИИ
-  // -------------------------------------------------------------
-  children.push(
-    h1('8. РЕЕСТР ИСТОЧНИКОВ ИНФОРМАЦИИ И ПРЕДЛОЖЕНИЙ'),
-    p('При проведении оценки использована открытая информация баз данных недвижимости г. Тольятти:'),
-    ...(result.rows || []).map(r =>
-      p(`• Аналог №${r.number}: ${r.address}. Источник: ${r.source || 'База'} (${r.published || 'текущий период'}). Ссылка: ${r.url || 'зафиксирована в архиве дела'}.`)
+  // 6. Таблица 20: Поправка на масштаб площади
+  xml = patchTableByIndex(xml, 20, rows =>
+    rows.map((tr, rIdx) =>
+      replaceRowCells(tr, c => {
+        if (rIdx === 1) {
+          c[1] = setCellText(c[1], areaStr);
+          fillAnalogCol(c, 2, r => fmtDec1(r.area));
+        } else if (rIdx === 2) {
+          c[1] = setCellText(c[1], area > 0 ? Math.pow(area, -0.10).toFixed(4).replace('.', ',') : '—');
+          fillAnalogCol(c, 2, r => Math.pow(r.area, -0.10).toFixed(4).replace('.', ','));
+        } else if (rIdx === 3) {
+          fillAnalogCol(c, 2, r => fmtPct2(r.areaAdj));
+        }
+        return c;
+      })
     )
   );
 
-  // -------------------------------------------------------------
-  // 10. РАЗДЕЛ 9. ЗАКЛЮЧЕНИЕ ЭКСПЕРТА-ОЦЕНЩИКА
-  // -------------------------------------------------------------
-  children.push(
-    h1('9. ЗАКЛЮЧЕНИЕ ЭКСПЕРТА-ОЦЕНЩИКА'),
-    p(`На основании проведенного исследования, детального анализа рынка жилой недвижимости г. Тольятти и выполненных расчетов, рыночная стоимость объекта оценки — ${rooms}-комнатной квартиры общей площадью ${sqm(area)}, расположенной по адресу: ${address}, кадастровый номер ${cadNum}, по состоянию на дату оценки ${valDate} г. составляет:`),
-    new Paragraph({
-      children: [
-        new TextRun({ text: money(totalValue), bold: true, size: 28, color: '1E3A8A', font: 'Calibri' }),
-        new TextRun({ text: ` (${totalWords} рублей)`, bold: true, italics: true, size: 22, color: '1E40AF', font: 'Calibri' }),
-      ],
-      spacing: { before: 120, after: 240 },
-    }),
-
-    // Блок подписей
-    new Table({
-      width: { size: PAGE_CONTENT_WIDTH_DXA, type: WidthType.DXA },
-      layout: TableLayoutType.FIXED,
-      columnWidths: [4820, 4819],
-      borders: {
-        top: { style: BorderStyle.NONE },
-        bottom: { style: BorderStyle.NONE },
-        left: { style: BorderStyle.NONE },
-        right: { style: BorderStyle.NONE },
-        insideHorizontal: { style: BorderStyle.NONE },
-        insideVertical: { style: BorderStyle.NONE },
-      },
-      rows: [
-        new TableRow({
-          children: [
-            new TableCell({
-              width: { size: 4820, type: WidthType.DXA },
-              children: [
-                p('Оценщик ООО «РусОценка»', { bold: true }),
-                p('___________ / А.А. Орлова /'),
-                p(`«${valDate.slice(8, 10)}» ${valDate.slice(5, 7)} ${valDate.slice(0, 4)} г.`),
-              ],
-            }),
-            new TableCell({
-              width: { size: 4819, type: WidthType.DXA },
-              children: [
-                p('Генеральный директор ООО «РусОценка»', { bold: true }),
-                p('___________ / А.А. Орлова /'),
-                p('М.П.'),
-              ],
-            }),
-          ],
-        }),
-      ],
-    }),
-
-    // -------------------------------------------------------------
-    // 11. ПРИЛОЖЕНИЯ К ОТЧЕТУ ОБ ОЦЕНКЕ
-    // -------------------------------------------------------------
-    h1('10. ПРИЛОЖЕНИЯ К ОТЧЕТУ ОБ ОЦЕНКЕ'),
-    p('Приложение 1: Документы оценщика (квалификационный аттестат по оценке недвижимости, членство в СРО, полис САО «РЕСО-Гарантия» — подшито автоматически из базы).\n' +
-      'Приложение 2: Правоустанавливающие документы заказчика (выписка из ЕГРН, технический план квартиры).\n' +
-      'Приложение 3: Материалы открытых источников информации (скриншоты объявлений-аналогов с порталов Авито и Циан с фиксацией даты и URL).\n' +
-      'Приложение 4 [ЗАПОЛНЯЕТСЯ ОЦЕНЩИКОМ]: Фототаблица натурного осмотра квартиры (фотографии комнат, кухни, санузла, коридора, фасада дома и подъезда).', { size: 19, color: '334155' })
+  // 7. Таблица 21 (Таблица 22): Статистика вариации
+  xml = patchTableByIndex(xml, 21, rows =>
+    rows.map((tr, rIdx) =>
+      replaceRowCells(tr, c => {
+        if (rIdx === 1) fillAnalogCol(c, 1, r => fmtNum(r.finalAdjustedPrice));
+        if (rIdx === 2 && c[1]) c[1] = setCellText(c[1], fmtNum(result.meanPrice || pricePerSqm));
+        if (rIdx === 3 && c[1]) c[1] = setCellText(c[1], fmtNum(result.stdDev || 0));
+        if (rIdx === 4 && c[1]) c[1] = setCellText(c[1], fmtPct2(result.variationCoeff || 0));
+        return c;
+      })
+    )
   );
 
-  // -------------------------------------------------------------
-  // СОЗДАНИЕ ДОКУМЕНТА DOCX С КОЛОНТИТУЛАМИ
-  // -------------------------------------------------------------
-  const doc = new Document({
-    creator: `${companyName} · Цифровое рабочее место оценщика`,
-    title: `Отчет об оценке № ${reportNum}`,
-    description: `Официальный отчет об оценке квартиры: ${address}`,
-    sections: [
-      {
-        properties: {
-          page: {
-            size: {
-              width: 11906, // A4 portrait 210mm
-              height: 16838, // 297mm
-            },
-            margin: {
-              top: 1134, // 20 mm
-              bottom: 1134, // 20 mm
-              left: 1417, // 25 mm
-              right: 850, // 15 mm
-            },
-          },
-        },
-        headers: {
-          default: new Header({
-            children: [
-              new Paragraph({
-                children: [
-                  new TextRun({ text: `Отчет об оценке № ${reportNum} · ООО «РусОценка»`, size: 16, color: '64748B', font: 'Calibri' }),
-                ],
-                alignment: AlignmentType.RIGHT,
-                spacing: { after: 120 },
-              }),
-            ],
-          }),
-        },
-        footers: {
-          default: new Footer({
-            children: [
-              new Paragraph({
-                children: [
-                  new TextRun({ text: 'Страница ', size: 16, color: '64748B', font: 'Calibri' }),
-                  new TextRun({ children: [PageNumber.CURRENT], size: 16, color: '64748B', font: 'Calibri' }),
-                  new TextRun({ text: ' из ', size: 16, color: '64748B', font: 'Calibri' }),
-                  new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 16, color: '64748B', font: 'Calibri' }),
-                ],
-                alignment: AlignmentType.CENTER,
-                spacing: { before: 120 },
-              }),
-            ],
-          }),
-        },
-        children,
-      },
-    ],
-  });
+  // 8. Таблица 22: Расчёт стоимости долей
+  xml = patchTableByIndex(xml, 22, rows =>
+    rows.map((tr, rIdx) => {
+      if (rIdx === 0) return tr;
+      return replaceRowCells(tr, c => {
+        for (let i = 0; i < 5; i++) {
+          const col = i + 1;
+          if (col >= c.length) continue;
+          const sh = shares[i];
+          if (!sh) {
+            c[col] = setCellText(c[col], '—');
+          } else if (rIdx === 1) {
+            c[col] = setCellText(c[col], fmtNum(totalValue));
+          } else if (rIdx === 2) {
+            c[col] = setCellText(c[col], sh.shareFraction);
+          } else if (rIdx === 3 || rIdx === 5) {
+            c[col] = setCellText(c[col], fmtNum(sh.nominal));
+          } else if (rIdx === 4) {
+            c[col] = setCellText(c[col], '0%');
+          } else if (rIdx === 6) {
+            c[col] = setCellText(c[col], fmtNum(sh.rounded));
+          }
+        }
+        return c;
+      });
+    })
+  );
 
-  const cleanNum = reportNum.replace(/[\/\\?%*:|"<>]/g, '_');
-  const filename = `Отчет_об_оценке_№_${cleanNum}.docx`;
+  // 9. Глобальная замена текстовых вхождений во всех абзацах документа
+  const globalReplacements = [
+    ['19/0826-2', reportNum],
+    ['19.08.2026', valDateRu],
+    ['20.08.2026', repDateRu],
+    ['Иванова Елена Ивановна', clientName],
+    ['Ивановой Елене Ивановне', clientName],
+    ['Ивановой Елены Ивановны', clientName],
+    ['Разрезов Александр Михайлович', shares[1]?.holder || clientName],
+    ['Разрезов Дмитрий Александрович', shares[2]?.holder || clientName],
+    ['Разрезова Ксения Александровна', shares[3]?.holder || clientName],
+    ['Матвеев Максим Антонович', shares[4]?.holder || clientName],
+    ['Разрезов', clientName.split(' ')[0] || clientName],
+    ['63:09:0201045:5015', cadNum],
+    ['г. Тольятти, Комсомольский район, мкрн Поволжский, ул. Новосадовая, д. 1, кв. 49', address],
+    ['Самарская область, г. Тольятти, Комсомольский район, ул. Новосадовая, д. 1, кв. 49', address],
+    ['ул. Новосадовая, д. 1, кв. 49', shortAddress],
+    ['66,8', areaStr],
+    ['3-комнатная', `${rooms}-комнатная`],
+    ['3-комнатных', `${rooms}-комнатных`],
+    ['3-х комнатной', `${rooms}-комнатной`],
+    ['3 506 000', fmtNum(totalValue)],
+    ['3\u00a0506\u00a0000', fmtNum(totalValue)],
+    ['3 505 597', fmtNum(rawTotal)],
+    ['3\u00a0505\u00a0597', fmtNum(rawTotal)],
+    ['три миллиона пятьсот шесть тысяч', totalWords],
+    ['52 479', fmtNum(pricePerSqm)],
+    ['52\u00a0479', fmtNum(pricePerSqm)],
+    ['Определение рыночной стоимости для совершения сделки купли-продажи', purpose],
+    ['Орлова Анна Александровна', appraiserName],
+    ['ООО «РусОценка»', companyName],
+  ];
 
-  if (typeof window !== 'undefined') {
-    const blob = await Packer.toBlob(doc);
-    download(blob, filename);
+  xml = replaceInAllParagraphs(xml, globalReplacements);
+  zip.file('word/document.xml', xml);
+
+  if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Отчет_об_оценке_№_${reportNum.replace(/[^\wа-яА-ЯёЁ-]/g, '_')}.docx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
     return blob;
   } else {
-    const nodeBuf = await Packer.toBuffer(doc);
-    return nodeBuf;
+    return await zip.generateAsync({ type: 'nodebuffer' });
   }
 }

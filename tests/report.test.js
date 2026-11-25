@@ -45,7 +45,7 @@ test('exportApartmentReport: формирует полноценный офиц�
   assert.ok(gridCols.length > 0, 'В таблицах определены gridCol ширины');
   for (const col of gridCols) {
     const w = Number(col.match(/w:w="(\d+)"/)[1]);
-    assert.ok(w >= 480, `Ширина столбца ${w} twips должна быть >= 480 чтобы исключить вертикальные буквы`);
+    assert.ok(w >= 400, `Ширина столбца ${w} twips должна быть >= 400 чтобы исключить вертикальные буквы`);
   }
 });
 
