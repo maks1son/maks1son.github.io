@@ -3904,7 +3904,8 @@ dialog::backdrop {
    ========================================================================== */
 
 .object-flow {
-  max-width: 880px;
+  width: 100%;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
   gap: 16px;
