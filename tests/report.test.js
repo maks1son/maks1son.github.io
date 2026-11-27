@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import JSZip from 'jszip';
-import { exportApartmentReport, numberToWordsRu } from '../src/report.js';
+import { exportApartmentReport, numberToWordsRu, declineFioRu } from '../src/report.js';
 import { defaultObject, defaultAnalogs } from '../src/model.js';
 
 test('numberToWordsRu: корректно переводит суммы в слова на русском', () => {
@@ -142,4 +142,195 @@ test('exportApartmentReport: строго соответствует введе�
   assert.ok(!xml.includes('Разрезов'), 'В отчете нет чужих сособственников Разрезовых');
   assert.ok(!xml.includes('Новосадовая, д. 1, кв. 49'), 'В отчете нет чужого адреса Новосадовой');
   assert.ok(!xml.includes('66,8') && !xml.includes('66.8'), 'В отчете нет чужой площади 66,8');
+});
+
+test('declineFioRu: корректно склоняет мужские и женские ФИО в Р.п., Д.п. и Т.п.', () => {
+  assert.equal(declineFioRu('Иванова Елена Ивановна', 'gen'), 'Ивановой Елены Ивановны');
+  assert.equal(declineFioRu('Иванова Елена Ивановна', 'dat'), 'Ивановой Елене Ивановне');
+  assert.equal(declineFioRu('Иванова Елена Ивановна', 'ins'), 'Ивановой Еленой Ивановной');
+
+  assert.equal(declineFioRu('Орлова Анна Александровна', 'ins'), 'Орловой Анной Александровной');
+  assert.equal(declineFioRu('Ивановская Ксения Ильинична', 'gen'), 'Ивановской Ксении Ильиничны');
+  assert.equal(declineFioRu('Ивановская Ксения Ильинична', 'dat'), 'Ивановской Ксении Ильиничне');
+
+  assert.equal(declineFioRu('Кузнецов Михаил Викторович', 'gen'), 'Кузнецова Михаила Викторовича');
+  assert.equal(declineFioRu('Кузнецов Михаил Викторович', 'dat'), 'Кузнецову Михаилу Викторовичу');
+  assert.equal(declineFioRu('Кузнецов Михаил Викторович', 'ins'), 'Кузнецовым Михаилом Викторовичем');
+
+  assert.equal(declineFioRu('Волков Пётр Алексеевич', 'gen'), 'Волкова Петра Алексеевича');
+  assert.equal(declineFioRu('Волков Пётр Алексеевич', 'dat'), 'Волкову Петру Алексеевичу');
+  assert.equal(declineFioRu('Ивановский Сергей Игоревич', 'gen'), 'Ивановского Сергея Игоревича');
+  assert.equal(declineFioRu('Ивановский Сергей Игоревич', 'dat'), 'Ивановскому Сергею Игоревичу');
+  assert.equal(declineFioRu('Коваленко Илья Никитич', 'gen'), 'Коваленко Ильи Никитича');
+  assert.equal(declineFioRu('Коваленко Ольга Павловна', 'dat'), 'Коваленко Ольге Павловне');
+});
+
+test('exportApartmentReport: индивидуальная собственность (1/1), нестандартные поправки, статистика рынка и Приложение №3 без следов эталона', async () => {
+  const customCase = {
+    reportNumber: '30/1205-4',
+    valuationDate: '2026-12-05',
+    reportDate: '2026-12-06',
+    propertyType: 'Жилое помещение (квартира)',
+    rooms: 2,
+    address: 'г. Тольятти, Центральный район, ул. Мира, д. 50, кв. 12',
+    cadastralNumber: '63:09:0301018:7777',
+    area: 50.0,
+    floor: 2,
+    totalFloors: 9,
+    wallMaterial: 'монолит',
+    finish: 'простая',
+    condition: 'отличное',
+    balcony: 'нет',
+    furniture: 'нет',
+    purpose: 'Определение рыночной стоимости для ипотечного кредитования',
+    client: 'Соколова Светлана Николаевна',
+    appraiser: 'Волков Пётр Алексеевич',
+    company: 'ООО «РусОценка»',
+    tradeAdjustment: -4.0,
+    shares: [
+      { id: 's1', holder: 'Соколова Светлана Николаевна', num: 1, den: 1 },
+    ],
+  };
+
+  const customAnalogs = [
+    {
+      id: 'a1',
+      number: 1,
+      selected: true,
+      address: 'г. Тольятти, Центральный район, ул. Мира, д. 48',
+      price: 3100000,
+      area: 50.0,
+      floor: 1,
+      totalFloors: 9,
+      wallMaterial: 'монолит',
+      finish: 'простая',
+      condition: 'отличное',
+      balcony: 'нет',
+      furniture: 'нет',
+      source: 'Циан',
+      url: 'https://cian.ru/custom-analog-1',
+      published: 'декабрь 2026г.',
+      floorAdj: 5.0,
+      finishAdj: 0.0,
+      areaAdj: 0.0,
+    },
+    {
+      id: 'a2',
+      number: 2,
+      selected: true,
+      address: 'г. Тольятти, Центральный район, ул. Карла Маркса, д. 12',
+      price: 3400000,
+      area: 50.0,
+      floor: 9,
+      totalFloors: 9,
+      wallMaterial: 'монолит',
+      finish: 'улучшенная',
+      condition: 'отличное',
+      balcony: 'нет',
+      furniture: 'нет',
+      source: 'Домклик',
+      url: 'https://domclick.ru/custom-analog-2',
+      published: 'декабрь 2026г.',
+      floorAdj: 4.0,
+      finishAdj: -6.0,
+      areaAdj: 0.0,
+    },
+    {
+      id: 'a3',
+      number: 3,
+      selected: true,
+      address: 'г. Тольятти, Центральный район, ул. Победы, д. 30',
+      price: 3250000,
+      area: 50.0,
+      floor: 5,
+      totalFloors: 9,
+      wallMaterial: 'монолит',
+      finish: 'простая',
+      condition: 'отличное',
+      balcony: 'нет',
+      furniture: 'нет',
+      source: 'Циан',
+      url: 'https://cian.ru/custom-analog-3',
+      published: 'декабрь 2026г.',
+      floorAdj: 0.0,
+      finishAdj: 0.0,
+      areaAdj: 0.0,
+    },
+  ];
+
+  const buffer = await exportApartmentReport(customCase, customAnalogs);
+  const zip = await JSZip.loadAsync(buffer);
+  const xml = await zip.file('word/document.xml').async('string');
+  const rels = await zip.file('word/_rels/document.xml.rels').async('string');
+  const plainText = xml.replace(/<[^>]+>/g, '').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ');
+  const tables = xml.match(/<w:tbl(?:\s+[^>]*)?>[\s\S]*?<\/w:tbl>/g) || [];
+
+  // 1. В итоговых таблицах (2 и 24) при 1/1 только 1 строка полного права без 1/1 доли
+  for (const idx of [2, 24]) {
+    const rows = tables[idx].match(/<w:tr(?:\s+[^>]*)?>[\s\S]*?<\/w:tr>/g) || [];
+    assert.equal(rows.length, 2, `Таблица ${idx} при индивидуальной собственности должна иметь заголовок и 1 строку`);
+    assert.ok(!tables[idx].includes('1/1 доли'), `Таблица ${idx} не содержит лишней строки 1/1 доли`);
+  }
+
+  // 2. В таблицах 3, 5, 13, 18, 19 и в тексте после таблицы 19 указана индивидуальная собственность
+  for (const idx of [3, 5, 13, 18, 19]) {
+    const tblText = tables[idx].replace(/<[^>]+>/g, '').toLowerCase();
+    assert.ok(tblText.includes('индивидуальная собственность'), `Таблица ${idx} содержит «индивидуальная собственность»`);
+  }
+  assert.ok(plainText.includes('Имущественные права на Объект оценки – индивидуальная собственность'), 'Текст после таблицы 19 указывает индивидуальную собственность');
+  assert.ok(plainText.includes('единоличное владение'), 'Абзац о долях адаптирован для единоличного владения');
+  assert.ok(!plainText.includes('все доли в праве на объект оценки реализуются совместно'));
+
+  // 3. В таблице 5 заменено описание этажа и материала стен
+  const t5Text = tables[5].replace(/<[^>]+>/g, '');
+  assert.ok(t5Text.includes('2-м этаже 9-этажного монолитного'), 'Таблица 5 отражает реальный этаж, этажность и материал стен');
+
+  // 4. Динамические пояснения под Таблицей 12.2
+  assert.ok(plainText.includes('понижающая корректировка -4%'), 'Торг отражен с фактическим процентом -4%');
+  assert.ok(plainText.includes('декабрь 2026г.'), 'Дата предложения отражена фактически');
+  assert.ok(plainText.includes('05.12.2026г.'), 'Дата оценки отражена фактически');
+  assert.ok(plainText.includes('соответствует категории «простая» для объектов-аналогов №№1,3 и «улучшенная» для объекта-аналога №2'), 'Группировка отделки верная');
+  assert.ok(plainText.includes('понижающая корректировка -6% в цену объекта-аналога №2'), 'Поправка на отделку отражает аналог №2');
+  assert.ok(plainText.includes('повышающая корректировка 5% в цену объекта-аналога №1 и повышающая корректировка 4% в цену объекта-аналога №2'), 'Группировка поправок на этаж точная');
+  assert.ok(plainText.includes('с идентичным материалом стен – монолит'), 'Материал стен в пояснении обновлен');
+  assert.ok(plainText.includes('соответствующим состоянию «отличное»'), 'Состояние в пояснении обновлено');
+  assert.ok(plainText.includes('не обеспечены балконом/лоджией'), 'Балкон/лоджия в пояснении обновлен');
+  assert.ok(plainText.includes('без мебели и встроенной техники'), 'Мебель в пояснении обновлена');
+  assert.ok(plainText.includes('62 787 руб. * 50,0 кв.м. = 3 139 000 руб.'), 'Итоговая формула под таблицей 12.2 рассчитана точно');
+  assert.ok(plainText.includes('Волковым Петром Алексеевичем'), 'ФИО оценщика в Т.п. просклонено корректно');
+  assert.ok(plainText.includes('П. А. Волков'), 'Инициалы и фамилия оценщика в подписи обновлены');
+
+  // 5. Таблица 16 и абзацы рынка, сегмент, Приложение №3
+  const t16Text = tables[16].replace(/<[^>]+>/g, '').replace(/\u00a0/g, ' ');
+  assert.ok(t16Text.includes('9 750 000'), 'Объем рынка в Таблице 16 рассчитан по аналогам дела');
+  assert.ok(plainText.includes('3 предложения к продаже 2-комнатных квартир в Центральном районе'), 'Сегмент (кол-во комнат и район) обновлен');
+  assert.ok(plainText.includes('2-комнатных квартир в г. Тольятти'), 'Сегмент в разделе 12 обновлен');
+  assert.ok(plainText.includes('Объем данной выборки составляет 3 объекта'), 'Объем выборки в разделе 12 обновлен');
+  assert.ok(plainText.includes('https://cian.ru/custom-analog-1'));
+  assert.ok(plainText.includes('https://domclick.ru/custom-analog-2'));
+  assert.ok(plainText.includes('https://cian.ru/custom-analog-3'));
+  assert.ok(rels.includes('https://cian.ru/custom-analog-1'));
+  assert.ok(rels.includes('https://domclick.ru/custom-analog-2'));
+
+  // 6. Отсутствуют чужие фразы и ссылки из эталона
+  const forbiddenPhrases = [
+    '№№3,4',
+    '№№3,5',
+    '66,8',
+    'август 2026г.',
+    'Ивановой',
+    'Разрезов',
+    '4504033738',
+    '2861826719',
+    'realty317893',
+    'realty306332',
+    'realty305309',
+    '12 предложений',
+    '809 кв.м',
+    '42,86',
+  ];
+  for (const phrase of forbiddenPhrases) {
+    assert.ok(!xml.includes(phrase), `В document.xml не должно быть эталонного следа: ${phrase}`);
+  }
+  assert.ok(!rels.includes('4504033738') && !rels.includes('realty317893'), 'В rels нет старых ссылок Авито/Волга-Инфо');
 });
