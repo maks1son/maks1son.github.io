@@ -1,4 +1,4 @@
-import { defaultCases, TEAM_MEMBERS } from './model.js';
+import { defaultCases, normalizeObjectData, TEAM_MEMBERS } from './model.js';
 
 const STORAGE_KEY_CASES = 'rosocenka_cases_v3';
 const STORAGE_KEY_ACTIVE = 'rosocenka_active_case_id_v3';
@@ -53,6 +53,13 @@ export function getStoredCases() {
                 leifer: isReady,
                 shares: isReady,
               };
+              modified = true;
+            }
+            if (!c.objectData || typeof c.objectData !== 'object') {
+              c.objectData = {};
+              modified = true;
+            }
+            if (normalizeObjectData(c.objectData, c.number)) {
               modified = true;
             }
           });

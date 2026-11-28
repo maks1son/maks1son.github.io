@@ -926,6 +926,10 @@ export async function exportApartmentReport(objectData, analogsList) {
     : [`Правообладатель: ${ownerHolder}.`];
 
   const isReferenceCase = reportNum === '19/0826-2';
+  const inspectionAccess = objectData.inspectionAccess || (isReferenceCase ? 'no_access' : 'provided');
+  const bathroom = objectData.bathroom || 'Раздельный';
+  const infra = objectData.infra || {};
+  const infraVal = key => (infra[key] === false ? 'Нет' : 'Есть');
   const egrnText = objectData.egrnDate
     ? `Выписка из Единого государственного реестра недвижимости об основных характеристиках и зарегистрированных правах на объект недвижимости от ${formatDateRu(objectData.egrnDate)}г., выданная Управлением Росреестра.`
     : (isReferenceCase
@@ -1023,6 +1027,12 @@ export async function exportApartmentReport(objectData, analogsList) {
         if (rIdx === 5 && c[2]) c[2] = setCellText(c[2], purpose);
         if (rIdx === 7 && c[2]) c[2] = replaceInParagraphXml(c[2], [['19.08.2026', valDateRu]]);
         if (rIdx === 8 && c[2]) c[2] = setCellText(c[2], `${valDateRu}г.`);
+        if (rIdx === 11 && c[2]) {
+          const accessText = inspectionAccess === 'provided'
+            ? 'Ограничения отсутствуют. Оценщиком проведён натурный осмотр объекта оценки с фотофиксацией.'
+            : 'Оценщику не был предоставлен доступ в оцениваемое помещение. Определение рыночной стоимости объекта оценки проводится на основании предоставленных Заказчиком правоустанавливающих документов и фотографий объекта оценки';
+          c[2] = setCellText(c[2], accessText);
+        }
         return c;
       })
     )
@@ -1057,9 +1067,20 @@ export async function exportApartmentReport(objectData, analogsList) {
     rows.map((tr, rIdx) =>
       replaceRowCells(tr, c => {
         if (rIdx === 1 && c[1]) c[1] = setCellText(c[1], address);
-        if (rIdx === 3 && c[1] && !locInfo.isPovolzhsky) {
-          c[1] = replaceInParagraphXml(c[1], [['в пределах 200 м по ул. Олимпийская.', 'в шаговой доступности.']]);
+        if (rIdx === 3 && c[1]) {
+          if (objectData.stopDistance) {
+            c[1] = replaceInParagraphXml(c[1], [['в пределах 200 м по ул. Олимпийская.', objectData.stopDistance]]);
+          } else if (!locInfo.isPovolzhsky) {
+            c[1] = replaceInParagraphXml(c[1], [['в пределах 200 м по ул. Олимпийская.', 'в шаговой доступности.']]);
+          }
         }
+        if (rIdx === 6 && c[2]) c[2] = setCellText(c[2], infraVal('school'));
+        if (rIdx === 7 && c[2]) c[2] = setCellText(c[2], infraVal('kindergarten'));
+        if (rIdx === 8 && c[2]) c[2] = setCellText(c[2], infraVal('bank'));
+        if (rIdx === 9 && c[2]) c[2] = setCellText(c[2], infraVal('services'));
+        if (rIdx === 10 && c[2]) c[2] = setCellText(c[2], infraVal('retail'));
+        if (rIdx === 11 && c[2]) c[2] = setCellText(c[2], infraVal('pharmacy'));
+        if (rIdx === 15 && c[1] && objectData.envDesc) c[1] = setCellText(c[1], objectData.envDesc);
         return c;
       })
     )
@@ -1067,8 +1088,12 @@ export async function exportApartmentReport(objectData, analogsList) {
   xml = patchTableByIndex(xml, 12, rows =>
     rows.map((tr, rIdx) =>
       replaceRowCells(tr, c => {
-        if (rIdx === 1 && c[0] && !locInfo.isPovolzhsky && !/новосадов/i.test(address)) {
-          c[0] = setCellParagraphs(c[0], ['Источники информации:', '- Данные Заказчика, Выписка ЕГРН']);
+        if (rIdx === 1 && c[0]) {
+          if (objectData.domclickUrl) {
+            c[0] = setCellParagraphs(c[0], ['Источники информации:', `- ${objectData.domclickUrl}`]);
+          } else if (!locInfo.isPovolzhsky && !/новосадов/i.test(address)) {
+            c[0] = setCellParagraphs(c[0], ['Источники информации:', '- Данные Заказчика, Выписка ЕГРН']);
+          }
         }
         if (rIdx === 4 && c[1]) c[1] = setCellText(c[1], buildingAddress);
         if (rIdx === 5 && c[1] && (objectData.buildYear || (!isReferenceCase && !/новосадов/i.test(address)))) {
@@ -1079,6 +1104,10 @@ export async function exportApartmentReport(objectData, analogsList) {
         }
         if (rIdx === 8 && c[1]) c[1] = setCellText(c[1], String(totalFloors));
         if (rIdx === 9 && c[1]) c[1] = setCellText(c[1], capitalizeRu(wallMaterial));
+        if (rIdx === 11 && c[1] && objectData.playground) c[1] = setCellText(c[1], objectData.playground);
+        if (rIdx === 12 && c[1] && objectData.sportsGround) c[1] = setCellText(c[1], objectData.sportsGround);
+        if (rIdx === 16 && c[1] && objectData.entranceSecurity) c[1] = setCellText(c[1], objectData.entranceSecurity);
+        if (rIdx === 18 && c[1] && objectData.parking) c[1] = setCellText(c[1], objectData.parking);
         return c;
       })
     )
@@ -1087,7 +1116,10 @@ export async function exportApartmentReport(objectData, analogsList) {
     rows.map((tr, rIdx) =>
       replaceRowCells(tr, c => {
         if (rIdx === 1 && c[0]) {
-          c[0] = setCellParagraphs(c[0], [egrnText, 'Анализ предоставленных фотографий']);
+          const inspSource = inspectionAccess === 'provided'
+            ? 'Акт натурного осмотра и фотофиксация'
+            : 'Анализ предоставленных фотографий';
+          c[0] = setCellParagraphs(c[0], [egrnText, inspSource]);
         }
         if (rIdx === 2 && c[1]) c[1] = setCellText(c[1], `${floor} из ${totalFloors}`);
         if (rIdx === 3 && c[1]) c[1] = setCellText(c[1], String(rooms));
@@ -1095,6 +1127,7 @@ export async function exportApartmentReport(objectData, analogsList) {
         if (rIdx === 5 && c[1]) c[1] = setCellText(c[1], balcony === 'нет' ? 'Нет' : 'Есть');
         if (rIdx === 6 && c[1]) c[1] = setCellText(c[1], capitalizeRu(condition));
         if (rIdx === 7 && c[1]) c[1] = setCellText(c[1], capitalizeRu(finish));
+        if (rIdx === 8 && c[1]) c[1] = setCellText(c[1], bathroom);
         return c;
       })
     )
@@ -1124,6 +1157,9 @@ export async function exportApartmentReport(objectData, analogsList) {
         }
         if (rIdx === 4 && cells[1] && (objectData.basisDoc || !isReferenceCase)) {
           cells[1] = setCellText(cells[1], objectData.basisDoc || 'Правоустанавливающие документы, предоставленные Заказчиком');
+        }
+        if (rIdx === 5 && cells[1]) {
+          cells[1] = setCellText(cells[1], objectData.encumbrances || 'Не зарегистрировано');
         }
         return cells;
       })
@@ -1448,7 +1484,14 @@ export async function exportApartmentReport(objectData, analogsList) {
       replacements: () => [['Орловой Анной Александровной', declineFioRu(appraiserName, 'ins')]],
     },
     {
-      test: t => !locInfo.isPovolzhsky && t.includes('Объект оценки представляет собой жилое помещение (квартиру) в многоквартирном жилом доме'),
+      test: t => inspectionAccess === 'provided' && t.includes('Оценщику не был предоставлен доступ в оцениваемое помещение'),
+      replacements: (norm, full) => [[
+        full,
+        'Оценщиком проведён натурный осмотр оцениваемого помещения с фотофиксацией. Определение рыночной стоимости объекта оценки проводится на основании предоставленных Заказчиком правоустанавливающих документов и материалов осмотра.',
+      ]],
+    },
+    {
+      test: t => !locInfo.isPovolzhsky && t.includes('Объект оценки представляет собой жилое помещение (квартиру) в многоквартином жилом доме'),
       replacements: () => [[
         'в юго-восточной части города, в Комсомольском районе',
         locInfo.districtLoc ? `в ${locInfo.districtLoc}` : `в ${locInfo.city}`,

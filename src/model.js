@@ -161,6 +161,68 @@ export function defaultAnalogs() {
   ];
 }
 
+export const DEFAULT_INFRA = {
+  school: true,
+  kindergarten: true,
+  bank: true,
+  services: true,
+  retail: true,
+  pharmacy: true,
+};
+
+/**
+ * Дозаполняет отсутствующие поля objectData (для совместимости со старыми делами в localStorage)
+ */
+export function normalizeObjectData(obj = {}, caseNumber = '') {
+  const isRef = caseNumber === '19/0826-2' || obj.reportNumber === '19/0826-2';
+  const baseDefaults = {
+    reportDate: obj.valuationDate || new Date().toISOString().slice(0, 10),
+    clientPassport: isRef
+      ? 'Паспорт серия 0000 №591155 выдан 24.09.2025 ГУ МВД России по Самарской области'
+      : '',
+    clientAddress: obj.address || '',
+    egrnDate: isRef ? '2025-11-25' : '',
+    basisDoc: isRef ? 'Договор купли-продажи от 24.03.2014г., Договор от 22.11.2025г.' : '',
+    encumbrances: 'Не зарегистрировано',
+    inspectionAccess: isRef ? 'no_access' : 'provided',
+    rooms: obj.rooms || 2,
+    bathroom: 'Раздельный',
+    balcony: obj.balcony || 'да',
+    furniture: obj.furniture || 'да',
+    domclickUrl: isRef
+      ? 'https://tolyatti.domclick.ru/building/komsomolskij--povolzhskij-m-n--novosadovaya-povolzhskij--1#block_stats'
+      : '',
+    buildYear: isRef ? '1983' : '',
+    series: isRef ? '121' : '',
+    playground: 'да',
+    sportsGround: 'нет',
+    entranceSecurity: 'на входе в подъезд – железная дверь, домофон',
+    parking: 'стихийная парковка возле дома',
+    stopDistance: isRef ? 'в пределах 200 м по ул. Олимпийская.' : 'в шаговой доступности.',
+    envDesc: 'Детская площадка, зеленые насаждения, стихийная парковка возле дома',
+  };
+
+  let changed = false;
+  for (const [key, val] of Object.entries(baseDefaults)) {
+    if (obj[key] === undefined) {
+      obj[key] = val;
+      changed = true;
+    }
+  }
+  if (!obj.infra || typeof obj.infra !== 'object') {
+    obj.infra = { ...DEFAULT_INFRA };
+    changed = true;
+  } else {
+    for (const [k, v] of Object.entries(DEFAULT_INFRA)) {
+      if (typeof obj.infra[k] !== 'boolean') {
+        obj.infra[k] = v;
+        changed = true;
+      }
+    }
+  }
+  return changed;
+}
+
 export function createNewCase(opts = {}) {
   const num = opts.number || `24/${String(Date.now()).slice(-4)}-1`;
   const defaultProgress = opts.status === 'Готов' ? 100 : (opts.status === 'Черновик' ? 30 : 75);
@@ -186,16 +248,33 @@ export function createNewCase(opts = {}) {
       rooms: opts.rooms || 2,
       address: opts.address || 'г. Тольятти, Автозаводский район, ул. Юбилейная, д. 15, кв. 34',
       cadastralNumber: opts.cadastralNumber || '63:09:0102030:1042',
+      egrnDate: opts.egrnDate || '',
+      basisDoc: opts.basisDoc || '',
+      encumbrances: opts.encumbrances || 'Не зарегистрировано',
+      inspectionAccess: opts.inspectionAccess || 'provided',
       area: opts.area || 54.0,
       floor: opts.floor || 4,
       totalFloors: opts.totalFloors || 9,
       wallMaterial: opts.wallMaterial || 'панель',
       finish: opts.finish || 'улучшенная',
       condition: opts.condition || 'хорошее',
+      bathroom: opts.bathroom || 'Раздельный',
       balcony: opts.balcony || 'да',
       furniture: opts.furniture || 'да',
+      domclickUrl: opts.domclickUrl || '',
+      buildYear: opts.buildYear || '',
+      series: opts.series || '',
+      playground: opts.playground || 'да',
+      sportsGround: opts.sportsGround || 'нет',
+      entranceSecurity: opts.entranceSecurity || 'на входе в подъезд – железная дверь, домофон',
+      parking: opts.parking || 'стихийная парковка возле дома',
+      stopDistance: opts.stopDistance || 'в шаговой доступности.',
+      envDesc: opts.envDesc || 'Детская площадка, зеленые насаждения, стихийная парковка возле дома',
+      infra: { ...DEFAULT_INFRA, ...(opts.infra || {}) },
       purpose: opts.purpose || 'Определение рыночной стоимости для совершения сделки купли-продажи (ст. 30 ГК РФ)',
       client: opts.client || 'Петров Сергей Александрович',
+      clientPassport: opts.clientPassport || '',
+      clientAddress: opts.clientAddress || '',
       appraiser: 'Орлова Анна Александровна',
       company: 'ООО «РусОценка»',
       tradeAdjustment: opts.tradeAdjustment != null ? opts.tradeAdjustment : -6.0,
@@ -241,16 +320,33 @@ export function defaultCases() {
       rooms: 3,
       address: 'г. Тольятти, Комсомольский район, мкрн Поволжский, ул. Новосадовая, д. 1, кв. 49',
       cadastralNumber: '63:09:0201045:5015',
+      egrnDate: '2025-11-25',
+      basisDoc: 'Договор купли-продажи от 24.03.2014г., Договор от 22.11.2025г.',
+      encumbrances: 'Не зарегистрировано',
+      inspectionAccess: 'no_access',
       area: 66.8,
       floor: 3,
       totalFloors: 4,
       wallMaterial: 'панель',
       finish: 'улучшенная',
       condition: 'хорошее',
+      bathroom: 'Раздельный',
       balcony: 'да',
       furniture: 'да',
+      domclickUrl: 'https://tolyatti.domclick.ru/building/komsomolskij--povolzhskij-m-n--novosadovaya-povolzhskij--1#block_stats',
+      buildYear: '1983',
+      series: '121',
+      playground: 'да',
+      sportsGround: 'нет',
+      entranceSecurity: 'на входе в подъезд – железная дверь, домофон',
+      parking: 'стихийная парковка возле дома',
+      stopDistance: 'в пределах 200 м по ул. Олимпийская.',
+      envDesc: 'Детская площадка, зеленые насаждения, стихийная парковка возле дома',
+      infra: { ...DEFAULT_INFRA },
       purpose: 'Определение рыночной стоимости для совершения сделки купли-продажи (ст. 30 ГК РФ)',
       client: 'Иванова Елена Ивановна',
+      clientPassport: 'Паспорт серия 0000 №591155 выдан 24.09.2025 ГУ МВД России по Самарской области',
+      clientAddress: 'г. Тольятти, Комсомольский район, мкрн Поволжский, ул. Новосадовая, д. 1, кв. 49',
       appraiser: 'Орлова Анна Александровна',
       company: 'ООО «РусОценка»',
       tradeAdjustment: -6.0,

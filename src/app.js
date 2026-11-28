@@ -2,10 +2,14 @@ import { createIcons, icons } from 'lucide';
 import {
   calculateValuation,
   calculateAnalogAudit,
+  calculateFloorAdjustment,
+  calculateFinishAdjustment,
+  calculateAreaAdjustment,
   sumSharesFraction,
   getRemainingShareFraction,
   evaluateCaseQuality,
   TEAM_MEMBERS,
+  DEFAULT_INFRA,
   money,
   moneyWithCents,
   moneyPerSqm,
@@ -77,6 +81,14 @@ let scrollObserver = null;
 let isSidebarHovered = false;
 let isSidebarPinned = typeof localStorage !== 'undefined' && localStorage.getItem('rosocenka_sidebar_pinned') === 'true';
 let sidebarLeaveTimer = null;
+
+function escAttr(val) {
+  return String(val ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
 
 // Glass Design System State
 let glassSettings = {
@@ -1993,22 +2005,38 @@ function renderTabObject(activeCase) {
               <p>Основные реквизиты отчёта и заказчика</p>
             </div>
           </div>
-          <div class="form-grid-2">
+          <div class="form-grid-3" style="margin-bottom: 14px;">
             <div class="form-field">
               <label>Номер отчёта / дела</label>
-              <input type="text" name="reportNumber" value="${o.reportNumber}" required>
+              <input type="text" name="reportNumber" value="${escAttr(o.reportNumber)}" required>
             </div>
             <div class="form-field">
               <label>Дата оценки</label>
-              <input type="date" name="valuationDate" value="${o.valuationDate}" required>
+              <input type="date" name="valuationDate" value="${escAttr(o.valuationDate)}" required>
             </div>
             <div class="form-field">
-              <label>Заказчик оценки</label>
-              <input type="text" name="client" value="${o.client}" required>
+              <label>Дата составления отчёта</label>
+              <input type="date" name="reportDate" value="${escAttr(o.reportDate || o.valuationDate)}" required>
+            </div>
+          </div>
+          <div class="form-grid-2" style="margin-bottom: 14px;">
+            <div class="form-field">
+              <label>Заказчик оценки (ФИО)</label>
+              <input type="text" name="client" value="${escAttr(o.client)}" required>
+            </div>
+            <div class="form-field">
+              <label>Паспортные данные заказчика</label>
+              <input type="text" name="clientPassport" value="${escAttr(o.clientPassport)}" placeholder="Серия, номер, кем и когда выдан">
+            </div>
+          </div>
+          <div class="form-grid-2">
+            <div class="form-field">
+              <label>Адрес регистрации заказчика</label>
+              <input type="text" name="clientAddress" value="${escAttr(o.clientAddress)}" placeholder="г. Тольятти, ул. ...">
             </div>
             <div class="form-field">
               <label>Цель оценки</label>
-              <input type="text" name="purpose" value="${o.purpose}">
+              <input type="text" name="purpose" value="${escAttr(o.purpose)}">
             </div>
           </div>
         </section>
@@ -2018,18 +2046,22 @@ function renderTabObject(activeCase) {
           <div class="obj-step-head">
             <span class="obj-step-num">2</span>
             <div>
-              <h4>Адрес и характеристики объекта</h4>
-              <p>Сведения из выписки ЕГРН и ГИС ЖКХ</p>
+              <h4>ЕГРН и характеристики объекта</h4>
+              <p>Сведения из выписки ЕГРН и правоустанавливающих документов</p>
             </div>
           </div>
           <div class="form-field" style="margin-bottom: 14px;">
             <label>Полный адрес объекта оценки</label>
-            <input type="text" name="address" value="${o.address}" required>
+            <input type="text" name="address" value="${escAttr(o.address)}" required>
           </div>
-          <div class="form-grid-2" style="margin-bottom: 14px;">
+          <div class="form-grid-3" style="margin-bottom: 14px;">
             <div class="form-field">
               <label>Кадастровый номер</label>
-              <input type="text" name="cadastralNumber" value="${o.cadastralNumber}" required>
+              <input type="text" name="cadastralNumber" value="${escAttr(o.cadastralNumber)}" required>
+            </div>
+            <div class="form-field">
+              <label>Дата выписки ЕГРН</label>
+              <input type="date" name="egrnDate" value="${escAttr(o.egrnDate)}">
             </div>
             <div class="form-field">
               <label>Материал стен здания</label>
@@ -2040,18 +2072,32 @@ function renderTabObject(activeCase) {
               </select>
             </div>
           </div>
-          <div class="form-grid-3">
+          <div class="form-grid-2" style="margin-bottom: 14px;">
+            <div class="form-field">
+              <label>Основание регистрации права</label>
+              <input type="text" name="basisDoc" value="${escAttr(o.basisDoc)}" placeholder="Договор купли-продажи от ...">
+            </div>
+            <div class="form-field">
+              <label>Ограничения / обременения</label>
+              <input type="text" name="encumbrances" value="${escAttr(o.encumbrances || 'Не зарегистрировано')}">
+            </div>
+          </div>
+          <div class="form-grid-4">
+            <div class="form-field">
+              <label>Комнат</label>
+              <input type="number" min="1" max="10" name="rooms" value="${escAttr(o.rooms || 1)}" required>
+            </div>
             <div class="form-field">
               <label>Общая площадь (м²)</label>
-              <input type="number" step="0.1" name="area" value="${o.area}" required>
+              <input type="number" step="0.1" name="area" value="${escAttr(o.area)}" required>
             </div>
             <div class="form-field">
               <label>Этаж</label>
-              <input type="number" name="floor" value="${o.floor}" required>
+              <input type="number" name="floor" value="${escAttr(o.floor)}" required>
             </div>
             <div class="form-field">
               <label>Этажность дома</label>
-              <input type="number" name="totalFloors" value="${o.totalFloors}" required>
+              <input type="number" name="totalFloors" value="${escAttr(o.totalFloors)}" required>
             </div>
           </div>
         </section>
@@ -2061,11 +2107,11 @@ function renderTabObject(activeCase) {
           <div class="obj-step-head">
             <span class="obj-step-num">3</span>
             <div>
-              <h4>Состояние и отделка</h4>
-              <p>По результатам натурного осмотра оценщика</p>
+              <h4>Осмотр и состояние</h4>
+              <p>Отделка, оснащение и формат проведения осмотра</p>
             </div>
           </div>
-          <div class="form-grid-2">
+          <div class="form-grid-3" style="margin-bottom: 14px;">
             <div class="form-field">
               <label for="field-finish">Тип внутренней отделки</label>
               <select name="finish" id="field-finish">
@@ -2081,8 +2127,122 @@ function renderTabObject(activeCase) {
                 <option value="требует ремонта" ${o.condition === 'требует ремонта' ? 'selected' : ''}>Требует ремонта</option>
               </select>
             </div>
+            <div class="form-field">
+              <label>Санузел</label>
+              <select name="bathroom">
+                <option value="Раздельный" ${(o.bathroom || 'Раздельный') === 'Раздельный' ? 'selected' : ''}>Раздельный</option>
+                <option value="Совмещённый" ${o.bathroom === 'Совмещённый' ? 'selected' : ''}>Совмещённый</option>
+                <option value="Несколько" ${o.bathroom === 'Несколько' ? 'selected' : ''}>Несколько</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-grid-3">
+            <div class="form-field">
+              <label>Балкон / лоджия</label>
+              <select name="balcony">
+                <option value="да" ${(o.balcony || 'да') !== 'нет' ? 'selected' : ''}>Есть</option>
+                <option value="нет" ${o.balcony === 'нет' ? 'selected' : ''}>Нет</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label>Мебель и техника</label>
+              <select name="furniture">
+                <option value="да" ${(o.furniture || 'да') !== 'нет' ? 'selected' : ''}>Есть</option>
+                <option value="нет" ${o.furniture === 'нет' ? 'selected' : ''}>Нет</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label>Доступ при осмотре</label>
+              <select name="inspectionAccess">
+                <option value="provided" ${(o.inspectionAccess || 'provided') === 'provided' ? 'selected' : ''}>Натурный осмотр с фотофиксацией</option>
+                <option value="no_access" ${o.inspectionAccess === 'no_access' ? 'selected' : ''}>Доступ не предоставлен (по документам и фото)</option>
+              </select>
+            </div>
           </div>
         </section>
+
+        <!-- Дополнительно: дом и локальное окружение -->
+        <details class="obj-step-card obj-accordion">
+          <summary class="obj-accordion-summary">
+            <span class="obj-step-num">+</span>
+            <div style="flex: 1;">
+              <h4>Дополнительно: дом и локальное окружение</h4>
+              <p>ДомКлик, характеристики здания и инфраструктура в радиусе 1 км</p>
+            </div>
+            <span class="obj-accordion-chevron">${icon('chevron-down')}</span>
+          </summary>
+          <div class="obj-accordion-body">
+            <div class="form-grid-3" style="margin-bottom: 14px;">
+              <div class="form-field">
+                <label>Ссылка на дом (ДомКлик)</label>
+                <input type="url" name="domclickUrl" value="${escAttr(o.domclickUrl)}" placeholder="https://tolyatti.domclick.ru/building/...">
+              </div>
+              <div class="form-field">
+                <label>Год постройки</label>
+                <input type="text" name="buildYear" value="${escAttr(o.buildYear)}" placeholder="1983">
+              </div>
+              <div class="form-field">
+                <label>Серия / тип дома</label>
+                <input type="text" name="series" value="${escAttr(o.series)}" placeholder="121">
+              </div>
+            </div>
+            <div class="form-grid-2" style="margin-bottom: 14px;">
+              <div class="form-field">
+                <label>Детская площадка</label>
+                <select name="playground">
+                  <option value="да" ${(o.playground || 'да') === 'да' ? 'selected' : ''}>да</option>
+                  <option value="нет" ${o.playground === 'нет' ? 'selected' : ''}>нет</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label>Спортивная площадка</label>
+                <select name="sportsGround">
+                  <option value="да" ${o.sportsGround === 'да' ? 'selected' : ''}>да</option>
+                  <option value="нет" ${(o.sportsGround || 'нет') === 'нет' ? 'selected' : ''}>нет</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-grid-3" style="margin-bottom: 14px;">
+              <div class="form-field">
+                <label>Защищённость подъезда (домофон)</label>
+                <input type="text" name="entranceSecurity" value="${escAttr(o.entranceSecurity || 'на входе в подъезд – железная дверь, домофон')}">
+              </div>
+              <div class="form-field">
+                <label>Парковка</label>
+                <input type="text" name="parking" value="${escAttr(o.parking || 'стихийная парковка возле дома')}">
+              </div>
+              <div class="form-field">
+                <label>Расстояние до остановки</label>
+                <input type="text" name="stopDistance" value="${escAttr(o.stopDistance || 'в шаговой доступности.')}">
+              </div>
+            </div>
+            <div class="form-field" style="margin-bottom: 14px;">
+              <label>Благоустройство придомовой территории</label>
+              <input type="text" name="envDesc" value="${escAttr(o.envDesc || 'Детская площадка, зеленые насаждения, стихийная парковка возле дома')}">
+            </div>
+            <div class="form-field">
+              <label>Инфраструктура в пределах 1 км</label>
+              <div class="infra-checks-grid">
+                ${[
+                  ['school', 'Школа'],
+                  ['kindergarten', 'Детский сад'],
+                  ['bank', 'Отделение банка'],
+                  ['services', 'Служба быта'],
+                  ['retail', 'Торговые предприятия'],
+                  ['pharmacy', 'Аптека'],
+                ].map(([key, label]) => {
+                  const checked = (o.infra && typeof o.infra[key] === 'boolean') ? o.infra[key] : DEFAULT_INFRA[key];
+                  return `
+                    <label class="infra-check-item">
+                      <input type="checkbox" name="infra_${key}" ${checked ? 'checked' : ''}>
+                      <span>${label}</span>
+                    </label>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          </div>
+        </details>
       </form>
 
       <!-- Шаг 4: Долевая собственность -->
@@ -2309,7 +2469,7 @@ function renderTabAnalogs(activeCase, res) {
               <th>Число поправок (Ki)</th>
               <th>Вес в итоге</th>
               <th style="text-align: center; width: 130px;">Ход расчёта</th>
-              <th style="width: 40px;"></th>
+              <th style="width: 82px;"></th>
             </tr>
           </thead>
           <tbody>
@@ -2359,13 +2519,13 @@ function renderTabAnalogs(activeCase, res) {
                     <span class="adj-chip neg">${percent(o.tradeAdjustment)}</span>
                   </td>
                   <td>
-                    <span class="adj-chip ${a.finishAdj > 0 ? 'pos' : (a.finishAdj < 0 ? 'neg' : 'neutral')}">${percent(a.finishAdj)}</span>
+                    <span class="adj-chip ${audit.finishAdj > 0 ? 'pos' : (audit.finishAdj < 0 ? 'neg' : 'neutral')}">${percent(audit.finishAdj)}</span>
                   </td>
                   <td>
-                    <span class="adj-chip ${a.floorAdj > 0 ? 'pos' : (a.floorAdj < 0 ? 'neg' : 'neutral')}">${percent(a.floorAdj)}</span>
+                    <span class="adj-chip ${audit.floorAdj > 0 ? 'pos' : (audit.floorAdj < 0 ? 'neg' : 'neutral')}">${percent(audit.floorAdj)}</span>
                   </td>
                   <td>
-                    <span class="adj-chip ${a.areaAdj > 0 ? 'pos' : (a.areaAdj < 0 ? 'neg' : 'neutral')}">${percent(a.areaAdj)}</span>
+                    <span class="adj-chip ${audit.areaAdj > 0 ? 'pos' : (audit.areaAdj < 0 ? 'neg' : 'neutral')}">${percent(audit.areaAdj)}</span>
                   </td>
                   <td class="price-cell" style="color: var(--primary);" data-cell="adj-price">
                     ${isSelected && row ? moneyPerSqm(row.finalAdjustedPrice) : '—'}
@@ -2388,7 +2548,10 @@ function renderTabAnalogs(activeCase, res) {
                     </button>
                   </td>
                   <td>
-                    <button class="btn btn-danger btn-sm" data-action="delete-analog" data-id="${a.id}" title="Удалить аналог">${icon('x')}</button>
+                    <div class="analog-row-actions">
+                      <button type="button" class="btn btn-secondary btn-sm" data-action="edit-analog" data-id="${a.id}" title="Редактировать аналог и поправки">${icon('pencil')}</button>
+                      <button type="button" class="btn btn-danger btn-sm" data-action="delete-analog" data-id="${a.id}" title="Удалить аналог">${icon('x')}</button>
+                    </div>
                   </td>
                 </tr>
                 ${isExpanded ? `
@@ -3303,6 +3466,11 @@ function bindEvents() {
     });
   });
 
+  // Edit analog button
+  document.querySelectorAll('[data-action="edit-analog"]').forEach(btn => {
+    btn.addEventListener('click', () => openEditAnalogModal(btn.dataset.id));
+  });
+
   // Delete analog button
   document.querySelectorAll('[data-action="delete-analog"]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -3328,17 +3496,46 @@ function bindEvents() {
     const c = getActiveCase();
     if (c) {
       c.objectData.reportNumber = fd.get('reportNumber');
-      c.objectData.cadastralNumber = fd.get('cadastralNumber');
       c.objectData.valuationDate = fd.get('valuationDate');
-      c.objectData.address = fd.get('address');
-      c.objectData.area = parseFloat(fd.get('area'));
-      c.objectData.floor = parseInt(fd.get('floor'));
-      c.objectData.totalFloors = parseInt(fd.get('totalFloors'));
-      c.objectData.finish = fd.get('finish');
-      c.objectData.wallMaterial = fd.get('wallMaterial');
-      c.objectData.condition = fd.get('condition');
+      c.objectData.reportDate = fd.get('reportDate') || c.objectData.valuationDate;
       c.objectData.client = fd.get('client');
+      c.objectData.clientPassport = String(fd.get('clientPassport') || '').trim();
+      c.objectData.clientAddress = String(fd.get('clientAddress') || '').trim();
       c.objectData.purpose = fd.get('purpose');
+
+      c.objectData.address = fd.get('address');
+      c.objectData.cadastralNumber = fd.get('cadastralNumber');
+      c.objectData.egrnDate = String(fd.get('egrnDate') || '').trim();
+      c.objectData.wallMaterial = fd.get('wallMaterial');
+      c.objectData.basisDoc = String(fd.get('basisDoc') || '').trim();
+      c.objectData.encumbrances = String(fd.get('encumbrances') || 'Не зарегистрировано').trim();
+      c.objectData.rooms = parseInt(fd.get('rooms'), 10) || 1;
+      c.objectData.area = parseFloat(fd.get('area'));
+      c.objectData.floor = parseInt(fd.get('floor'), 10);
+      c.objectData.totalFloors = parseInt(fd.get('totalFloors'), 10);
+
+      c.objectData.finish = fd.get('finish');
+      c.objectData.condition = fd.get('condition');
+      c.objectData.bathroom = fd.get('bathroom') || 'Раздельный';
+      c.objectData.balcony = fd.get('balcony') || 'да';
+      c.objectData.furniture = fd.get('furniture') || 'да';
+      c.objectData.inspectionAccess = fd.get('inspectionAccess') || 'provided';
+
+      c.objectData.domclickUrl = String(fd.get('domclickUrl') || '').trim();
+      c.objectData.buildYear = String(fd.get('buildYear') || '').trim();
+      c.objectData.series = String(fd.get('series') || '').trim();
+      c.objectData.playground = fd.get('playground') || 'да';
+      c.objectData.sportsGround = fd.get('sportsGround') || 'нет';
+      c.objectData.entranceSecurity = String(fd.get('entranceSecurity') || '').trim();
+      c.objectData.parking = String(fd.get('parking') || '').trim();
+      c.objectData.stopDistance = String(fd.get('stopDistance') || '').trim();
+      c.objectData.envDesc = String(fd.get('envDesc') || '').trim();
+
+      c.objectData.infra = {};
+      Object.keys(DEFAULT_INFRA).forEach(k => {
+        c.objectData.infra[k] = Boolean(form.querySelector(`[name="infra_${k}"]`)?.checked);
+      });
+
       c.number = c.objectData.reportNumber;
       cases = updateCase(cases, c);
       logActivityEvent({
@@ -3718,26 +3915,33 @@ function openAddAnalogModal() {
     else if (rawUrl.includes('volga')) srcName = 'Волга-Инфо';
     else if (rawUrl.includes('domclick')) srcName = 'ДомКлик';
 
+    const price = parseFloat(fd.get('price'));
+    const area = parseFloat(fd.get('area'));
+    const floor = parseInt(fd.get('floor'), 10);
+    const totalFloors = parseInt(fd.get('totalFloors'), 10);
+    const finish = fd.get('finish');
+    const o = c.objectData;
+
     const newAnalog = {
       id: 'a_' + Date.now(),
       number: c.analogs.length + 1,
       selected: true,
       address: fd.get('address'),
-      price: parseFloat(fd.get('price')),
-      area: parseFloat(fd.get('area')),
-      floor: parseInt(fd.get('floor')),
-      totalFloors: parseInt(fd.get('totalFloors')),
+      price,
+      area,
+      floor,
+      totalFloors,
       wallMaterial: 'панель',
-      finish: fd.get('finish'),
+      finish,
       condition: 'хорошее',
       balcony: 'да',
       furniture: 'да',
       source: srcName,
       url: rawUrl,
       published: 'текущий месяц',
-      floorAdj: 0.0,
-      finishAdj: 0.0,
-      areaAdj: 0.0,
+      floorAdj: calculateFloorAdjustment(o.floor, o.totalFloors, floor, totalFloors),
+      finishAdj: calculateFinishAdjustment(o.finish, finish),
+      areaAdj: calculateAreaAdjustment(o.area, area),
     };
     c.analogs.push(newAnalog);
     cases = updateCase(cases, c);
@@ -3752,6 +3956,195 @@ function openAddAnalogModal() {
     dialog.close();
     render();
     toast('Аналог добавлен в сравнительную таблицу');
+  };
+}
+
+/**
+ * Модальное окно редактирования аналога и ручных поправок
+ */
+function openEditAnalogModal(analogId) {
+  const dialog = document.getElementById('modal-dialog');
+  const c = getActiveCase();
+  if (!c) return;
+  const analog = (c.analogs || []).find(a => a.id === analogId);
+  if (!analog) return;
+  const o = c.objectData;
+
+  const autoFinishAdj = calculateFinishAdjustment(o.finish, analog.finish);
+  const autoFloorAdj = calculateFloorAdjustment(o.floor, o.totalFloors, analog.floor, analog.totalFloors);
+  const autoAreaAdj = calculateAreaAdjustment(o.area, analog.area);
+
+  const curFinishAdj = Number.isFinite(analog.finishAdj) ? analog.finishAdj : autoFinishAdj;
+  const curFloorAdj = Number.isFinite(analog.floorAdj) ? analog.floorAdj : autoFloorAdj;
+  const curAreaAdj = Number.isFinite(analog.areaAdj) ? analog.areaAdj : autoAreaAdj;
+
+  dialog.innerHTML = `
+    <div class="modal-header">
+      <h3>Редактировать аналог</h3>
+      <button type="button" class="btn btn-secondary btn-sm" id="modal-close" aria-label="Закрыть">${CLOSE_ICON_SVG}</button>
+    </div>
+    <form id="form-edit-analog" class="modal-form">
+      <div class="form-group">
+        <label>Адрес предложения (аналога)</label>
+        <input type="text" name="address" value="${escAttr(analog.address)}" required>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Цена предложения (руб.)</label>
+          <input type="number" name="price" value="${escAttr(analog.price)}" required>
+        </div>
+        <div class="form-group">
+          <label>Площадь (м²)</label>
+          <input type="number" step="0.1" name="area" value="${escAttr(analog.area)}" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Этаж / Этажность</label>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; min-width: 0;">
+            <input type="number" name="floor" value="${escAttr(analog.floor)}" required>
+            <input type="number" name="totalFloors" value="${escAttr(analog.totalFloors)}" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Отделка</label>
+          <select name="finish">
+            <option value="улучшенная" ${analog.finish === 'улучшенная' ? 'selected' : ''}>Улучшенная</option>
+            <option value="простая" ${analog.finish === 'простая' ? 'selected' : ''}>Простая</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Материал стен</label>
+          <select name="wallMaterial">
+            <option value="панель" ${(analog.wallMaterial || 'панель') === 'панель' ? 'selected' : ''}>Панель</option>
+            <option value="кирпич" ${analog.wallMaterial === 'кирпич' ? 'selected' : ''}>Кирпич</option>
+            <option value="монолит" ${analog.wallMaterial === 'монолит' ? 'selected' : ''}>Монолит</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Состояние</label>
+          <select name="condition">
+            <option value="хорошее" ${(analog.condition || 'хорошее') === 'хорошее' ? 'selected' : ''}>Хорошее</option>
+            <option value="отличное" ${analog.condition === 'отличное' ? 'selected' : ''}>Отличное</option>
+            <option value="требует ремонта" ${analog.condition === 'требует ремонта' ? 'selected' : ''}>Требует ремонта</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Балкон / лоджия</label>
+          <select name="balcony">
+            <option value="да" ${(analog.balcony || 'да') !== 'нет' ? 'selected' : ''}>Есть</option>
+            <option value="нет" ${analog.balcony === 'нет' ? 'selected' : ''}>Нет</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Мебель</label>
+          <select name="furniture">
+            <option value="да" ${(analog.furniture || 'да') !== 'нет' ? 'selected' : ''}>Есть</option>
+            <option value="нет" ${analog.furniture === 'нет' ? 'selected' : ''}>Нет</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Ссылка на объявление</label>
+          <input type="url" name="url" value="${escAttr(analog.url)}" placeholder="https://...">
+        </div>
+        <div class="form-group">
+          <label>Дата публикации</label>
+          <input type="text" name="published" value="${escAttr(analog.published || 'текущий месяц')}" placeholder="август 2026г.">
+        </div>
+      </div>
+      <div class="form-group highlighted">
+        <div class="adj-reset-row">
+          <label style="margin: 0;">Ручные поправки (%)</label>
+          <button type="button" class="btn-link-reset" id="btn-reset-leifer-adj">Сбросить на авторасчёт по Лейферу</button>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+          <div>
+            <small style="color: var(--text-muted); display: block; margin-bottom: 4px;">Отделка (%)</small>
+            <input type="number" step="0.1" name="finishAdj" value="${escAttr(curFinishAdj)}" required>
+          </div>
+          <div>
+            <small style="color: var(--text-muted); display: block; margin-bottom: 4px;">Этаж (%)</small>
+            <input type="number" step="0.1" name="floorAdj" value="${escAttr(curFloorAdj)}" required>
+          </div>
+          <div>
+            <small style="color: var(--text-muted); display: block; margin-bottom: 4px;">Масштаб (%)</small>
+            <input type="number" step="0.1" name="areaAdj" value="${escAttr(curAreaAdj)}" required>
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" id="modal-cancel">Отмена</button>
+        <button type="submit" class="btn btn-primary">Сохранить изменения</button>
+      </div>
+    </form>
+  `;
+  dialog.showModal();
+
+  dialog.querySelector('#modal-close').onclick = () => dialog.close();
+  dialog.querySelector('#modal-cancel').onclick = () => dialog.close();
+
+  dialog.querySelector('#btn-reset-leifer-adj').onclick = () => {
+    const form = dialog.querySelector('#form-edit-analog');
+    const areaVal = parseFloat(form.querySelector('[name="area"]').value) || analog.area;
+    const floorVal = parseInt(form.querySelector('[name="floor"]').value, 10) || analog.floor;
+    const totalFloorsVal = parseInt(form.querySelector('[name="totalFloors"]').value, 10) || analog.totalFloors;
+    const finishVal = form.querySelector('[name="finish"]').value || analog.finish;
+
+    form.querySelector('[name="finishAdj"]').value = calculateFinishAdjustment(o.finish, finishVal);
+    form.querySelector('[name="floorAdj"]').value = calculateFloorAdjustment(o.floor, o.totalFloors, floorVal, totalFloorsVal);
+    form.querySelector('[name="areaAdj"]').value = calculateAreaAdjustment(o.area, areaVal);
+    toast('Поправки сброшены на расчёт по Лейферу');
+  };
+
+  dialog.querySelector('#form-edit-analog').onsubmit = e => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const rawUrl = String(fd.get('url') || '').trim();
+    let srcName = analog.source || 'Открытый рынок';
+    if (rawUrl.includes('avito')) srcName = 'Авито';
+    else if (rawUrl.includes('cian')) srcName = 'Циан';
+    else if (rawUrl.includes('volga')) srcName = 'Волга-Инфо';
+    else if (rawUrl.includes('domclick')) srcName = 'ДомКлик';
+
+    analog.address = String(fd.get('address') || '').trim();
+    analog.price = parseFloat(fd.get('price'));
+    analog.area = parseFloat(fd.get('area'));
+    analog.floor = parseInt(fd.get('floor'), 10);
+    analog.totalFloors = parseInt(fd.get('totalFloors'), 10);
+    analog.finish = fd.get('finish');
+    analog.wallMaterial = fd.get('wallMaterial');
+    analog.condition = fd.get('condition');
+    analog.balcony = fd.get('balcony');
+    analog.furniture = fd.get('furniture');
+    analog.url = rawUrl;
+    analog.source = rawUrl ? srcName : analog.source;
+    analog.published = String(fd.get('published') || 'текущий месяц').trim();
+
+    const fAdj = parseFloat(fd.get('finishAdj'));
+    const flAdj = parseFloat(fd.get('floorAdj'));
+    const aAdj = parseFloat(fd.get('areaAdj'));
+    analog.finishAdj = Number.isFinite(fAdj) ? fAdj : calculateFinishAdjustment(o.finish, analog.finish);
+    analog.floorAdj = Number.isFinite(flAdj) ? flAdj : calculateFloorAdjustment(o.floor, o.totalFloors, analog.floor, analog.totalFloors);
+    analog.areaAdj = Number.isFinite(aAdj) ? aAdj : calculateAreaAdjustment(o.area, analog.area);
+
+    cases = updateCase(cases, c);
+    logActivityEvent({
+      employeeId: currentProfile.employeeId,
+      caseId: c.id,
+      caseNumber: c.number,
+      actionType: 'edit_analog',
+      label: `Изменён аналог №${analog.number || ''}`,
+      details: `${analog.address}, ${money(analog.price)} (${analog.finishAdj}% / ${analog.floorAdj}% / ${analog.areaAdj}%)`,
+    });
+    dialog.close();
+    render();
+    toast('Аналог и поправки обновлены');
   };
 }
 

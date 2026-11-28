@@ -334,3 +334,64 @@ test('exportApartmentReport: индивидуальная собственнос
   }
   assert.ok(!rels.includes('4504033738') && !rels.includes('realty317893'), 'В rels нет старых ссылок Авито/Волга-Инфо');
 });
+
+test('exportApartmentReport: переносит новые жёлтые поля (осмотр, санузел, ЕГРН, дом, окружение) в таблицы 5, 11–14', async () => {
+  const customObj = {
+    ...defaultObject(),
+    reportNumber: '26/1201-5',
+    inspectionAccess: 'provided',
+    bathroom: 'Совмещённый',
+    basisDoc: 'Договор долевого участия №45-Д от 12.04.2021г.',
+    encumbrances: 'Ипотека в силу закона',
+    domclickUrl: 'https://tolyatti.domclick.ru/building/test-building-99',
+    buildYear: '2018',
+    series: 'Монолитно-каркасный',
+    playground: 'нет',
+    sportsGround: 'да',
+    entranceSecurity: 'консьерж, видеонаблюдение',
+    parking: 'подземный паркинг',
+    stopDistance: 'в 150 м от дома на ул. Фрунзе.',
+    envDesc: 'Закрытый двор без машин, озеленение',
+    infra: {
+      school: true,
+      kindergarten: false,
+      bank: false,
+      services: true,
+      retail: true,
+      pharmacy: false,
+    },
+  };
+
+  const buffer = await exportApartmentReport(customObj, defaultAnalogs());
+  const zip = await JSZip.loadAsync(buffer);
+  const xml = await zip.file('word/document.xml').async('string');
+  const tables = xml.match(/<w:tbl\b[\s\S]*?<\/w:tbl>/g) || [];
+  const strip = s => s.replace(/<[^>]+>/g, ' ').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+
+  const t5 = strip(tables[5]);
+  assert.ok(t5.includes('проведён натурный осмотр объекта оценки с фотофиксацией'), 'Таблица 5 r11c2 отражает натурный осмотр');
+  assert.ok(!strip(xml).includes('Оценщику не был предоставлен доступ в оцениваемое помещение'), 'Отсутствует фраза про отсутствие доступа при provided');
+
+  const t11 = strip(tables[11]);
+  assert.ok(t11.includes('в 150 м от дома на ул. Фрунзе.'), 'Таблица 11 r3c1 содержит stopDistance');
+  assert.ok(t11.includes('Детский сад Нет'), 'Таблица 11 отражает отключенный детский сад');
+  assert.ok(t11.includes('Аптека Нет'), 'Таблица 11 отражает отключенную аптеку');
+  assert.ok(t11.includes('Закрытый двор без машин, озеленение'), 'Таблица 11 r15c1 содержит envDesc');
+
+  const t12 = strip(tables[12]);
+  assert.ok(t12.includes('https://tolyatti.domclick.ru/building/test-building-99'), 'Таблица 12 содержит domclickUrl');
+  assert.ok(t12.includes('2018'), 'Таблица 12 содержит buildYear');
+  assert.ok(t12.includes('Монолитно-каркасный'), 'Таблица 12 содержит series');
+  assert.ok(t12.includes('детская площадка нет'), 'Таблица 12 содержит playground');
+  assert.ok(t12.includes('спортивная площадка да'), 'Таблица 12 содержит sportsGround');
+  assert.ok(t12.includes('консьерж, видеонаблюдение'), 'Таблица 12 содержит entranceSecurity');
+  assert.ok(t12.includes('подземный паркинг'), 'Таблица 12 содержит parking');
+
+  const t13 = strip(tables[13]);
+  assert.ok(t13.includes('Договор долевого участия №45-Д от 12.04.2021г.'), 'Таблица 13 содержит basisDoc');
+  assert.ok(t13.includes('Ипотека в силу закона'), 'Таблица 13 содержит encumbrances');
+
+  const t14 = strip(tables[14]);
+  assert.ok(t14.includes('Совмещённый'), 'Таблица 14 r8c1 содержит bathroom');
+  assert.ok(t14.includes('Акт натурного осмотра и фотофиксация'), 'Таблица 14 отражает источник осмотра');
+});
