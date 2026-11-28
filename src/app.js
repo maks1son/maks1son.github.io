@@ -2089,7 +2089,7 @@ function renderTabObject(activeCase) {
             </div>
             <div class="form-field">
               <label>Общая площадь (м²)</label>
-              <input type="number" step="0.1" name="area" value="${escAttr(o.area)}" required>
+              <input type="number" step="0.01" name="area" value="${escAttr(o.area)}" required>
             </div>
             <div class="form-field">
               <label>Этаж</label>
@@ -3764,7 +3764,7 @@ function openCreateCaseModal() {
         </div>
         <div class="form-group">
           <label>Общая площадь (м²)</label>
-          <input type="number" step="0.1" name="area" placeholder="54.0" value="54.0" required>
+          <input type="number" step="0.01" name="area" placeholder="54.0" value="54.0" required>
         </div>
       </div>
 
@@ -3871,7 +3871,7 @@ function openAddAnalogModal() {
         </div>
         <div class="form-group">
           <label>Площадь (м²)</label>
-          <input type="number" step="0.1" name="area" placeholder="68.0" required>
+          <input type="number" step="0.01" name="area" placeholder="68.0" required>
         </div>
       </div>
       <div class="form-row">
@@ -3995,7 +3995,7 @@ function openEditAnalogModal(analogId) {
         </div>
         <div class="form-group">
           <label>Площадь (м²)</label>
-          <input type="number" step="0.1" name="area" value="${escAttr(analog.area)}" required>
+          <input type="number" step="0.01" name="area" value="${escAttr(analog.area)}" required>
         </div>
       </div>
       <div class="form-row">
@@ -4066,15 +4066,15 @@ function openEditAnalogModal(analogId) {
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
           <div>
             <small style="color: var(--text-muted); display: block; margin-bottom: 4px;">Отделка (%)</small>
-            <input type="number" step="0.1" name="finishAdj" value="${escAttr(curFinishAdj)}" required>
+            <input type="number" step="0.01" name="finishAdj" value="${escAttr(curFinishAdj)}" required>
           </div>
           <div>
             <small style="color: var(--text-muted); display: block; margin-bottom: 4px;">Этаж (%)</small>
-            <input type="number" step="0.1" name="floorAdj" value="${escAttr(curFloorAdj)}" required>
+            <input type="number" step="0.01" name="floorAdj" value="${escAttr(curFloorAdj)}" required>
           </div>
           <div>
             <small style="color: var(--text-muted); display: block; margin-bottom: 4px;">Масштаб (%)</small>
-            <input type="number" step="0.1" name="areaAdj" value="${escAttr(curAreaAdj)}" required>
+            <input type="number" step="0.01" name="areaAdj" value="${escAttr(curAreaAdj)}" required>
           </div>
         </div>
       </div>

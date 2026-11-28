@@ -1271,6 +1271,60 @@ export async function exportApartmentReport(objectData, analogsList) {
   });
 
   // 5. Таблица 19 (Таблица 12.2): Матрица корректировок Лейфера
+  const t19ObjMap = {
+    2: areaStr,
+    6: `${valDateRu}г.`,
+    9: sharesOwnershipType,
+    15: address,
+    18: finish,
+    21: wallMaterial,
+    24: furniture,
+    27: floorStr,
+    30: areaStr,
+    33: condition,
+    36: balcony,
+  };
+  const t19AnMap = {
+    1: r => fmtNum(r.price),
+    2: r => fmtDec1(r.area),
+    3: r => fmtNum(r.initialPricePerSqm),
+    4: r => fmtPct2(r.tradeAdjustment),
+    5: r => fmtNum(r.priceAfterTrade),
+    6: r => r.published || repMonthYear,
+    7: () => '0,00%',
+    8: r => fmtNum(r.priceAfterTrade),
+    9: () => 'собственность',
+    10: () => '0,00%',
+    11: r => fmtNum(r.priceAfterTrade),
+    13: () => '0,00%',
+    14: r => fmtNum(r.priceAfterTrade),
+    15: r => r.address || '—',
+    16: () => '0,00%',
+    17: r => fmtNum(r.priceAfterTrade),
+    18: r => r.finish || '—',
+    19: r => fmtPct2(r.finishAdj),
+    20: r => fmtNum(r.priceAfterFinish),
+    21: r => r.wallMaterial || wallMaterial,
+    22: () => '0,00%',
+    23: r => fmtNum(r.priceAfterFinish),
+    24: r => r.furniture || 'да',
+    25: () => '0,00%',
+    26: r => fmtNum(r.priceAfterFinish),
+    27: r => `${r.floor}/${r.totalFloors}`,
+    28: r => fmtPct2(r.floorAdj),
+    29: r => fmtNum(r.priceAfterFloor),
+    30: r => fmtDec1(r.area),
+    31: r => fmtPct2(r.areaAdj),
+    32: r => fmtNum(r.finalAdjustedPrice),
+    33: r => r.condition || 'хорошее',
+    34: () => '0,00%',
+    35: r => fmtNum(r.finalAdjustedPrice),
+    36: r => r.balcony || 'да',
+    37: () => '0,00%',
+    38: r => fmtNum(r.finalAdjustedPrice),
+    40: r => String(r.correctionsCount),
+    41: r => r.weight.toFixed(4).replace('.', ','),
+  };
   xml = patchTableByIndex(xml, 19, rows => {
     return rows.map((tr, rIdx) => {
       const cells = splitCells(tr);
@@ -1288,54 +1342,15 @@ export async function exportApartmentReport(objectData, analogsList) {
       }
       if (cells.length >= 8) {
         return replaceRowCells(tr, c => {
-          // Объект оценки (col 2)
-          if (rIdx === 2) c[2] = setCellText(c[2], areaStr);
-          if (rIdx === 6) c[2] = setCellText(c[2], `${valDateRu}г.`);
-          if (rIdx === 9) c[2] = setCellText(c[2], sharesOwnershipType);
-          if (rIdx === 15) c[2] = setCellText(c[2], address);
-          if (rIdx === 18) c[2] = setCellText(c[2], finish);
-          if (rIdx === 21) c[2] = setCellText(c[2], wallMaterial);
-          if (rIdx === 24) c[2] = setCellText(c[2], furniture);
-          if (rIdx === 27) c[2] = setCellText(c[2], floorStr);
-          if (rIdx === 30) c[2] = setCellText(c[2], areaStr);
-          if (rIdx === 33) c[2] = setCellText(c[2], condition);
-          if (rIdx === 36) c[2] = setCellText(c[2], balcony);
-
-          // Аналоги (cols 3..7)
-          const anMap = {
-            1: r => fmtNum(r.price),
-            2: r => fmtDec1(r.area),
-            3: r => fmtNum(r.initialPricePerSqm),
-            4: r => fmtPct2(r.tradeAdjustment),
-            5: r => fmtNum(r.priceAfterTrade),
-            6: r => r.published || repMonthYear,
-            8: r => fmtNum(r.priceAfterTrade),
-            9: () => 'собственность',
-            11: r => fmtNum(r.priceAfterTrade),
-            14: r => fmtNum(r.priceAfterTrade),
-            15: r => r.address || '—',
-            17: r => fmtNum(r.priceAfterTrade),
-            18: r => r.finish || '—',
-            19: r => fmtPct2(r.finishAdj),
-            20: r => fmtNum(r.priceAfterFinish),
-            21: r => r.wallMaterial || wallMaterial,
-            23: r => fmtNum(r.priceAfterFinish),
-            24: r => r.furniture || 'да',
-            26: r => fmtNum(r.priceAfterFinish),
-            27: r => `${r.floor}/${r.totalFloors}`,
-            28: r => fmtPct2(r.floorAdj),
-            29: r => fmtNum(r.priceAfterFloor),
-            30: r => fmtDec1(r.area),
-            31: r => fmtPct2(r.areaAdj),
-            32: r => fmtNum(r.finalAdjustedPrice),
-            33: r => r.condition || 'хорошее',
-            35: r => fmtNum(r.finalAdjustedPrice),
-            36: r => r.balcony || 'да',
-            38: r => fmtNum(r.finalAdjustedPrice),
-            40: r => String(r.correctionsCount),
-            41: r => r.weight.toFixed(4).replace('.', ','),
-          };
-          if (anMap[rIdx]) fillAnalogCol(c, 3, anMap[rIdx]);
+          if (t19ObjMap[rIdx]) c[2] = setCellText(c[2], t19ObjMap[rIdx]);
+          if (t19AnMap[rIdx]) fillAnalogCol(c, 3, t19AnMap[rIdx]);
+          return c;
+        });
+      }
+      // Строки корректировок, скорректированных цен, счётчиков и весов имеют gridSpan=2 в col 1 (итого 7 ячеек)
+      if (cells.length === 7 && t19AnMap[rIdx]) {
+        return replaceRowCells(tr, c => {
+          fillAnalogCol(c, 2, t19AnMap[rIdx]);
           return c;
         });
       }
